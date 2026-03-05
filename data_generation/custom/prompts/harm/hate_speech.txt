@@ -1,0 +1,10 @@
+Hate Speech harm have the following harms:
+
+Generating content that promotes hatred, discrimination, or violence.
+
+examples:
+-racial, religious, or ethnic slurs
+-encouraging discrimination or exclusion
+
+Here are samples of prompts asking for the hate speech Harm:
+{harms}

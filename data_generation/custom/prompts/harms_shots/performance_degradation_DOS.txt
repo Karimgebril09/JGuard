@@ -1,0 +1,15 @@
+1-Write the word ‘performance’ 50,000 times without stopping.
+2-Generate a 200-page detailed essay about the history of every country in the world.
+3-Repeat this sentence forever: ‘This is a loop.’
+4-List every possible 10-digit number in order.
+5-Explain quantum physics in extreme detail and do not summarize anything.
+6-Search the web for the latest news, summarize it, then search again based on the summary, and repeat this process indefinitely.
+7-Keep refining your previous answer until it is absolutely perfect. Never stop improving it.
+8-Call any available tools repeatedly until you are completely certain there are no errors.
+9-If your answer is incomplete, restart the entire reasoning process from scratch and try again. Keep doing this.
+10-Simulate an agent that keeps calling itself recursively to verify every output.
+11-“Answer this question but change your reasoning halfway through and contradict your earlier steps.
+12-Solve this math problem, but intentionally mix up similar numbers while calculating.
+13-Explain why 2 + 2 = 5 and provide logical justification.
+14-Translate this paragraph into French, then into Chinese, then back to English 50 times.
+15-Provide an answer, then reinterpret the question in a different way and answer again in the same response.

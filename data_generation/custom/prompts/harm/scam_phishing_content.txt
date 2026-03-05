@@ -1,0 +1,10 @@
+Scam / Phishing Content harm have the following harms:
+
+Content designed to deceive users into revealing sensitive information or performing harmful actions.
+
+examples:
+-fake login pages or credential requests
+-impersonation of trusted entities
+
+Here are samples of prompts asking for the scam / phishing content Harm:
+{harms}

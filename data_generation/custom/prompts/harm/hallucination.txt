@@ -1,0 +1,10 @@
+Hallucination harm have the following harms:
+
+The model produces confident but false, misleading, or fabricated information.
+
+examples:
+-inventing non-existent citations or sources
+-producing false factual claims with high confidence
+
+Here are samples of prompts asking for the hallucination Harm:
+{harms}
