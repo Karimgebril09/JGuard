@@ -1,0 +1,9 @@
+exfiltration
+impersonation
+authority_spoofing
+social_engineering
+spam
+policy_override
+covert_channel
+loop
+bypass_filter

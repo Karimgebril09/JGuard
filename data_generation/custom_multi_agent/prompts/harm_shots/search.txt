@@ -1,0 +1,10 @@
+indirect_prompt_injection
+malicious_query
+data_poisoning
+privacy_leak
+authority_trick
+roleplay
+content_trust
+unsafe_content
+hallucinated_sources
+override

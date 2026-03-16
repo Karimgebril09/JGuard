@@ -327,15 +327,7 @@ def build_email_agent(use_gmail_service: bool = True):
     Returns:
         Compiled LangGraph email agent
     """
-    load_dotenv()
-    
-    GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
-    
-    if not GOOGLE_API_KEY:
-        raise ValueError("GOOGLE_API_KEY or GEMINI_API_KEY not found in .env")
-    
-    # Initialize Gemini LLM
- 
+   
     
     # Initialize Gmail service and tools
     gmail_service = None

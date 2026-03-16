@@ -1,0 +1,10 @@
+1-path_traversal
+2-sensitive_file
+3-overwrite
+4-instruction_injection
+5-tampering
+6-hidden_command
+7-data_poisoning
+8-bulk_access
+9-format_confusion
+10-log_erasure

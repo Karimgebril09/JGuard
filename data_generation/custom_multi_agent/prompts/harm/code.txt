@@ -1,0 +1,10 @@
+1-os_command
+2-file_access
+3-network_exfil
+4-env_access
+5-infinite_loop
+6-fork_bomb
+7-memory_dump
+8-escape_sandbox
+9-privilege_escalation
+10-hidden_payload

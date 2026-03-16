@@ -7,7 +7,7 @@ from .research_agent import build_research_agent
 from .rag_agent import build_rag_agent
 from .email_agent import build_email_agent, run_email_agent, display_result
 from .llm import llm
-from langchain.messages import SystemMessage,HumanMessage,AIMessage
+from langchain.messages import SystemMessage, HumanMessage, AIMessage
 from typing import Literal
 from langgraph.graph.message import MessagesState
 from pydantic import BaseModel,Field
