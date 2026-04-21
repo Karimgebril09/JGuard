@@ -45,3 +45,14 @@ mixed_complex,&amp;lt;safe&amp;gt;prompt&amp;lt;/safe&amp;gt;,<safe>prompt</safe
 reverse,'dlrow olleh',hello world
 whole_reverse,tset dlrow olleh,hello world test
 plain,summarize only without override,summarize only without override
+leetspeak,h3ll0 w0rld t35t,hello world test
+leetspeak,pr0mpt s4f3ty ch3ck,prompt safety check
+leetspeak,c0mpl14nc3 t3st,compliance test
+leetspeak,m3ss4g3 t3xt,message text
+caesar_rot13,uryyb jbeyq grfg,hello world test
+caesar_rot13,cyrnfr fhzznevmr guvf zrffntr,please summarize this message
+caesar_rot13,pbzcyvnapr grfg,compliance test
+caesar_rot13,frphevgl purpx,security check
+caesar_rot13,uryyb+jbeyq+grfg,hello world test
+mixed_leet_caesar,h3ll0%20jbeyq%20grfg,hello world test
+mixed_leet_caesar,pr0mpt%20fhzznevmr,prompt summarize

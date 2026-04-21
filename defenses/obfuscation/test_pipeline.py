@@ -5,10 +5,12 @@ import sys
 from defenses.obfuscation.pipeline import run_obfuscation_pipeline
 
 
-if hasattr(sys.stdout, "reconfigure"):
-    sys.stdout.reconfigure(errors="replace")
-if hasattr(sys.stderr, "reconfigure"):
-    sys.stderr.reconfigure(errors="replace")
+stdout_reconfigure = getattr(sys.stdout, "reconfigure", None)
+stderr_reconfigure = getattr(sys.stderr, "reconfigure", None)
+if callable(stdout_reconfigure):
+    stdout_reconfigure(errors="replace")
+if callable(stderr_reconfigure):
+    stderr_reconfigure(errors="replace")
 
 
 def main() -> int:
