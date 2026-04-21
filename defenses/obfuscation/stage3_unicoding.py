@@ -1,8 +1,3 @@
-"""Stage 3: Unicode normalization and homoglyph resolution.
-
-This stage converts visually deceptive Unicode into a stable, mostly ASCII form.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -77,13 +72,13 @@ _HOMOGLYPH_MAP = {
 }
 
 
-def _normalize_input(raw_input: str | bytes) -> str:
+def normalize_input(raw_input: str | bytes) -> str:
     if isinstance(raw_input, bytes):
         return raw_input.decode("utf-8", errors="replace")
     return raw_input
 
 
-def _strip_zero_width(text: str) -> tuple[str, int]:
+def strip_zero_width_chars(text: str) -> tuple[str, int]:
     kept: list[str] = []
     stripped = 0
     for character in text:
@@ -94,7 +89,7 @@ def _strip_zero_width(text: str) -> tuple[str, int]:
     return "".join(kept), stripped
 
 
-def _collapse_homoglyphs(text: str) -> tuple[str, int]:
+def resolve_homoglyphs(text: str) -> tuple[str, int]:
     transformed: list[str] = []
     replacements = 0
 
@@ -127,8 +122,6 @@ def _collapse_homoglyphs(text: str) -> tuple[str, int]:
 
 @dataclass(frozen=True)
 class Stage3NormalizedInput:
-    """Stage-3 output and transformation metadata."""
-
     original_text: str
     normalized_text: str
     zero_width_stripped: int
@@ -136,20 +129,18 @@ class Stage3NormalizedInput:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-class ObfuscationStage3Normalizer:
-    """Apply Unicode normalization and homoglyph resolution."""
-
+class Stage3Unicoding:
     def normalize(self, raw_input: str | bytes) -> Stage3NormalizedInput:
-        original_text = _normalize_input(raw_input)
+        original_text = normalize_input(raw_input)
 
-        # Apply canonical then compatibility decomposition before mapping.
+        # Apply canonical then compatibility decomposition before mapping
         nfc_text = unicodedata.normalize("NFC", original_text)
         nfkd_text = unicodedata.normalize("NFKD", nfc_text)
 
-        without_zero_width, stripped_count = _strip_zero_width(nfkd_text)
-        collapsed_text, replacement_count = _collapse_homoglyphs(without_zero_width)
+        without_zero_width, stripped_count = strip_zero_width_chars(nfkd_text)
+        collapsed_text, replacement_count = resolve_homoglyphs(without_zero_width)
 
-        # Remove combining marks introduced by NFKD to produce stable output.
+        # Remove combining marks introduced by NFKD to produce stable output
         normalized_text = "".join(
             character
             for character in collapsed_text
@@ -169,6 +160,4 @@ class ObfuscationStage3Normalizer:
 
 
 def normalize_stage3(raw_input: str | bytes) -> Stage3NormalizedInput:
-    """Convenience wrapper for stage-3 normalization."""
-
-    return ObfuscationStage3Normalizer().normalize(raw_input)
+    return Stage3Unicoding().normalize(raw_input)

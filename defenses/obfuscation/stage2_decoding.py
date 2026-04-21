@@ -52,11 +52,11 @@ _COMMON_WORDS = {
 }
 
 
-def _to_text(data: bytes) -> str:
+def convert_to_text(data: bytes) -> str:
     return data.decode("utf-8", errors="replace")
 
 
-def is_mostly_printable(text: str) -> bool:
+def is_text_printable(text: str) -> bool:
     if not text:
         return False
     printable = sum(1 for character in text if character.isprintable() or character.isspace())
@@ -69,7 +69,7 @@ def replacement_ratio(text: str) -> float:
     return text.count("\ufffd") / len(text)
 
 
-def _english_likeness_score(text: str) -> float:
+def is_text_likely_english(text: str) -> float:
     if not text:
         return float("-inf")
 
@@ -100,14 +100,14 @@ def _english_likeness_score(text: str) -> float:
     )
 
 
-def _decode_html_entities(text: str) -> str | None:
+def decode_html_entity(text: str) -> str | None:
     if not _HTML_ENTITY_RE.search(text):
         return None
     decoded = html.unescape(text)
     return decoded if decoded != text else None
 
 
-def _decode_url_encoding(text: str) -> str | None:
+def decode_url_encoding(text: str) -> str | None:
     if not _PERCENT_RE.search(text) and "+" not in text:
         return None
 
@@ -117,7 +117,7 @@ def _decode_url_encoding(text: str) -> str | None:
     return decoded if decoded != text else None
 
 
-def _decode_hex(text: str) -> str | None:
+def decode_hex(text: str) -> str | None:
     candidate = text.strip()
     if candidate.startswith("0x") or candidate.startswith("0X"):
         candidate = candidate[2:]
@@ -131,11 +131,11 @@ def _decode_hex(text: str) -> str | None:
     except (binascii.Error, ValueError):
         return None
 
-    text_result = _to_text(decoded)
+    text_result = convert_to_text(decoded)
     return text_result if text_result != text else None
 
 
-def _decode_base64(text: str) -> str | None:
+def decode_base64(text: str) -> str | None:
     candidate = re.sub(r"\s+", "", text)
     if len(candidate) < 8 or not _BASE64_RE.match(candidate):
         return None
@@ -152,10 +152,10 @@ def _decode_base64(text: str) -> str | None:
         if not decoded:
             continue
 
-        text_result = _to_text(decoded)
+        text_result = convert_to_text(decoded)
         if text_result == text:
             continue
-        if not is_mostly_printable(text_result):
+        if not is_text_printable(text_result):
             continue
 
         # Guard against false positives where binary bytes become replacement
@@ -164,8 +164,8 @@ def _decode_base64(text: str) -> str | None:
             continue
 
         # Only accept Base64 when readability improves over the input.
-        baseline_score = _english_likeness_score(text)
-        decoded_score = _english_likeness_score(text_result)
+        baseline_score = is_text_likely_english(text)
+        decoded_score = is_text_likely_english(text_result)
         if decoded_score <= baseline_score + 0.35:
             continue
 
@@ -174,11 +174,11 @@ def _decode_base64(text: str) -> str | None:
     return None
 
 
-def _decode_rot(text: str) -> tuple[str, int, float] | None:
+def decode_rot_ciphers(text: str) -> tuple[str, int, float] | None:
     if not any(character.isalpha() for character in text):
         return None
 
-    baseline_score = _english_likeness_score(text)
+    baseline_score = is_text_likely_english(text)
     best_shift = 0
     best_score = baseline_score
     best_candidate = text
@@ -194,7 +194,7 @@ def _decode_rot(text: str) -> tuple[str, int, float] | None:
                 shifted.append(character)
 
         candidate = "".join(shifted)
-        candidate_score = _english_likeness_score(candidate)
+        candidate_score = is_text_likely_english(candidate)
         if candidate_score > best_score:
             best_score = candidate_score
             best_shift = shift
@@ -211,8 +211,6 @@ def _decode_rot(text: str) -> tuple[str, int, float] | None:
 
 @dataclass(frozen=True)
 class DecodingStep:
-    """A single decoding pass."""
-
     transformation: str
     before: str
     after: str
@@ -222,8 +220,6 @@ class DecodingStep:
 
 @dataclass(frozen=True)
 class DecodedInput:
-    """Stage-2 output with provenance for each decoding step."""
-
     original_text: str
     decoded_text: str
     steps: list[DecodingStep] = field(default_factory=list)
@@ -232,9 +228,7 @@ class DecodedInput:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-class ObfuscationStage2Decoder:
-    """Recursively reverse common encodings until the text stabilizes."""
-
+class Stage2Decoding:
     def __init__(self, max_iterations: int = 5) -> None:
         self.max_iterations = max_iterations
 
@@ -250,10 +244,10 @@ class ObfuscationStage2Decoder:
             changed = False
 
             for name, decoder in (
-                ("html_entities", _decode_html_entities),
-                ("url_percent_encoding", _decode_url_encoding),
-                ("hex", _decode_hex),
-                ("base64", _decode_base64),
+                ("html_entities", decode_html_entity),
+                ("url_percent_encoding", decode_url_encoding),
+                ("hex", decode_hex),
+                ("base64", decode_base64),
             ):
                 decoded = decoder(current_text)
                 if decoded is None:
@@ -272,7 +266,7 @@ class ObfuscationStage2Decoder:
                 changed = True
                 break
 
-            rot_candidate = _decode_rot(current_text)
+            rot_candidate = decode_rot_ciphers(current_text)
             if rot_candidate is not None:
                 decoded, shift, score = rot_candidate
                 steps.append(
@@ -312,4 +306,4 @@ class ObfuscationStage2Decoder:
 def decode_stage2(raw_input: str | bytes, max_iterations: int = 5) -> DecodedInput:
     """Wrapper for stage-2 recursive decoding."""
 
-    return ObfuscationStage2Decoder(max_iterations=max_iterations).decode(raw_input)
+    return Stage2Decoding(max_iterations=max_iterations).decode(raw_input)

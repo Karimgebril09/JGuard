@@ -12,19 +12,19 @@ import re
 from typing import Any
 
 
-_LITERAL_CONCAT_RE = re.compile(
+LITERAL_CONCAT_RE = re.compile(
     r"(?:\"[^\"\\]*(?:\\.[^\"\\]*)*\"|'[^'\\]*(?:\\.[^'\\]*)*')"
     r"(?:\s*\+\s*(?:\"[^\"\\]*(?:\\.[^\"\\]*)*\"|'[^'\\]*(?:\\.[^'\\]*)*'))+"
 )
-_QUOTED_LITERAL_RE = re.compile(r"^(?P<q>['\"])(?P<body>.*)(?P=q)$")
-_ARRAY_ASSIGN_RE = re.compile(
+QUOTED_LITERAL_RE = re.compile(r"^(?P<q>['\"])(?P<body>.*)(?P=q)$")
+ARRAY_ASSIGN_RE = re.compile(
     r"\b(?P<name>[A-Za-z_]\w*)\s*=\s*\[(?P<body>[^\]]+)\]",
     re.DOTALL,
 )
-_ARRAY_ELEMENT_RE = re.compile(r"(['\"])(.*?)(?<!\\)\1")
-_ARRAY_INDEX_EXPR_RE = re.compile(r"\b([A-Za-z_]\w*\[\d+\]\s*(?:\+\s*[A-Za-z_]\w*\[\d+\]\s*)+)")
-_INDEX_ACCESS_RE = re.compile(r"\b(?P<name>[A-Za-z_]\w*)\[(?P<index>\d+)\]")
-_SLICE_REVERSE_RE = re.compile(r"(?P<q>['\"])(?P<body>.*?)(?P=q)\s*\[\s*::\s*-1\s*\]")
+ARRAY_ELEMENT_RE = re.compile(r"(['\"])(.*?)(?<!\\)\1")
+ARRAY_INDEX_EXPR_RE = re.compile(r"\b([A-Za-z_]\w*\[\d+\]\s*(?:\+\s*[A-Za-z_]\w*\[\d+\]\s*)+)")
+INDEX_ACCESS_RE = re.compile(r"\b(?P<name>[A-Za-z_]\w*)\[(?P<index>\d+)\]")
+SLICE_REVERSE_RE = re.compile(r"(?P<q>['\"])(?P<body>.*?)(?P=q)\s*\[\s*::\s*-1\s*\]")
 
 _WORD_FREQUENCY = {
     "the": 1500,
@@ -53,13 +53,13 @@ _WORD_FREQUENCY = {
 }
 
 
-def _normalize_input(raw_input: str | bytes) -> str:
+def normalize_input(raw_input: str | bytes) -> str:
     if isinstance(raw_input, bytes):
         return raw_input.decode("utf-8", errors="replace")
     return raw_input
 
 
-def _fallback_token_score(token: str) -> float:
+def fallback_token_score(token: str) -> float:
     if not token:
         return -2.0
     vowels = sum(1 for ch in token if ch in "aeiou")
@@ -69,7 +69,7 @@ def _fallback_token_score(token: str) -> float:
     return max(-0.8, 0.15 + (vowels / max(len(token), 1)) - (0.1 * repeated))
 
 
-def _english_likeness_score(text: str) -> float:
+def is_text_likely_english(text: str) -> float:
     if not text:
         return float("-inf")
 
@@ -88,7 +88,7 @@ def _english_likeness_score(text: str) -> float:
         if freq is not None:
             token_score += 1.8 + log(freq + 1.0, 10)
         else:
-            token_score += _fallback_token_score(token)
+            token_score += fallback_token_score(token)
 
     return (
         token_score
@@ -97,24 +97,24 @@ def _english_likeness_score(text: str) -> float:
     )
 
 
-def _dictionary_hits(text: str) -> int:
+def find_dictionary_hits(text: str) -> int:
     return sum(1 for token in re.findall(r"[a-z]+", text.lower()) if token in _WORD_FREQUENCY)
 
 
-def _unquote_literal(token: str) -> str:
-    match = _QUOTED_LITERAL_RE.match(token.strip())
+def unquote_literal(token: str) -> str:
+    match = QUOTED_LITERAL_RE.match(token.strip())
     if not match:
         return token
     return bytes(match.group("body"), "utf-8").decode("unicode_escape")
 
 
-def _resolve_literal_concatenations(text: str) -> tuple[str, list[dict[str, Any]]]:
+def resolve_literal_concatenations(text: str) -> tuple[str, list[dict[str, Any]]]:
     decisions: list[dict[str, Any]] = []
 
     def replacement(match: re.Match[str]) -> str:
         expression = match.group(0)
         pieces = [
-            _unquote_literal(token)
+            unquote_literal(token)
             for token in re.findall(r"\"[^\"\\]*(?:\\.[^\"\\]*)*\"|'[^'\\]*(?:\\.[^'\\]*)*'", expression)
         ]
         resolved = "".join(pieces)
@@ -128,21 +128,21 @@ def _resolve_literal_concatenations(text: str) -> tuple[str, list[dict[str, Any]
         )
         return resolved
 
-    return _LITERAL_CONCAT_RE.sub(replacement, text), decisions
+    return LITERAL_CONCAT_RE.sub(replacement, text), decisions
 
 
-def _parse_array_assignments(text: str) -> dict[str, list[str]]:
+def parse_array_assignments(text: str) -> dict[str, list[str]]:
     arrays: dict[str, list[str]] = {}
-    for match in _ARRAY_ASSIGN_RE.finditer(text):
+    for match in ARRAY_ASSIGN_RE.finditer(text):
         name = match.group("name")
         body = match.group("body")
-        elements = [_unquote_literal(item.group(0)) for item in _ARRAY_ELEMENT_RE.finditer(body)]
+        elements = [unquote_literal(item.group(0)) for item in ARRAY_ELEMENT_RE.finditer(body)]
         if elements:
             arrays[name] = elements
     return arrays
 
 
-def _resolve_array_index_expressions(
+def resolve_array_index_expressions(
     text: str,
     arrays: dict[str, list[str]],
 ) -> tuple[str, list[dict[str, Any]]]:
@@ -150,7 +150,7 @@ def _resolve_array_index_expressions(
 
     def replacement(match: re.Match[str]) -> str:
         expression = match.group(1)
-        accesses = _INDEX_ACCESS_RE.findall(expression)
+        accesses = INDEX_ACCESS_RE.findall(expression)
         if not accesses:
             return expression
 
@@ -182,10 +182,10 @@ def _resolve_array_index_expressions(
         )
         return resolved
 
-    return _ARRAY_INDEX_EXPR_RE.sub(replacement, text), decisions
+    return ARRAY_INDEX_EXPR_RE.sub(replacement, text), decisions
 
 
-def _resolve_slice_reverse(text: str) -> tuple[str, list[dict[str, Any]]]:
+def resolve_slice_reverse(text: str) -> tuple[str, list[dict[str, Any]]]:
     decisions: list[dict[str, Any]] = []
 
     def replacement(match: re.Match[str]) -> str:
@@ -201,15 +201,15 @@ def _resolve_slice_reverse(text: str) -> tuple[str, list[dict[str, Any]]]:
         )
         return resolved
 
-    return _SLICE_REVERSE_RE.sub(replacement, text), decisions
+    return SLICE_REVERSE_RE.sub(replacement, text), decisions
 
 
-def _maybe_reverse_whole_text(text: str, min_improvement: float) -> tuple[str, dict[str, Any] | None]:
+def maybe_reverse_whole_text(text: str, min_improvement: float) -> tuple[str, dict[str, Any] | None]:
     reversed_text = text[::-1]
-    forward_score = _english_likeness_score(text)
-    reverse_score = _english_likeness_score(reversed_text)
-    forward_hits = _dictionary_hits(text)
-    reverse_hits = _dictionary_hits(reversed_text)
+    forward_score = is_text_likely_english(text)
+    reverse_score = is_text_likely_english(reversed_text)
+    forward_hits = find_dictionary_hits(text)
+    reverse_hits = find_dictionary_hits(reversed_text)
 
     if reverse_score - forward_score < min_improvement:
         return text, None
@@ -235,8 +235,6 @@ def _maybe_reverse_whole_text(text: str, min_improvement: float) -> tuple[str, d
 
 @dataclass(frozen=True)
 class Stage5DefragmentedInput:
-    """Stage-5 output with structural reconstruction metadata."""
-
     original_text: str
     defragmented_text: str
     fragments_resolved: int
@@ -246,26 +244,24 @@ class Stage5DefragmentedInput:
 
 
 class ObfuscationStage5Defragmenter:
-    """Resolve structural fragmentation patterns in obfuscated payloads."""
-
     def __init__(self, reverse_min_improvement: float = 1.35) -> None:
         self.reverse_min_improvement = reverse_min_improvement
 
     def defragment(self, raw_input: str | bytes) -> Stage5DefragmentedInput:
-        original_text = _normalize_input(raw_input)
+        original_text = normalize_input(raw_input)
         decisions: list[dict[str, Any]] = []
 
-        text_after_literal, literal_decisions = _resolve_literal_concatenations(original_text)
+        text_after_literal, literal_decisions = resolve_literal_concatenations(original_text)
         decisions.extend(literal_decisions)
 
-        arrays = _parse_array_assignments(text_after_literal)
-        text_after_indices, index_decisions = _resolve_array_index_expressions(text_after_literal, arrays)
+        arrays = parse_array_assignments(text_after_literal)
+        text_after_indices, index_decisions = resolve_array_index_expressions(text_after_literal, arrays)
         decisions.extend(index_decisions)
 
-        text_after_slice, slice_decisions = _resolve_slice_reverse(text_after_indices)
+        text_after_slice, slice_decisions = resolve_slice_reverse(text_after_indices)
         decisions.extend(slice_decisions)
 
-        final_text, reverse_decision = _maybe_reverse_whole_text(
+        final_text, reverse_decision = maybe_reverse_whole_text(
             text_after_slice,
             min_improvement=self.reverse_min_improvement,
         )
@@ -294,8 +290,6 @@ def defragment_stage5(
     raw_input: str | bytes,
     reverse_min_improvement: float = 1.35,
 ) -> Stage5DefragmentedInput:
-    """Convenience wrapper for stage-5 structural defragmentation."""
-
     return ObfuscationStage5Defragmenter(
         reverse_min_improvement=reverse_min_improvement,
     ).defragment(raw_input)

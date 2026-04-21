@@ -10,9 +10,9 @@ from pathlib import Path
 
 try:
     from .stage1_profiling import Stage1Profiling, RawInputProfile, profile_input
-    from .stage2_decoding import DecodedInput, DecodingStep, ObfuscationStage2Decoder, decode_stage2
-    from .stage3_unicoding import ObfuscationStage3Normalizer, Stage3NormalizedInput, normalize_stage3
-    from .stage4_leet import ObfuscationStage4Resolver, Stage4ResolvedInput, resolve_stage4
+    from .stage2_decoding import DecodedInput, DecodingStep, Stage2Decoding, decode_stage2
+    from .stage3_unicoding import Stage3Unicoding, Stage3NormalizedInput, normalize_stage3
+    from .stage4_leet import Stage4Leet, Stage4ResolvedInput, resolve_stage4
     from .stage5_defragmenting import ObfuscationStage5Defragmenter, Stage5DefragmentedInput, defragment_stage5
     from .stage6_canonicalizing import ObfuscationStage6Canonicalizer, Stage6CanonicalInput, canonicalize_stage6
     from .stage7_metadata import (
@@ -25,9 +25,9 @@ try:
     from .pipeline import ObfuscationDefensePipeline, PipelineResult, run_obfuscation_pipeline
 except ImportError:  # pragma: no cover - fallback for direct execution
     from stage1_profiling import Stage1Profiling, RawInputProfile, profile_input
-    from stage2_decoding import DecodedInput, DecodingStep, ObfuscationStage2Decoder, decode_stage2
-    from stage3_unicoding import ObfuscationStage3Normalizer, Stage3NormalizedInput, normalize_stage3
-    from stage4_leet import ObfuscationStage4Resolver, Stage4ResolvedInput, resolve_stage4
+    from stage2_decoding import DecodedInput, DecodingStep, Stage2Decoding, decode_stage2
+    from stage3_unicoding import Stage3Unicoding, Stage3NormalizedInput, normalize_stage3
+    from stage4_leet import Stage4Leet, Stage4ResolvedInput, resolve_stage4
     from stage5_defragmenting import ObfuscationStage5Defragmenter, Stage5DefragmentedInput, defragment_stage5
     from stage6_canonicalizing import ObfuscationStage6Canonicalizer, Stage6CanonicalInput, canonicalize_stage6
     from stage7_metadata import (
@@ -45,12 +45,12 @@ __all__ = [
     "profile_input",
     "DecodedInput",
     "DecodingStep",
-    "ObfuscationStage2Decoder",
+    "Stage2Decoding",
     "decode_stage2",
-    "ObfuscationStage3Normalizer",
+    "Stage3Unicoding",
     "Stage3NormalizedInput",
     "normalize_stage3",
-    "ObfuscationStage4Resolver",
+    "Stage4Leet",
     "Stage4ResolvedInput",
     "resolve_stage4",
     "ObfuscationStage5Defragmenter",

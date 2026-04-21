@@ -1,9 +1,3 @@
-"""Stage 7: metadata packaging.
-
-This stage wraps canonical text in a provenance envelope so downstream policy
-engines can calibrate risk based on transformation depth and anomalies.
-"""
-
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field, is_dataclass
@@ -11,7 +5,7 @@ import difflib
 from typing import Any
 
 
-def _as_mapping(value: Any) -> dict[str, Any]:
+def map_as(value: Any) -> dict[str, Any]:
     if value is None:
         return {}
     if isinstance(value, dict):
@@ -80,12 +74,12 @@ class ObfuscationStage7Packager:
         stage4_resolved: Any | None = None,
         stage5_defragmented: Any | None = None,
     ) -> Stage7ProvenanceEnvelope:
-        s1 = _as_mapping(stage1_profile)
-        s2 = _as_mapping(stage2_decoded)
-        s3 = _as_mapping(stage3_normalized)
-        s4 = _as_mapping(stage4_resolved)
-        s5 = _as_mapping(stage5_defragmented)
-        s6 = _as_mapping(canonical_input)
+        s1 = map_as(stage1_profile)
+        s2 = map_as(stage2_decoded)
+        s3 = map_as(stage3_normalized)
+        s4 = map_as(stage4_resolved)
+        s5 = map_as(stage5_defragmented)
+        s6 = map_as(canonical_input)
 
         original_text = str(s6.get("original_text", ""))
         canonical_text = str(s6.get("canonical_text", original_text))

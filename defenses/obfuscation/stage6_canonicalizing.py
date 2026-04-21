@@ -1,9 +1,3 @@
-"""Stage 6: normalization and canonicalization.
-
-This stage produces the clean canonical text that is sent to downstream policy
-evaluation.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -53,13 +47,13 @@ _MULTI_PUNCT_PATTERNS = (
 )
 
 
-def _normalize_input(raw_input: str | bytes) -> str:
+def normalize_input(raw_input: str | bytes) -> str:
     if isinstance(raw_input, bytes):
         return raw_input.decode("utf-8", errors="replace")
     return raw_input
 
 
-def _normalize_punctuation(text: str) -> tuple[str, int]:
+def normalize_punctuation(text: str) -> tuple[str, int]:
     updated = text.translate(_PUNCT_TRANSLATION)
     replaced_count = 0
     for old, new in _PUNCT_TRANSLATION.items():
@@ -83,8 +77,6 @@ def _normalize_punctuation(text: str) -> tuple[str, int]:
 
 @dataclass(frozen=True)
 class Stage6CanonicalInput:
-    """Stage-6 canonical text and metadata."""
-
     original_text: str
     canonical_text: str
     lowered: bool
@@ -94,15 +86,13 @@ class Stage6CanonicalInput:
 
 
 class ObfuscationStage6Canonicalizer:
-    """Normalize text into a canonical policy-evaluation form."""
-
     def canonicalize(self, raw_input: str | bytes) -> Stage6CanonicalInput:
-        original_text = _normalize_input(raw_input)
+        original_text = normalize_input(raw_input)
 
         # NFKC stabilizes compatibility punctuation and spacing before cleanup.
         text = unicodedata.normalize("NFKC", original_text)
 
-        punctuation_text, punct_changes = _normalize_punctuation(text)
+        punctuation_text, punct_changes = normalize_punctuation(text)
         lowered_text = punctuation_text.lower()
         collapsed_text = re.sub(r"\s+", " ", lowered_text).strip()
 
@@ -125,6 +115,4 @@ class ObfuscationStage6Canonicalizer:
 
 
 def canonicalize_stage6(raw_input: str | bytes) -> Stage6CanonicalInput:
-    """Convenience wrapper for stage-6 canonicalization."""
-
     return ObfuscationStage6Canonicalizer().canonicalize(raw_input)
