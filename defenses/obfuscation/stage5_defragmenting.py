@@ -1,12 +1,5 @@
-"""Stage 5: structural de-fragmentation.
-
-This stage reconstructs fragmented payloads such as split string literals,
-array-index based character assembly, and intentionally reversed text.
-"""
-
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from math import log
 import re
 from typing import Any
@@ -27,7 +20,7 @@ ARRAY_INDEX_EXPR_RE = re.compile(r"\b([A-Za-z_]\w*\[\d+\]\s*(?:\+\s*[A-Za-z_]\w*
 INDEX_ACCESS_RE = re.compile(r"\b(?P<name>[A-Za-z_]\w*)\[(?P<index>\d+)\]")
 SLICE_REVERSE_RE = re.compile(r"(?P<q>['\"])(?P<body>.*?)(?P=q)\s*\[\s*::\s*-1\s*\]")
 
-_WORD_FREQUENCY = {
+WORD_FREQUENCY = {
     "the": 1500,
     "to": 1300,
     "of": 1200,
@@ -78,7 +71,7 @@ def is_text_likely_english(text: str) -> float:
 
     token_score = 0.0
     for token in tokens:
-        freq = _WORD_FREQUENCY.get(token)
+        freq = WORD_FREQUENCY.get(token)
         if freq is not None:
             token_score += 1.8 + log(freq + 1.0, 10)
         else:
@@ -92,7 +85,7 @@ def is_text_likely_english(text: str) -> float:
 
 
 def find_dictionary_hits(text: str) -> int:
-    return sum(1 for token in re.findall(r"[a-z]+", text.lower()) if token in _WORD_FREQUENCY)
+    return sum(1 for token in re.findall(r"[a-z]+", text.lower()) if token in WORD_FREQUENCY)
 
 
 def unquote_literal(token: str) -> str:
@@ -227,20 +220,10 @@ def maybe_reverse_whole_text(text: str, min_improvement: float) -> tuple[str, di
     )
 
 
-@dataclass(frozen=True)
-class Stage5DefragmentedInput:
-    original_text: str
-    defragmented_text: str
-    fragments_resolved: int
-    reversed_applied: bool
-    confidence: float
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-
 def defragment_stage5(
     raw_input: str | bytes,
     reverse_min_improvement: float = 1.35,
-) -> Stage5DefragmentedInput:
+) -> dict[str, object]:
     original_text = normalize_input(raw_input)
     decisions: list[dict[str, Any]] = []
 
@@ -264,16 +247,16 @@ def defragment_stage5(
     confidences = [float(item["confidence"]) for item in decisions if "confidence" in item]
     confidence = round(sum(confidences) / len(confidences), 4) if confidences else 0.0
 
-    return Stage5DefragmentedInput(
-        original_text=original_text,
-        defragmented_text=final_text,
-        fragments_resolved=len(decisions),
-        reversed_applied=reverse_decision is not None,
-        confidence=confidence,
-        metadata={
+    return {
+        "original_text": original_text,
+        "defragmented_text": final_text,
+        "fragments_resolved": len(decisions),
+        "reversed_applied": reverse_decision is not None,
+        "confidence": confidence,
+        "metadata": {
             "input_type": type(raw_input).__name__,
             "reverse_min_improvement": reverse_min_improvement,
             "decisions": decisions,
             "arrays_detected": sorted(arrays.keys()),
         },
-    )
+    }

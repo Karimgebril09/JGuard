@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import unicodedata
-from typing import Any
 from defenses.obfuscation.helper import normalize_input
 
 
@@ -95,7 +93,7 @@ def resolve_homoglyphs(text: str) -> tuple[str, int]:
             replacements += 1
             continue
 
-        # Convert fullwidth ASCII to regular ASCII.
+        # Convert fullwidth ASCII to regular ASCII
         codepoint = ord(character)
         if 0xFF01 <= codepoint <= 0xFF5E:
             transformed.append(chr(codepoint - 0xFEE0))
@@ -103,7 +101,7 @@ def resolve_homoglyphs(text: str) -> tuple[str, int]:
             continue
 
         # Compatibility fold covers mathematical alphanumeric symbols and many
-        # other display variants into their plain equivalents.
+        # variants into their plain ascii equivalents
         folded = unicodedata.normalize("NFKC", character)
         if folded != character and len(folded) == 1 and ord(folded) < 128:
             transformed.append(folded)
@@ -115,16 +113,7 @@ def resolve_homoglyphs(text: str) -> tuple[str, int]:
     return "".join(transformed), replacements
 
 
-@dataclass(frozen=True)
-class Stage3NormalizedInput:
-    original_text: str
-    normalized_text: str
-    zero_width_stripped: int
-    homoglyph_replacements: int
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-
-def normalize_stage3(raw_input: str | bytes) -> Stage3NormalizedInput:
+def normalize_stage3(raw_input: str | bytes) -> dict[str, object]:
     original_text = normalize_input(raw_input)
 
     # Apply canonical then compatibility decomposition before mapping
@@ -134,20 +123,20 @@ def normalize_stage3(raw_input: str | bytes) -> Stage3NormalizedInput:
     without_zero_width, stripped_count = strip_zero_width_chars(nfkd_text)
     collapsed_text, replacement_count = resolve_homoglyphs(without_zero_width)
 
-    # Remove combining marks introduced by NFKD to produce stable output
+    # Remove combining marks to produce stable output
     normalized_text = "".join(
         character
         for character in collapsed_text
         if not unicodedata.category(character).startswith("M")
     )
 
-    return Stage3NormalizedInput(
-        original_text=original_text,
-        normalized_text=normalized_text,
-        zero_width_stripped=stripped_count,
-        homoglyph_replacements=replacement_count,
-        metadata={
+    return {
+        "original_text": original_text,
+        "normalized_text": normalized_text,
+        "zero_width_stripped": stripped_count,
+        "homoglyph_replacements": replacement_count,
+        "metadata": {
             "input_type": type(raw_input).__name__,
             "normalization_sequence": ["NFC", "NFKD"],
         },
-    )
+    }

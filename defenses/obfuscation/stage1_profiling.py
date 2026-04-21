@@ -1,8 +1,5 @@
 from __future__ import annotations
-
-from dataclasses import dataclass, field
 from math import log2
-from typing import Any
 import unicodedata
 from defenses.obfuscation.helper import normalize_input
 
@@ -86,32 +83,21 @@ def identify_unicode_block_distribution(text: str) -> dict[str, int]:
         distribution[block] = distribution.get(block, 0) + 1
     return distribution
 
-
-@dataclass(frozen=True)
-class RawInputProfile:
-    raw_text: str
-    character_count: int
-    shannon_entropy: float
-    character_set_distribution: dict[str, int] = field(default_factory=dict)
-    unicode_block_distribution: dict[str, int] = field(default_factory=dict)
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-
-def profile_input(raw_input: str | bytes, encoding: str = "utf-8") -> RawInputProfile:
+def profile_input(raw_input: str | bytes, encoding: str = "utf-8") -> dict[str, object]:
     text = normalize_input(raw_input)
     if isinstance(raw_input, bytes):
         raw_bytes = raw_input
     else:
         raw_bytes = str(raw_input).encode(encoding, errors="replace")
 
-    return RawInputProfile(
-        raw_text=text,
-        character_count=len(text),
-        shannon_entropy=calculate_shannon_entropy(raw_bytes),
-        character_set_distribution=identify_character_distribution(text),
-        unicode_block_distribution=identify_unicode_block_distribution(text),
-        metadata={
+    return {
+        "raw_text": text,
+        "character_count": len(text),
+        "shannon_entropy": calculate_shannon_entropy(raw_bytes),
+        "character_set_distribution": identify_character_distribution(text),
+        "unicode_block_distribution": identify_unicode_block_distribution(text),
+        "metadata": {
             "encoding": encoding,
             "input_type": type(raw_input).__name__,
         },
-    )
+    }

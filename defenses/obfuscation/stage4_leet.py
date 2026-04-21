@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from math import log
 import re
-from typing import Any
 from defenses.obfuscation.helper import normalize_input
 
 LEET_CHAR_MAP = {
@@ -145,7 +143,7 @@ def find_leet_candidates(token: str, beam_width: int = 24) -> list[str]:
             for substitution in substitutions:
                 next_candidates.append(prefix + substitution)
 
-        # Keep search bounded while retaining the most plausible strings.
+        # Keep search bounded while retaining the most plausible strings
         next_candidates = sorted(
             set(next_candidates),
             key=fallback_token_score,
@@ -254,22 +252,12 @@ def find_best_caesar_candidate(text: str, min_improvement: float) -> tuple[str, 
     return best_text, best_shift, improvement
 
 
-@dataclass(frozen=True)
-class Stage4ResolvedInput:
-    original_text: str
-    resolved_text: str
-    leet_replacements: int
-    caesar_shift: int | None
-    confidence: float
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-
 def resolve_stage4(
     raw_input: str | bytes,
     dictionary_threshold: float = 0.6,
     leet_min_improvement: float = 1.15,
     caesar_min_improvement: float = 1.25,
-) -> Stage4ResolvedInput:
+) -> dict[str, object]:
     original_text = normalize_input(raw_input)
 
     leet_text, leet_count, leet_decisions = resolve_leetspeak_text(
@@ -303,17 +291,17 @@ def resolve_stage4(
         else 0.0
     )
 
-    return Stage4ResolvedInput(
-        original_text=original_text,
-        resolved_text=final_text,
-        leet_replacements=leet_count,
-        caesar_shift=caesar_shift,
-        confidence=round(confidence, 4),
-        metadata={
+    return {
+        "original_text": original_text,
+        "resolved_text": final_text,
+        "leet_replacements": leet_count,
+        "caesar_shift": caesar_shift,
+        "confidence": round(confidence, 4),
+        "metadata": {
             "input_type": type(raw_input).__name__,
             "dictionary_threshold": dictionary_threshold,
             "leet_min_improvement": leet_min_improvement,
             "caesar_min_improvement": caesar_min_improvement,
             "leet_decisions": leet_decisions,
         },
-    )
+    }

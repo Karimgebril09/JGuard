@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import base64
 import binascii
 import html
@@ -11,8 +10,8 @@ from defenses.obfuscation.helper import normalize_input
 
 
 BASE64_REGEX = re.compile(r"^[A-Za-z0-9+/=_-]+$")
-HEX_RE = re.compile(r"^(?:0x)?[0-9A-Fa-f\s]+$")
-PERCENT_RE = re.compile(r"%(?:[0-9A-Fa-f]{2})")
+HEX_REGEX = re.compile(r"^(?:0x)?[0-9A-Fa-f\s]+$")
+PERCENT_REGEX = re.compile(r"%(?:[0-9A-Fa-f]{2})")
 HTML_ENTITY_REGEX = re.compile(r"&(?:#x?[0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]+);")
 
 COMMON_WORDS = {
@@ -56,7 +55,7 @@ def convert_to_text(data: bytes) -> str:
     return data.decode("utf-8", errors="replace")
 
 
-def is_text_printable(text: str) -> bool:
+def is_text_mostly_printable_chars(text: str) -> bool:
     if not text:
         return False
     printable = sum(1 for character in text if character.isprintable() or character.isspace())
@@ -89,8 +88,7 @@ def is_text_likely_english(text: str) -> float:
     token_bonus = common_hits * 1.8
     space_bonus = min(spaces / max(len(text), 1) * 4.0, 1.5)
 
-    # Keep the scoring simple and stable: the goal is to prefer human-readable
-    # candidates over cipher text, not to model full language probability.
+    # prefer human-readable candidates over cipher text, not to model full language probability
     return (
         printable_ratio * 3.0
         + vowel_ratio * 2.0
@@ -108,7 +106,7 @@ def decode_html_entity(text: str) -> str | None:
 
 
 def decode_url_encoding(text: str) -> str | None:
-    if not PERCENT_RE.search(text) and "+" not in text:
+    if not PERCENT_REGEX.search(text) and "+" not in text:
         return None
 
     decoded = unquote_plus(text)
@@ -123,7 +121,7 @@ def decode_hex(text: str) -> str | None:
         candidate = candidate[2:]
 
     compact = re.sub(r"\s+", "", candidate)
-    if not compact or len(compact) % 2 != 0 or not HEX_RE.match(candidate):
+    if not compact or len(compact) % 2 != 0 or not HEX_REGEX.match(candidate):
         return None
 
     try:
@@ -155,15 +153,15 @@ def decode_base64(text: str) -> str | None:
         text_result = convert_to_text(decoded)
         if text_result == text:
             continue
-        if not is_text_printable(text_result):
+        if not is_text_mostly_printable_chars(text_result):
             continue
 
         # Guard against false positives where binary bytes become replacement
-        # characters and still look "printable".
+        # characters and still look "printable"
         if replacement_ratio(text_result) > 0.08:
             continue
 
-        # Only accept Base64 when readability improves over the input.
+        # Only accept Base64 when readability improves
         baseline_score = is_text_likely_english(text)
         decoded_score = is_text_likely_english(text_result)
         if decoded_score <= baseline_score + 0.35:
@@ -209,29 +207,10 @@ def decode_rot_ciphers(text: str) -> tuple[str, int, float] | None:
     return None
 
 
-@dataclass(frozen=True)
-class DecodingStep:
-    transformation: str
-    before: str
-    after: str
-    confidence: float
-    details: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class DecodedInput:
-    original_text: str
-    decoded_text: str
-    steps: list[DecodingStep] = field(default_factory=list)
-    stable: bool = True
-    iterations: int = 0
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-
-def decode_stage2(raw_input: str | bytes, max_iterations: int = 5) -> DecodedInput:
+def decode_stage2(raw_input: str | bytes, max_iterations: int = 5) -> dict[str, Any]:
     current_text = normalize_input(raw_input)
     original_text = current_text
-    steps: list[DecodingStep] = []
+    steps: list[dict[str, Any]] = []
     iteration_count = 0
     changed = False
 
@@ -250,13 +229,13 @@ def decode_stage2(raw_input: str | bytes, max_iterations: int = 5) -> DecodedInp
                 continue
 
             steps.append(
-                DecodingStep(
-                    transformation=name,
-                    before=current_text,
-                    after=decoded,
-                    confidence=0.95,
-                    details={"iteration": iteration},
-                )
+                {
+                    "transformation": name,
+                    "before": current_text,
+                    "after": decoded,
+                    "confidence": 0.95,
+                    "details": {"iteration": iteration},
+                }
             )
             current_text = decoded
             changed = True
@@ -266,13 +245,13 @@ def decode_stage2(raw_input: str | bytes, max_iterations: int = 5) -> DecodedInp
         if rot_candidate is not None:
             decoded, shift, score = rot_candidate
             steps.append(
-                DecodingStep(
-                    transformation="caesar_shift",
-                    before=current_text,
-                    after=decoded,
-                    confidence=min(0.99, 0.5 + (score / 10.0)),
-                    details={"iteration": iteration, "shift": shift, "score": score},
-                )
+                {
+                    "transformation": "caesar_shift",
+                    "before": current_text,
+                    "after": decoded,
+                    "confidence": min(0.99, 0.5 + (score / 10.0)),
+                    "details": {"iteration": iteration, "shift": shift, "score": score},
+                }
             )
             current_text = decoded
             changed = True
@@ -280,13 +259,13 @@ def decode_stage2(raw_input: str | bytes, max_iterations: int = 5) -> DecodedInp
         if not changed:
             break
 
-    return DecodedInput(
-        original_text=original_text,
-        decoded_text=current_text,
-        steps=steps,
-        stable=not changed or iteration_count < max_iterations,
-        iterations=iteration_count,
-        metadata={
+    return {
+        "original_text": original_text,
+        "decoded_text": current_text,
+        "steps": steps,
+        "stable": not changed or iteration_count < max_iterations,
+        "iterations": iteration_count,
+        "metadata": {
             "input_type": type(raw_input).__name__,
             "encodings_attempted": [
                 "html_entities",
@@ -296,4 +275,4 @@ def decode_stage2(raw_input: str | bytes, max_iterations: int = 5) -> DecodedInp
                 "caesar_shift",
             ],
         },
-    )
+    }

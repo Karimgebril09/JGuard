@@ -40,7 +40,7 @@ def main() -> int:
 
         try:
             result = run_obfuscation_pipeline(raw_input)
-            actual = result.stage_outputs["stage6"].canonical_text
+            actual = result["stage_outputs"]["stage6"]["canonical_text"]
         except Exception as exc:  # pragma: no cover - runtime visibility only
             errored += 1
             print(f"\ninput: {raw_input}")

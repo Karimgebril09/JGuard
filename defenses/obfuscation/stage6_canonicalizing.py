@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import re
-from typing import Any
 import unicodedata
 from defenses.obfuscation.helper import normalize_input
 
@@ -62,24 +60,14 @@ def normalize_punctuation(text: str) -> tuple[str, int]:
     if updated != before:
         replaced_count += 1
 
-    # Canonical punctuation spacing.
+    # Canonical punctuation spacing
     updated = re.sub(r"\s+([,.;:!?])", r"\1", updated)
     updated = re.sub(r"([,.;:!?])(\S)", r"\1 \2", updated)
 
     return updated, replaced_count
 
 
-@dataclass(frozen=True)
-class Stage6CanonicalInput:
-    original_text: str
-    canonical_text: str
-    lowered: bool
-    whitespace_collapsed: bool
-    punctuation_normalized: bool
-    metadata: dict[str, Any] = field(default_factory=dict)
-
-
-def canonicalize_stage6(raw_input: str | bytes) -> Stage6CanonicalInput:
+def canonicalize_stage6(raw_input: str | bytes) -> dict[str, object]:
     original_text = normalize_input(raw_input)
 
     # NFKC stabilizes compatibility punctuation and spacing before cleanup.
@@ -93,15 +81,15 @@ def canonicalize_stage6(raw_input: str | bytes) -> Stage6CanonicalInput:
     whitespace_collapsed = lowered_text != collapsed_text
     punctuation_normalized = punct_changes > 0
 
-    return Stage6CanonicalInput(
-        original_text=original_text,
-        canonical_text=collapsed_text,
-        lowered=lowered,
-        whitespace_collapsed=whitespace_collapsed,
-        punctuation_normalized=punctuation_normalized,
-        metadata={
+    return {
+        "original_text": original_text,
+        "canonical_text": collapsed_text,
+        "lowered": lowered,
+        "whitespace_collapsed": whitespace_collapsed,
+        "punctuation_normalized": punctuation_normalized,
+        "metadata": {
             "input_type": type(raw_input).__name__,
             "normalization_form": "NFKC",
             "punctuation_changes": punct_changes,
         },
-    )
+    }

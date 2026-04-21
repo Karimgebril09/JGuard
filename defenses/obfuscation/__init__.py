@@ -1,17 +1,6 @@
 """Obfuscation defense utilities"""
 
 from .starter import (
-    AnomalyRecord,
-    DecodedInput,
-    DecodingStep,
-    PipelineResult,
-    RawInputProfile,
-    Stage3NormalizedInput,
-    Stage4ResolvedInput,
-    Stage5DefragmentedInput,
-    Stage6CanonicalInput,
-    Stage7ProvenanceEnvelope,
-    TransformationRecord,
     canonicalize_stage6,
     defragment_stage5,
     decode_stage2,
@@ -23,17 +12,6 @@ from .starter import (
 )
 
 __all__ = [
-    "DecodedInput",
-    "DecodingStep",
-    "TransformationRecord",
-    "AnomalyRecord",
-    "Stage7ProvenanceEnvelope",
-    "RawInputProfile",
-    "Stage3NormalizedInput",
-    "Stage4ResolvedInput",
-    "Stage5DefragmentedInput",
-    "Stage6CanonicalInput",
-    "PipelineResult",
     "canonicalize_stage6",
     "defragment_stage5",
     "decode_stage2",
