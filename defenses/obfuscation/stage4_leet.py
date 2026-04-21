@@ -4,9 +4,9 @@ from dataclasses import dataclass, field
 from math import log
 import re
 from typing import Any
+from defenses.obfuscation.helper import normalize_input
 
-
-_LEET_CHAR_MAP = {
+LEET_CHAR_MAP = {
     "0": ["o"],
     "1": ["i", "l"],
     "2": ["z"],
@@ -23,9 +23,9 @@ _LEET_CHAR_MAP = {
     "|": ["l", "i"],
 }
 
-_TOKEN_RE = re.compile(r"[A-Za-z0-9@$!|]+|[^A-Za-z0-9@$!|]+")
+TOKEN_RE = re.compile(r"[A-Za-z0-9@$!|]+|[^A-Za-z0-9@$!|]+")
 
-_WORD_FREQUENCY = {
+WORD_FREQUENCY = {
     "a": 500,
     "an": 450,
     "and": 1000,
@@ -67,13 +67,6 @@ _WORD_FREQUENCY = {
     "mainframe": 160,
 }
 
-
-def normalize_input(raw_input: str | bytes) -> str:
-    if isinstance(raw_input, bytes):
-        return raw_input.decode("utf-8", errors="replace")
-    return raw_input
-
-
 def is_text_likely_english(text: str) -> float:
     if not text:
         return float("-inf")
@@ -89,7 +82,7 @@ def is_text_likely_english(text: str) -> float:
 
     token_score = 0.0
     for token in tokens:
-        freq = _WORD_FREQUENCY.get(token, 0)
+        freq = WORD_FREQUENCY.get(token, 0)
         if freq > 0:
             token_score += 1.8 + log(freq + 1.0, 10)
         else:
@@ -108,7 +101,7 @@ def is_text_likely_english(text: str) -> float:
 
 def find_dictionary_hits(text: str) -> int:
     tokens = re.findall(r"[a-z]+", text.lower())
-    return sum(1 for token in tokens if token in _WORD_FREQUENCY)
+    return sum(1 for token in tokens if token in WORD_FREQUENCY)
 
 
 def fallback_token_score(token: str) -> float:
@@ -144,8 +137,8 @@ def find_leet_candidates(token: str, beam_width: int = 24) -> list[str]:
 
     for character in lowered:
         substitutions = [character]
-        if character in _LEET_CHAR_MAP:
-            substitutions.extend(_LEET_CHAR_MAP[character])
+        if character in LEET_CHAR_MAP:
+            substitutions.extend(LEET_CHAR_MAP[character])
 
         next_candidates: list[str] = []
         for prefix in candidates:
@@ -168,25 +161,25 @@ def resolve_leetspeak_token(
     dictionary_threshold: float,
     min_improvement: float,
 ) -> tuple[str, float, bool]:
-    if not any(character in _LEET_CHAR_MAP for character in token.lower()):
+    if not any(character in LEET_CHAR_MAP for character in token.lower()):
         return token, 0.0, False
 
     baseline = token.lower()
-    baseline_score = fallback_token_score(baseline) + (_WORD_FREQUENCY.get(baseline, 0) > 0)
+    baseline_score = fallback_token_score(baseline) + (WORD_FREQUENCY.get(baseline, 0) > 0)
 
     best_candidate = baseline
     best_score = baseline_score
 
     for candidate in find_leet_candidates(token):
         score = fallback_token_score(candidate)
-        if candidate in _WORD_FREQUENCY:
-            score += 1.8 + log(_WORD_FREQUENCY[candidate] + 1.0, 10)
+        if candidate in WORD_FREQUENCY:
+            score += 1.8 + log(WORD_FREQUENCY[candidate] + 1.0, 10)
         if score > best_score:
             best_score = score
             best_candidate = candidate
 
     improvement = best_score - baseline_score
-    is_dictionary_hit = best_candidate in _WORD_FREQUENCY
+    is_dictionary_hit = best_candidate in WORD_FREQUENCY
 
     if best_candidate != baseline and is_dictionary_hit and improvement >= min_improvement:
         confidence = min(0.99, dictionary_threshold + (improvement / 6.0))
@@ -200,7 +193,7 @@ def resolve_leetspeak_text(
     dictionary_threshold: float,
     min_improvement: float,
 ) -> tuple[str, int, list[dict[str, Any]]]:
-    parts = _TOKEN_RE.findall(text)
+    parts = TOKEN_RE.findall(text)
     resolved_parts: list[str] = []
     replacements = 0
     decisions: list[dict[str, Any]] = []
@@ -271,76 +264,56 @@ class Stage4ResolvedInput:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-class Stage4Leet:
-    def __init__(
-        self,
-        dictionary_threshold: float = 0.6,
-        leet_min_improvement: float = 1.15,
-        caesar_min_improvement: float = 1.25,
-    ) -> None:
-        self.dictionary_threshold = dictionary_threshold
-        self.leet_min_improvement = leet_min_improvement
-        self.caesar_min_improvement = caesar_min_improvement
-
-    def resolve(self, raw_input: str | bytes) -> Stage4ResolvedInput:
-        original_text = normalize_input(raw_input)
-
-        leet_text, leet_count, leet_decisions = resolve_leetspeak_text(
-            text=original_text,
-            dictionary_threshold=self.dictionary_threshold,
-            min_improvement=self.leet_min_improvement,
-        )
-
-        caesar_candidate = find_best_caesar_candidate(
-            leet_text,
-            min_improvement=self.caesar_min_improvement,
-        )
-
-        final_text = leet_text
-        caesar_shift: int | None = None
-        caesar_improvement = 0.0
-
-        if caesar_candidate is not None:
-            final_text, caesar_shift, caesar_improvement = caesar_candidate
-
-        # Combine confidence from applied transformations.
-        confidence_components: list[float] = []
-        if leet_count > 0:
-            avg_leet_confidence = sum(item["confidence"] for item in leet_decisions) / leet_count
-            confidence_components.append(avg_leet_confidence)
-        if caesar_shift is not None:
-            confidence_components.append(min(0.99, 0.5 + (caesar_improvement / 8.0)))
-
-        confidence = (
-            sum(confidence_components) / len(confidence_components)
-            if confidence_components
-            else 0.0
-        )
-
-        return Stage4ResolvedInput(
-            original_text=original_text,
-            resolved_text=final_text,
-            leet_replacements=leet_count,
-            caesar_shift=caesar_shift,
-            confidence=round(confidence, 4),
-            metadata={
-                "input_type": type(raw_input).__name__,
-                "dictionary_threshold": self.dictionary_threshold,
-                "leet_min_improvement": self.leet_min_improvement,
-                "caesar_min_improvement": self.caesar_min_improvement,
-                "leet_decisions": leet_decisions,
-            },
-        )
-
-
 def resolve_stage4(
     raw_input: str | bytes,
     dictionary_threshold: float = 0.6,
     leet_min_improvement: float = 1.15,
     caesar_min_improvement: float = 1.25,
 ) -> Stage4ResolvedInput:
-    return Stage4Leet(
+    original_text = normalize_input(raw_input)
+
+    leet_text, leet_count, leet_decisions = resolve_leetspeak_text(
+        text=original_text,
         dictionary_threshold=dictionary_threshold,
-        leet_min_improvement=leet_min_improvement,
-        caesar_min_improvement=caesar_min_improvement,
-    ).resolve(raw_input)
+        min_improvement=leet_min_improvement,
+    )
+
+    caesar_candidate = find_best_caesar_candidate(
+        leet_text,
+        min_improvement=caesar_min_improvement,
+    )
+
+    final_text = leet_text
+    caesar_shift: int | None = None
+    caesar_improvement = 0.0
+
+    if caesar_candidate is not None:
+        final_text, caesar_shift, caesar_improvement = caesar_candidate
+
+    confidence_components: list[float] = []
+    if leet_count > 0:
+        avg_leet_confidence = sum(item["confidence"] for item in leet_decisions) / leet_count
+        confidence_components.append(avg_leet_confidence)
+    if caesar_shift is not None:
+        confidence_components.append(min(0.99, 0.5 + (caesar_improvement / 8.0)))
+
+    confidence = (
+        sum(confidence_components) / len(confidence_components)
+        if confidence_components
+        else 0.0
+    )
+
+    return Stage4ResolvedInput(
+        original_text=original_text,
+        resolved_text=final_text,
+        leet_replacements=leet_count,
+        caesar_shift=caesar_shift,
+        confidence=round(confidence, 4),
+        metadata={
+            "input_type": type(raw_input).__name__,
+            "dictionary_threshold": dictionary_threshold,
+            "leet_min_improvement": leet_min_improvement,
+            "caesar_min_improvement": caesar_min_improvement,
+            "leet_decisions": leet_decisions,
+        },
+    )

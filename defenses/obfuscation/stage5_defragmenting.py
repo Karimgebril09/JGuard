@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from math import log
 import re
 from typing import Any
+from defenses.obfuscation.helper import normalize_input
 
 
 LITERAL_CONCAT_RE = re.compile(
@@ -51,13 +52,6 @@ _WORD_FREQUENCY = {
     "data": 620,
     "hack": 260,
 }
-
-
-def normalize_input(raw_input: str | bytes) -> str:
-    if isinstance(raw_input, bytes):
-        return raw_input.decode("utf-8", errors="replace")
-    return raw_input
-
 
 def fallback_token_score(token: str) -> float:
     if not token:
@@ -243,53 +237,43 @@ class Stage5DefragmentedInput:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-class ObfuscationStage5Defragmenter:
-    def __init__(self, reverse_min_improvement: float = 1.35) -> None:
-        self.reverse_min_improvement = reverse_min_improvement
-
-    def defragment(self, raw_input: str | bytes) -> Stage5DefragmentedInput:
-        original_text = normalize_input(raw_input)
-        decisions: list[dict[str, Any]] = []
-
-        text_after_literal, literal_decisions = resolve_literal_concatenations(original_text)
-        decisions.extend(literal_decisions)
-
-        arrays = parse_array_assignments(text_after_literal)
-        text_after_indices, index_decisions = resolve_array_index_expressions(text_after_literal, arrays)
-        decisions.extend(index_decisions)
-
-        text_after_slice, slice_decisions = resolve_slice_reverse(text_after_indices)
-        decisions.extend(slice_decisions)
-
-        final_text, reverse_decision = maybe_reverse_whole_text(
-            text_after_slice,
-            min_improvement=self.reverse_min_improvement,
-        )
-        if reverse_decision is not None:
-            decisions.append(reverse_decision)
-
-        confidences = [float(item["confidence"]) for item in decisions if "confidence" in item]
-        confidence = round(sum(confidences) / len(confidences), 4) if confidences else 0.0
-
-        return Stage5DefragmentedInput(
-            original_text=original_text,
-            defragmented_text=final_text,
-            fragments_resolved=len(decisions),
-            reversed_applied=reverse_decision is not None,
-            confidence=confidence,
-            metadata={
-                "input_type": type(raw_input).__name__,
-                "reverse_min_improvement": self.reverse_min_improvement,
-                "decisions": decisions,
-                "arrays_detected": sorted(arrays.keys()),
-            },
-        )
-
-
 def defragment_stage5(
     raw_input: str | bytes,
     reverse_min_improvement: float = 1.35,
 ) -> Stage5DefragmentedInput:
-    return ObfuscationStage5Defragmenter(
-        reverse_min_improvement=reverse_min_improvement,
-    ).defragment(raw_input)
+    original_text = normalize_input(raw_input)
+    decisions: list[dict[str, Any]] = []
+
+    text_after_literal, literal_decisions = resolve_literal_concatenations(original_text)
+    decisions.extend(literal_decisions)
+
+    arrays = parse_array_assignments(text_after_literal)
+    text_after_indices, index_decisions = resolve_array_index_expressions(text_after_literal, arrays)
+    decisions.extend(index_decisions)
+
+    text_after_slice, slice_decisions = resolve_slice_reverse(text_after_indices)
+    decisions.extend(slice_decisions)
+
+    final_text, reverse_decision = maybe_reverse_whole_text(
+        text_after_slice,
+        min_improvement=reverse_min_improvement,
+    )
+    if reverse_decision is not None:
+        decisions.append(reverse_decision)
+
+    confidences = [float(item["confidence"]) for item in decisions if "confidence" in item]
+    confidence = round(sum(confidences) / len(confidences), 4) if confidences else 0.0
+
+    return Stage5DefragmentedInput(
+        original_text=original_text,
+        defragmented_text=final_text,
+        fragments_resolved=len(decisions),
+        reversed_applied=reverse_decision is not None,
+        confidence=confidence,
+        metadata={
+            "input_type": type(raw_input).__name__,
+            "reverse_min_improvement": reverse_min_improvement,
+            "decisions": decisions,
+            "arrays_detected": sorted(arrays.keys()),
+        },
+    )

@@ -97,29 +97,21 @@ class RawInputProfile:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-class Stage1Profiling:
-    def __init__(self, encoding: str = "utf-8") -> None:
-        self.encoding = encoding
-
-    def profile(self, raw_input: str | bytes) -> RawInputProfile:
-        text = normalize_input(raw_input)
-        if isinstance(raw_input, bytes):
-            raw_bytes = raw_input
-        else:
-            raw_bytes = raw_input.encode(self.encoding, errors="replace")
-
-        return RawInputProfile(
-            raw_text=text,
-            character_count=len(text),
-            shannon_entropy=calculate_shannon_entropy(raw_bytes),
-            character_set_distribution=identify_character_distribution(text),
-            unicode_block_distribution=identify_unicode_block_distribution(text),
-            metadata={
-                "encoding": self.encoding,
-                "input_type": type(raw_input).__name__,
-            },
-        )
-
-
 def profile_input(raw_input: str | bytes, encoding: str = "utf-8") -> RawInputProfile:
-    return Stage1Profiling(encoding=encoding).profile(raw_input)
+    text = normalize_input(raw_input)
+    if isinstance(raw_input, bytes):
+        raw_bytes = raw_input
+    else:
+        raw_bytes = str(raw_input).encode(encoding, errors="replace")
+
+    return RawInputProfile(
+        raw_text=text,
+        character_count=len(text),
+        shannon_entropy=calculate_shannon_entropy(raw_bytes),
+        character_set_distribution=identify_character_distribution(text),
+        unicode_block_distribution=identify_unicode_block_distribution(text),
+        metadata={
+            "encoding": encoding,
+            "input_type": type(raw_input).__name__,
+        },
+    )

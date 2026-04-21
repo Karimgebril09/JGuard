@@ -9,63 +9,53 @@ from dataclasses import asdict
 from pathlib import Path
 
 try:
-    from .stage1_profiling import Stage1Profiling, RawInputProfile, profile_input
-    from .stage2_decoding import DecodedInput, DecodingStep, Stage2Decoding, decode_stage2
-    from .stage3_unicoding import Stage3Unicoding, Stage3NormalizedInput, normalize_stage3
-    from .stage4_leet import Stage4Leet, Stage4ResolvedInput, resolve_stage4
-    from .stage5_defragmenting import ObfuscationStage5Defragmenter, Stage5DefragmentedInput, defragment_stage5
-    from .stage6_canonicalizing import ObfuscationStage6Canonicalizer, Stage6CanonicalInput, canonicalize_stage6
+    from .stage1_profiling import RawInputProfile, profile_input
+    from .stage2_decoding import DecodedInput, DecodingStep, decode_stage2
+    from .stage3_unicoding import Stage3NormalizedInput, normalize_stage3
+    from .stage4_leet import Stage4ResolvedInput, resolve_stage4
+    from .stage5_defragmenting import Stage5DefragmentedInput, defragment_stage5
+    from .stage6_canonicalizing import Stage6CanonicalInput, canonicalize_stage6
     from .stage7_metadata import (
         AnomalyRecord,
-        ObfuscationStage7Packager,
         Stage7ProvenanceEnvelope,
         TransformationRecord,
         package_stage7,
     )
-    from .pipeline import ObfuscationDefensePipeline, PipelineResult, run_obfuscation_pipeline
+    from .pipeline import PipelineResult, run_obfuscation_pipeline
 except ImportError:  # pragma: no cover - fallback for direct execution
-    from stage1_profiling import Stage1Profiling, RawInputProfile, profile_input
-    from stage2_decoding import DecodedInput, DecodingStep, Stage2Decoding, decode_stage2
-    from stage3_unicoding import Stage3Unicoding, Stage3NormalizedInput, normalize_stage3
-    from stage4_leet import Stage4Leet, Stage4ResolvedInput, resolve_stage4
-    from stage5_defragmenting import ObfuscationStage5Defragmenter, Stage5DefragmentedInput, defragment_stage5
-    from stage6_canonicalizing import ObfuscationStage6Canonicalizer, Stage6CanonicalInput, canonicalize_stage6
+    from stage1_profiling import RawInputProfile, profile_input
+    from stage2_decoding import DecodedInput, DecodingStep, decode_stage2
+    from stage3_unicoding import Stage3NormalizedInput, normalize_stage3
+    from stage4_leet import Stage4ResolvedInput, resolve_stage4
+    from stage5_defragmenting import Stage5DefragmentedInput, defragment_stage5
+    from stage6_canonicalizing import Stage6CanonicalInput, canonicalize_stage6
     from stage7_metadata import (
         AnomalyRecord,
-        ObfuscationStage7Packager,
         Stage7ProvenanceEnvelope,
         TransformationRecord,
         package_stage7,
     )
-    from pipeline import ObfuscationDefensePipeline, PipelineResult, run_obfuscation_pipeline
+    from pipeline import PipelineResult, run_obfuscation_pipeline
 
 __all__ = [
-    "Stage1Profiling",
     "RawInputProfile",
     "profile_input",
     "DecodedInput",
     "DecodingStep",
-    "Stage2Decoding",
     "decode_stage2",
-    "Stage3Unicoding",
     "Stage3NormalizedInput",
     "normalize_stage3",
-    "Stage4Leet",
     "Stage4ResolvedInput",
     "resolve_stage4",
-    "ObfuscationStage5Defragmenter",
     "Stage5DefragmentedInput",
     "defragment_stage5",
-    "ObfuscationStage6Canonicalizer",
     "Stage6CanonicalInput",
     "canonicalize_stage6",
     "TransformationRecord",
     "AnomalyRecord",
     "Stage7ProvenanceEnvelope",
-    "ObfuscationStage7Packager",
     "package_stage7",
     "PipelineResult",
-    "ObfuscationDefensePipeline",
     "run_obfuscation_pipeline",
 ]
 

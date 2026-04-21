@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 import re
 from typing import Any
 import unicodedata
+from defenses.obfuscation.helper import normalize_input
 
 
 _PUNCT_TRANSLATION = str.maketrans(
@@ -46,13 +47,6 @@ _MULTI_PUNCT_PATTERNS = (
     (re.compile(r"-{2,}"), "-"),
 )
 
-
-def normalize_input(raw_input: str | bytes) -> str:
-    if isinstance(raw_input, bytes):
-        return raw_input.decode("utf-8", errors="replace")
-    return raw_input
-
-
 def normalize_punctuation(text: str) -> tuple[str, int]:
     updated = text.translate(_PUNCT_TRANSLATION)
     replaced_count = 0
@@ -85,34 +79,29 @@ class Stage6CanonicalInput:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-class ObfuscationStage6Canonicalizer:
-    def canonicalize(self, raw_input: str | bytes) -> Stage6CanonicalInput:
-        original_text = normalize_input(raw_input)
-
-        # NFKC stabilizes compatibility punctuation and spacing before cleanup.
-        text = unicodedata.normalize("NFKC", original_text)
-
-        punctuation_text, punct_changes = normalize_punctuation(text)
-        lowered_text = punctuation_text.lower()
-        collapsed_text = re.sub(r"\s+", " ", lowered_text).strip()
-
-        lowered = punctuation_text != lowered_text
-        whitespace_collapsed = lowered_text != collapsed_text
-        punctuation_normalized = punct_changes > 0
-
-        return Stage6CanonicalInput(
-            original_text=original_text,
-            canonical_text=collapsed_text,
-            lowered=lowered,
-            whitespace_collapsed=whitespace_collapsed,
-            punctuation_normalized=punctuation_normalized,
-            metadata={
-                "input_type": type(raw_input).__name__,
-                "normalization_form": "NFKC",
-                "punctuation_changes": punct_changes,
-            },
-        )
-
-
 def canonicalize_stage6(raw_input: str | bytes) -> Stage6CanonicalInput:
-    return ObfuscationStage6Canonicalizer().canonicalize(raw_input)
+    original_text = normalize_input(raw_input)
+
+    # NFKC stabilizes compatibility punctuation and spacing before cleanup.
+    text = unicodedata.normalize("NFKC", original_text)
+
+    punctuation_text, punct_changes = normalize_punctuation(text)
+    lowered_text = punctuation_text.lower()
+    collapsed_text = re.sub(r"\s+", " ", lowered_text).strip()
+
+    lowered = punctuation_text != lowered_text
+    whitespace_collapsed = lowered_text != collapsed_text
+    punctuation_normalized = punct_changes > 0
+
+    return Stage6CanonicalInput(
+        original_text=original_text,
+        canonical_text=collapsed_text,
+        lowered=lowered,
+        whitespace_collapsed=whitespace_collapsed,
+        punctuation_normalized=punctuation_normalized,
+        metadata={
+            "input_type": type(raw_input).__name__,
+            "normalization_form": "NFKC",
+            "punctuation_changes": punct_changes,
+        },
+    )
