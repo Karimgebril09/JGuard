@@ -1,4 +1,4 @@
-category,input_text,expected_readable_text
+category,input,expected_output
 plain,hello world test,hello world test
 plain,please summarize this message,please summarize this message
 plain,safe mode only,safe mode only
@@ -56,3 +56,5 @@ caesar_rot13,frphevgl purpx,security check
 caesar_rot13,uryyb+jbeyq+grfg,hello world test
 mixed_leet_caesar,h3ll0%20jbeyq%20grfg,hello world test
 mixed_leet_caesar,pr0mpt%20fhzznevmr,prompt summarize
+whole_text_reverse,tset dlrow olleh,hello world test
+whole_text_reverse,txet egassem,message text

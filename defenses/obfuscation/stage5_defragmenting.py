@@ -1,50 +1,28 @@
 from __future__ import annotations
 
+import importlib
 from math import log
 import re
 from typing import Any
 from defenses.obfuscation.helper import normalize_input
 
+zipf_frequency = importlib.import_module("wordfreq").zipf_frequency
 
-LITERAL_CONCAT_RE = re.compile(
+LITERAL_CONCAT_REGEX = re.compile(
     r"(?:\"[^\"\\]*(?:\\.[^\"\\]*)*\"|'[^'\\]*(?:\\.[^'\\]*)*')"
     r"(?:\s*\+\s*(?:\"[^\"\\]*(?:\\.[^\"\\]*)*\"|'[^'\\]*(?:\\.[^'\\]*)*'))+"
 )
-QUOTED_LITERAL_RE = re.compile(r"^(?P<q>['\"])(?P<body>.*)(?P=q)$")
-ARRAY_ASSIGN_RE = re.compile(
+QUOTED_LITERAL_REGEX = re.compile(r"^(?P<q>['\"])(?P<body>.*)(?P=q)$")
+ARRAY_ASSIGN_REGEX = re.compile(
     r"\b(?P<name>[A-Za-z_]\w*)\s*=\s*\[(?P<body>[^\]]+)\]",
     re.DOTALL,
 )
-ARRAY_ELEMENT_RE = re.compile(r"(['\"])(.*?)(?<!\\)\1")
-ARRAY_INDEX_EXPR_RE = re.compile(r"\b([A-Za-z_]\w*\[\d+\]\s*(?:\+\s*[A-Za-z_]\w*\[\d+\]\s*)+)")
-INDEX_ACCESS_RE = re.compile(r"\b(?P<name>[A-Za-z_]\w*)\[(?P<index>\d+)\]")
-SLICE_REVERSE_RE = re.compile(r"(?P<q>['\"])(?P<body>.*?)(?P=q)\s*\[\s*::\s*-1\s*\]")
+ARRAY_ELEMENT_REGEX = re.compile(r"(['\"])(.*?)(?<!\\)\1")
+ARRAY_INDEX_EXPR_REGEX = re.compile(r"\b([A-Za-z_]\w*\[\d+\]\s*(?:\+\s*[A-Za-z_]\w*\[\d+\]\s*)+)")
+INDEX_ACCESS_REGEX = re.compile(r"\b(?P<name>[A-Za-z_]\w*)\[(?P<index>\d+)\]")
+SLICE_REVERSE_REGEX = re.compile(r"(?P<q>['\"])(?P<body>.*?)(?P=q)\s*\[\s*::\s*-1\s*\]")
 
-WORD_FREQUENCY = {
-    "the": 1500,
-    "to": 1300,
-    "of": 1200,
-    "and": 1000,
-    "in": 1000,
-    "is": 980,
-    "this": 820,
-    "with": 780,
-    "not": 700,
-    "you": 860,
-    "hello": 700,
-    "world": 640,
-    "payload": 210,
-    "security": 280,
-    "attack": 220,
-    "exploit": 200,
-    "mainframe": 160,
-    "prompt": 240,
-    "message": 530,
-    "text": 520,
-    "code": 580,
-    "data": 620,
-    "hack": 260,
-}
+MIN_WORD_ZIPF = 3.0
 
 def fallback_token_score(token: str) -> float:
     if not token:
@@ -71,9 +49,9 @@ def is_text_likely_english(text: str) -> float:
 
     token_score = 0.0
     for token in tokens:
-        freq = WORD_FREQUENCY.get(token)
-        if freq is not None:
-            token_score += 1.8 + log(freq + 1.0, 10)
+        freq = zipf_frequency(token, "en")
+        if freq >= MIN_WORD_ZIPF:
+            token_score += 1.2 + freq
         else:
             token_score += fallback_token_score(token)
 
@@ -85,11 +63,12 @@ def is_text_likely_english(text: str) -> float:
 
 
 def find_dictionary_hits(text: str) -> int:
-    return sum(1 for token in re.findall(r"[a-z]+", text.lower()) if token in WORD_FREQUENCY)
+    tokens = re.findall(r"[a-z]+", text.lower())
+    return sum(1 for token in tokens if zipf_frequency(token, "en") >= MIN_WORD_ZIPF)
 
 
 def unquote_literal(token: str) -> str:
-    match = QUOTED_LITERAL_RE.match(token.strip())
+    match = QUOTED_LITERAL_REGEX.match(token.strip())
     if not match:
         return token
     return bytes(match.group("body"), "utf-8").decode("unicode_escape")
@@ -115,15 +94,15 @@ def resolve_literal_concatenations(text: str) -> tuple[str, list[dict[str, Any]]
         )
         return resolved
 
-    return LITERAL_CONCAT_RE.sub(replacement, text), decisions
+    return LITERAL_CONCAT_REGEX.sub(replacement, text), decisions
 
 
 def parse_array_assignments(text: str) -> dict[str, list[str]]:
     arrays: dict[str, list[str]] = {}
-    for match in ARRAY_ASSIGN_RE.finditer(text):
+    for match in ARRAY_ASSIGN_REGEX.finditer(text):
         name = match.group("name")
         body = match.group("body")
-        elements = [unquote_literal(item.group(0)) for item in ARRAY_ELEMENT_RE.finditer(body)]
+        elements = [unquote_literal(item.group(0)) for item in ARRAY_ELEMENT_REGEX.finditer(body)]
         if elements:
             arrays[name] = elements
     return arrays
@@ -137,7 +116,7 @@ def resolve_array_index_expressions(
 
     def replacement(match: re.Match[str]) -> str:
         expression = match.group(1)
-        accesses = INDEX_ACCESS_RE.findall(expression)
+        accesses = INDEX_ACCESS_REGEX.findall(expression)
         if not accesses:
             return expression
 
@@ -169,7 +148,7 @@ def resolve_array_index_expressions(
         )
         return resolved
 
-    return ARRAY_INDEX_EXPR_RE.sub(replacement, text), decisions
+    return ARRAY_INDEX_EXPR_REGEX.sub(replacement, text), decisions
 
 
 def resolve_slice_reverse(text: str) -> tuple[str, list[dict[str, Any]]]:
@@ -188,7 +167,7 @@ def resolve_slice_reverse(text: str) -> tuple[str, list[dict[str, Any]]]:
         )
         return resolved
 
-    return SLICE_REVERSE_RE.sub(replacement, text), decisions
+    return SLICE_REVERSE_REGEX.sub(replacement, text), decisions
 
 
 def maybe_reverse_whole_text(text: str, min_improvement: float) -> tuple[str, dict[str, Any] | None]:

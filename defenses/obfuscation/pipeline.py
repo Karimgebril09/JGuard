@@ -42,7 +42,7 @@ def run_obfuscation_pipeline(raw_input: str | bytes) -> dict[str, Any]:
     stage_outputs["stage6"] = s6_canonical
 
     # Stage 7: metadata 
-    s7_envelope = package_stage7(
+    s7_metadata_envelope = package_stage7(
         canonical_input=s6_canonical,
         stage1_profile=s1_profile,
         stage2_decoded=s2_decoded,
@@ -50,13 +50,13 @@ def run_obfuscation_pipeline(raw_input: str | bytes) -> dict[str, Any]:
         stage4_resolved=s4_resolved,
         stage5_defragmented=s5_defragmented,
     )
-    stage_outputs["stage7"] = s7_envelope
+    stage_outputs["stage7"] = s7_metadata_envelope
 
     elapsed_ms = (time.time() - start_time) * 1000
 
     return {
         "original_input": raw_input,
-        "metadata_envelope": s7_envelope,
+        "metadata_envelope": s7_metadata_envelope,
         "stage_outputs": stage_outputs,
         "execution_time_ms": round(elapsed_ms, 2),
     }
