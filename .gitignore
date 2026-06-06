@@ -5,3 +5,9 @@ settings.json
 /__pycache__/
 *.pyc
 
+*.pth
+*.pt
+*.png
+*.db
+mlruns
+*.csv
