@@ -11,3 +11,5 @@ settings.json
 *.db
 mlruns
 *.csv
+paper*
+*.pkl
