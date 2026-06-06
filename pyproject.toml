@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "JGuard"
+version = "0.0.0"
+description = "Guarding against attacks in LLMs"
+requires-python = ">=3.11"
+
+[tool.setuptools]
+packages = [
+    "system",
+    "dashboard",
+    "defenders",
+    "evaluation",
+    "data_generation",
+]

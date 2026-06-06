@@ -13,3 +13,4 @@ mlruns
 *.csv
 paper*
 *.pkl
+*.egg-info
