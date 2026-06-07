@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from collections.abc import Callable
 
 from defenses.obfuscation.stage1_profiling import profile_input
 from defenses.obfuscation.stage2_decoding import decode_stage2
@@ -9,11 +10,20 @@ from defenses.obfuscation.stage4_leet import resolve_stage4
 from defenses.obfuscation.stage5_defragmenting import defragment_stage5
 from defenses.obfuscation.stage6_canonicalizing import canonicalize_stage6
 from defenses.obfuscation.stage7_metadata import package_stage7
+from defenses.obfuscation.stage8_harm_classifier import classify_stage8
 
 import time
 
 
-def run_obfuscation_pipeline(raw_input: str | bytes) -> dict[str, Any]:
+Stage8Classifier = Callable[[str], dict[str, Any]]
+
+
+def run_obfuscation_pipeline(
+    raw_input: str | bytes,
+    *,
+    stage8_classifier: Stage8Classifier | None = None,
+    stage8_model_id: str | None = None,
+) -> dict[str, Any]:
     start_time = time.time()
     stage_outputs: dict[str, Any] = {}
 
@@ -52,11 +62,19 @@ def run_obfuscation_pipeline(raw_input: str | bytes) -> dict[str, Any]:
     )
     stage_outputs["stage7"] = s7_metadata_envelope
 
+    s8_final_envelope = classify_stage8(
+        canonical_text=str(s7_metadata_envelope["canonical_text"]),
+        metadata_envelope=s7_metadata_envelope,
+        classifier=stage8_classifier,
+        model_id=stage8_model_id,
+    )
+    stage_outputs["stage8"] = s8_final_envelope["stage8"]
+
     elapsed_ms = (time.time() - start_time) * 1000
 
     return {
         "original_input": raw_input,
-        "metadata_envelope": s7_metadata_envelope,
+        "metadata_envelope": s8_final_envelope,
         "stage_outputs": stage_outputs,
         "execution_time_ms": round(elapsed_ms, 2),
     }

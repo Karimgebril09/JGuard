@@ -93,6 +93,7 @@ def package_stage7(
     return {
         "original_text": original_text,
         "canonical_text": canonical_text,
+        "obfuscation_depth": len(s2.get("steps", [])),
         "transformations": transformations,
         "anomalies": anomalies,
         "metadata": {
