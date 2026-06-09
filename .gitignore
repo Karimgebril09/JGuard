@@ -2,7 +2,29 @@
 settings.json
 .vscode/
 
-/__pycache__/
+__pycache__/
 *.pyc
 
 .venv/
+
+*.joblib
+
+# Obfuscation stage-8 training artifacts (large/generated)
+defenses/obfuscation/stage8_custom_classifier/artifacts/
+defenses/obfuscation/stage8_custom_classifier/artifacts_balanced/
+defenses/obfuscation/stage8_custom_classifier/artifacts_binary_balanced/
+defenses/obfuscation/stage8_custom_classifier/distilbert_artifacts/
+defenses/obfuscation/stage8_custom_classifier/distilbert_artifacts_*/
+defenses/obfuscation/stage8_custom_classifier/**/checkpoint-*/
+defenses/obfuscation/stage8_custom_classifier/**/binary_run/
+defenses/obfuscation/stage8_custom_classifier/**/category_run/
+defenses/obfuscation/stage8_custom_classifier/**/wandb/
+defenses/obfuscation/stage8_custom_classifier/**/runs/
+defenses/obfuscation/stage8_custom_classifier/.ipynb_checkpoints/
+
+# Model weight formats produced by fine-tuning
+defenses/obfuscation/stage8_custom_classifier/**/*.safetensors
+defenses/obfuscation/stage8_custom_classifier/**/*.bin
+defenses/obfuscation/stage8_custom_classifier/**/*.pt
+defenses/obfuscation/stage8_custom_classifier/**/*.pth
+defenses/obfuscation/stage8_custom_classifier/**/*.pkl
