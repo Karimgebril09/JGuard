@@ -3,48 +3,8 @@ import importlib
 from typing import Any
 
 from backend.app.models.chat_models import ChatRequest
-from backend.app.models.system_models import SystemConfigRequest
-
-
-_SYSTEM_STATE: dict[str, object] = {
-    "architecture": "foundational_llm",
-    "obfuscation_active": True,
-    "multi_turn_active": True,
-    "roleplay_active": True,
-}
 
 _CHAT_HISTORY: list[dict[str, str]] = []
-
-
-def get_system_status() -> dict[str, object]:
-    shields_enabled = bool(
-        _SYSTEM_STATE["obfuscation_active"]
-        or _SYSTEM_STATE["multi_turn_active"]
-        or _SYSTEM_STATE["roleplay_active"]
-    )
-    return {
-        "architecture": _SYSTEM_STATE["architecture"],
-        "shields_enabled": shields_enabled,
-        "obfuscation_active": _SYSTEM_STATE["obfuscation_active"],
-        "multi_turn_active": _SYSTEM_STATE["multi_turn_active"],
-        "roleplay_active": _SYSTEM_STATE["roleplay_active"],
-    }
-
-
-def update_system_config(payload: SystemConfigRequest) -> dict[str, object]:
-    _SYSTEM_STATE["architecture"] = payload.architecture
-    _SYSTEM_STATE["obfuscation_active"] = payload.obfuscation_protection
-    _SYSTEM_STATE["multi_turn_active"] = payload.multi_turn_protection
-    _SYSTEM_STATE["roleplay_active"] = payload.roleplay_protection
-
-    shield_status = "enabled" if any(
-        [
-            payload.obfuscation_protection,
-            payload.multi_turn_protection,
-            payload.roleplay_protection,
-        ]
-    ) else "disabled"
-    return {"success": True, "shield_status": shield_status}
 
 
 def run_chat(mode: str, payload: ChatRequest) -> dict[str, object]:
