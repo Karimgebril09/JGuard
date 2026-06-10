@@ -33,7 +33,6 @@ def mask_pii(text, tagged):
     return " ".join(output_words)
 
 class DistilBERTBiLSTMCRF(nn.Module):
-
     def __init__(self, num_tags: int = NUM_TAGS, ignore_index: int = -100):
         super().__init__()
         self.bert       = DistilBertModel.from_pretrained("distilbert-base-uncased")
@@ -59,9 +58,49 @@ class DistilBERTBiLSTMCRF(nn.Module):
         return self.crf.decode(emissions, mask=mask)
 
 
+class BiLSTMCRF(nn.Module):
+    def __init__(self,embedding_dim=300,hidden_size=256,num_classes=2,dropout=0.3):
+        super().__init__()
+
+        self.bilstm1 = nn.LSTM(embedding_dim,hidden_size,batch_first=True,bidirectional=True)
+        self.bilstm2 = nn.LSTM(hidden_size * 2,hidden_size,batch_first=True,bidirectional=True)
+        self.bilstm3 = nn.LSTM(hidden_size * 2,hidden_size,batch_first=True,bidirectional=True)
+
+        self.dropout = nn.Dropout(dropout)
+
+        self.classifier = nn.Sequential(
+            nn.Linear(hidden_size * 2, 512),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(512, num_classes)
+        )
+        self.crf = CRF(num_tags=num_classes,batch_first=True)
+
+    def forward(self, x):
+
+        out1, _ = self.bilstm1(x)
+        out2, _ = self.bilstm2(out1)
+        out3, _ = self.bilstm3(out2)
+
+        emissions = self.classifier(out3)
+
+        return emissions
+
+    def decode(self, x, lengths, mask):
+
+        emissions = self.forward(x, lengths)
+
+        prediction = self.crf.decode(
+            emissions,
+            mask=mask
+        )
+
+        return prediction
+
+
 class PIIDetector:
 
-    def __init__(self, checkpoint_path: str, device= None):
+    def __init__(self, checkpoint_path: str,checkpoint_path2: str, device= None):
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
         self.device = torch.device(device)
@@ -74,9 +113,15 @@ class PIIDetector:
         self.model.to(self.device)
         self.model.eval()
 
+        self.model2 = DistilBERTBiLSTMCRF()
+        state2 = torch.load(checkpoint_path2, map_location=self.device)
+        self.label2id=state2["label2id"]
+        self.id2label=state2["id2label"]
+        self.model2.load_state_dict(state2,map_location=self.device)
+        self.model2.to(self.device)
+        self.model2.eval()
 
     def predict(self, text) :
-
         words, subword_ids, word_first_subword = self.tokenise_with_alignment(text)
         if not subword_ids:
             return []
@@ -87,40 +132,20 @@ class PIIDetector:
             predictions = self.model(input_ids=input_ids, attention_mask=attn_mask)
         subword_tags = predictions[0] 
 
+
+        # # embeddings to be added to fasttext
+        # with torch.no_grad():
+        
+        #     mask = torch.ones_like(input_ids).to(self.device)
+        #     # make it ones mask
+        #     # predictions2 = self.model2.crf.decode(x, mask=mask)
+        predictions2 = []
+
         word_tags = [IDX2TAG[subword_tags[idx]] for idx in word_first_subword]
-        return list(zip(words, word_tags))
+        word_tags2 = [self.id2label[predictions2[0][idx]] for idx in word_first_subword]
 
-    def predict_batch(self, texts) :
-       
-        if not texts:
-            return []
+        return list(zip(words, word_tags)) , list(zip(words, word_tags2))
 
-        all_words, all_ids, all_alignments = [], [], []
-        for text in texts:
-            words, subword_ids, alignment = self.tokenise_with_alignment(text)
-            all_words.append(words)
-            all_ids.append(subword_ids)
-            all_alignments.append(alignment)
-
-        max_len = max(len(ids) for ids in all_ids)
-        pad_id= self.tokenizer.pad_token_id
-
-        padded_ids= [ids + [pad_id] * (max_len - len(ids)) for ids in all_ids]
-        attn_masks= [[1] * len(ids) + [0] * (max_len - len(ids)) for ids in all_ids]
-
-        input_ids= torch.tensor(padded_ids,  dtype=torch.long).to(self.device)
-        attn_mask= torch.tensor(attn_masks,  dtype=torch.long).to(self.device)
-
-        with torch.no_grad():
-            predictions = self.model(input_ids=input_ids, attention_mask=attn_mask)
-
-        results = []
-        for i, (words, alignment) in enumerate(zip(all_words, all_alignments)):
-            subword_tags = predictions[i]
-            word_tags    = [IDX2TAG[subword_tags[idx]] for idx in alignment]
-            results.append(list(zip(words, word_tags)))
-
-        return results
 
 
     def tokenise_with_alignment(self, text):
