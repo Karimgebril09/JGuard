@@ -4,12 +4,32 @@ from collections.abc import Callable
 from functools import lru_cache
 from typing import Any
 import os
+from pathlib import Path
 import re
 
+from defenses.obfuscation.stage8_custom_classifier import load_stage8_distilbert_classifier
 
-DEFAULT_MODEL_ID = os.getenv("JGUARD_STAGE8_MODEL_ID", "meta-llama/Llama-Guard-3-8B")
 
-CATEGORY_MAP: dict[str, str] = {
+def _env_flag(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    return normalized in {"1", "true", "yes", "on"}
+
+
+DEFAULT_LLAMA_GUARD_MODEL_ID = os.getenv(
+    "JGUARD_STAGE8_MODEL_ID", "meta-llama/Llama-Guard-3-8B"
+)
+DEFAULT_USE_DISTILBERT = _env_flag("JGUARD_STAGE8_USE_DISTILBERT", True)
+_DEFAULT_DISTILBERT_ARTIFACTS_DIR = (
+    Path(__file__).resolve().parent / "stage8_custom_classifier" / "distilbert_artifacts_e4"
+)
+DEFAULT_DISTILBERT_ARTIFACTS_DIR = os.getenv(
+    "JGUARD_STAGE8_DISTILBERT_ARTIFACTS_DIR", str(_DEFAULT_DISTILBERT_ARTIFACTS_DIR)
+)
+
+LLAMA_GUARD_CATEGORY_MAP: dict[str, str] = {
     # Violent crimes → harmful / violent toxic content
     "S1": "toxicity",
 
@@ -76,7 +96,7 @@ def parse_llama_guard_response(response: str) -> dict[str, Any]:
     is_safe = bool(lines) and lines[0].lower().startswith("safe")
     raw_categories = [] if is_safe else _extract_category_codes("\n".join(lines[1:]))
     mapped_categories = _unique_in_order(
-        [CATEGORY_MAP[code] for code in raw_categories if code in CATEGORY_MAP]
+        [LLAMA_GUARD_CATEGORY_MAP[code] for code in raw_categories if code in LLAMA_GUARD_CATEGORY_MAP]
     )
 
     return {
@@ -88,7 +108,7 @@ def parse_llama_guard_response(response: str) -> dict[str, Any]:
 
 
 @lru_cache(maxsize=1)
-def load_classifier_bundle(model_id: str = DEFAULT_MODEL_ID) -> tuple[Any, Any]:
+def load_llama_guard_bundle(model_id: str = DEFAULT_LLAMA_GUARD_MODEL_ID) -> tuple[Any, Any]:
     import torch
     from transformers.models.auto.modeling_auto import AutoModelForCausalLM
     from transformers.models.auto.tokenization_auto import AutoTokenizer
@@ -106,9 +126,22 @@ def load_classifier_bundle(model_id: str = DEFAULT_MODEL_ID) -> tuple[Any, Any]:
     return tokenizer, model
 
 
-def classify_input(text: str, model_id: str = DEFAULT_MODEL_ID) -> dict[str, Any]:
+@lru_cache(maxsize=4)
+def load_distilbert_classifier(artifacts_dir: str = DEFAULT_DISTILBERT_ARTIFACTS_DIR) -> Stage8Classifier:
+    artifacts = Path(artifacts_dir)
+    if not artifacts.exists():
+        raise FileNotFoundError(
+            "DistilBERT artifacts directory was not found. Expected path: "
+            f"{artifacts}"
+        )
+    return load_stage8_distilbert_classifier(artifacts)
+
+
+def classify_llama_guard_input(
+    text: str, model_id: str = DEFAULT_LLAMA_GUARD_MODEL_ID
+) -> dict[str, Any]:
     import torch
-    tokenizer, model = load_classifier_bundle(model_id)
+    tokenizer, model = load_llama_guard_bundle(model_id)
     messages = [{"role": "user", "content": text}]
 
     formatted = tokenizer.apply_chat_template(
@@ -131,6 +164,26 @@ def classify_input(text: str, model_id: str = DEFAULT_MODEL_ID) -> dict[str, Any
         output[0][input_ids.shape[1]:], skip_special_tokens=True
     ).strip()
     return parse_llama_guard_response(response)
+
+
+def classify_distilbert_input(
+    text: str,
+    artifacts_dir: str = DEFAULT_DISTILBERT_ARTIFACTS_DIR,
+) -> dict[str, Any]:
+    classifier = load_distilbert_classifier(artifacts_dir)
+    return classifier(text)
+
+
+def classify_input(
+    text: str,
+    model_id: str = DEFAULT_LLAMA_GUARD_MODEL_ID,
+    *,
+    use_distilbert: bool = DEFAULT_USE_DISTILBERT,
+    distilbert_artifacts_dir: str = DEFAULT_DISTILBERT_ARTIFACTS_DIR,
+) -> dict[str, Any]:
+    if use_distilbert:
+        return classify_distilbert_input(text, artifacts_dir=distilbert_artifacts_dir)
+    return classify_llama_guard_input(text, model_id=model_id)
 
 
 def _derive_obfuscation_depth(metadata_envelope: dict[str, Any]) -> int:
@@ -158,12 +211,25 @@ def classify_stage8(
     metadata_envelope: dict[str, Any],
     classifier: Stage8Classifier | None = None,
     model_id: str | None = None,
+    use_distilbert: bool = DEFAULT_USE_DISTILBERT,
+    distilbert_artifacts_dir: str | None = None,
 ) -> dict[str, Any]:
-    result = (
-        classifier(canonical_text)
-        if classifier is not None
-        else classify_input(canonical_text, model_id=(model_id or DEFAULT_MODEL_ID))
-    )
+    selected_distilbert_dir = distilbert_artifacts_dir or DEFAULT_DISTILBERT_ARTIFACTS_DIR
+    selected_llama_model_id = model_id or DEFAULT_LLAMA_GUARD_MODEL_ID
+
+    if classifier is not None:
+        result = classifier(canonical_text)
+        selected_backend = "custom"
+        selected_model_ref = "custom_callable"
+    elif use_distilbert:
+        result = classify_distilbert_input(canonical_text, artifacts_dir=selected_distilbert_dir)
+        selected_backend = "distilbert_finetuned"
+        selected_model_ref = str(result.get("model_name", selected_distilbert_dir))
+    else:
+        result = classify_llama_guard_input(canonical_text, model_id=selected_llama_model_id)
+        selected_backend = "llama_guard"
+        selected_model_ref = selected_llama_model_id
+
     obfuscation_depth = _derive_obfuscation_depth(metadata_envelope)
 
     severity = round(1.0 + (0.2 * obfuscation_depth), 2) if not result["is_safe"] else 0.0
@@ -178,6 +244,7 @@ def classify_stage8(
         "severity": severity,
         "action": action,
         "obfuscation_depth": obfuscation_depth,
-        "model_id": model_id or DEFAULT_MODEL_ID,
+        "model_id": selected_model_ref,
+        "classifier_backend": selected_backend,
     }
     return final_envelope

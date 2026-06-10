@@ -10,7 +10,10 @@ from defenses.obfuscation.stage4_leet import resolve_stage4
 from defenses.obfuscation.stage5_defragmenting import defragment_stage5
 from defenses.obfuscation.stage6_canonicalizing import canonicalize_stage6
 from defenses.obfuscation.stage7_metadata import package_stage7
-from defenses.obfuscation.stage8_harm_classifier import classify_stage8
+from defenses.obfuscation.stage8_harm_classifier import (
+    DEFAULT_USE_DISTILBERT,
+    classify_stage8,
+)
 
 import time
 
@@ -37,6 +40,8 @@ def run_obfuscation_pipeline(
     *,
     stage8_classifier: Stage8Classifier | None = None,
     stage8_model_id: str | None = None,
+    stage8_use_distilbert: bool = DEFAULT_USE_DISTILBERT,
+    stage8_distilbert_artifacts_dir: str | None = None,
 ) -> dict[str, Any]:
     start_time = time.time()
     stage_outputs: dict[str, Any] = {}
@@ -81,6 +86,8 @@ def run_obfuscation_pipeline(
         metadata_envelope=s7_metadata_envelope,
         classifier=stage8_classifier,
         model_id=stage8_model_id,
+        use_distilbert=stage8_use_distilbert,
+        distilbert_artifacts_dir=stage8_distilbert_artifacts_dir,
     )
     stage8_result = s8_final_envelope["stage8"]
     stage_outputs["stage8"] = stage8_result
@@ -110,12 +117,16 @@ def run_obfuscation_guard(
     *,
     stage8_classifier: Stage8Classifier | None = None,
     stage8_model_id: str | None = None,
+    stage8_use_distilbert: bool = DEFAULT_USE_DISTILBERT,
+    stage8_distilbert_artifacts_dir: str | None = None,
 ) -> dict[str, Any]:
     """Run the 8-stage pipeline and return a minimal integration-friendly result."""
     pipeline_result = run_obfuscation_pipeline(
         raw_input,
         stage8_classifier=stage8_classifier,
         stage8_model_id=stage8_model_id,
+        stage8_use_distilbert=stage8_use_distilbert,
+        stage8_distilbert_artifacts_dir=stage8_distilbert_artifacts_dir,
     )
     return {
         "clean_text": pipeline_result["clean_text"],
