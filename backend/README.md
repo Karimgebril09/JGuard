@@ -77,6 +77,40 @@ Example for `POST /api/chat/foundational`:
 }
 ```
 
+Gemini example (`local_llm: false`):
+
+```json
+{
+  "prompt": "Explain RAG briefly",
+  "local_llm": false,
+  "llm_api_key": "YOUR_GEMINI_API_KEY",
+  "llm_type": "gemini-1.5-flash",
+  "obfuscation_protection": true,
+  "multi_turn_protection": true,
+  "roleplay_protection": true,
+  "history": []
+}
+```
+
+OpenAI example (`local_llm: false`):
+
+```json
+{
+  "prompt": "Summarize transformer attention in 3 bullets",
+  "local_llm": false,
+  "llm_api_key": "YOUR_OPENAI_API_KEY",
+  "llm_type": "gpt-4o-mini",
+  "obfuscation_protection": true,
+  "multi_turn_protection": true,
+  "roleplay_protection": true,
+  "history": []
+}
+```
+
+Provider routing when `local_llm` is false:
+- `llm_type` starting with `gemini` (or `google/`) routes to Gemini.
+- Any other `llm_type` routes to OpenAI.
+
 ## Wiring real logic later
 
 1. Replace stub behavior in `backend/app/core/defense_engine.py` with real runtime calls.

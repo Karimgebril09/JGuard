@@ -39,7 +39,7 @@ def get_summary() -> dict[str, object]:
     total_campaigns = len(_RUNS)
     avg_success = sum(float(run["success_rate"]) for run in _RUNS) / total_campaigns
     critical_issues = sum(int(run["critical"]) for run in _RUNS)
-    blocked_pct = round((1 - avg_success) * 100, 2)
+    blocked_pct = round(1 - avg_success, 4)
     return {
         "total_campaigns": total_campaigns,
         "avg_jailbreak_success_rate": round(avg_success, 4),
