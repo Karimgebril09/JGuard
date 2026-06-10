@@ -1,0 +1,1 @@
+"""Core configuration for the backend.""""""Core application configuration."""
