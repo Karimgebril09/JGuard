@@ -14,3 +14,5 @@ mlruns
 paper*
 *.pkl
 *.egg-info
+*.bin
+*joblib
