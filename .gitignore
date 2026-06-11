@@ -41,3 +41,5 @@ defenses/obfuscation/stage8_custom_classifier/**/*.bin
 defenses/obfuscation/stage8_custom_classifier/**/*.pt
 defenses/obfuscation/stage8_custom_classifier/**/*.pth
 defenses/obfuscation/stage8_custom_classifier/**/*.pkl
+
+.venv/
