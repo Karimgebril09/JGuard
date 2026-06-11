@@ -8,6 +8,8 @@ from tca_feature_extraction import TCAFeatures
 from sklearn.preprocessing import PowerTransformer
 
 from transforms import TRANSFORMS
+import warnings
+warnings.filterwarnings("ignore")
 
 
 class MultiTurnDefender:
@@ -40,13 +42,16 @@ class MultiTurnDefender:
 
         return series
 
-    def apply_transforms(self, row) :
+    def apply_transforms(self, df):
+        df = df.copy()
+
         for feature, transform in TRANSFORMS.items():
-            if feature not in row:
+            if feature not in df.columns:
                 continue
-            s=pd.Series([row[feature]])
-            row[f"{feature}"]=float(self._apply_transform(s, transform).iloc[0])
-        return row
+
+            df[feature] = self._apply_transform(df[feature], transform)
+
+        return df
 
 
     def predict(self, prompt, response) :
@@ -55,8 +60,8 @@ class MultiTurnDefender:
         tca_features = pd.DataFrame([self._tca_feature_extractor.feature_extract(prompt, response)])
         features = pd.concat([ssm_features, tca_features], axis=1)
         features = features[self.selected_features]
-        # transformed_features = self.apply_transforms(features)
-        all_features = pd.concat([features, vectors], axis=1)
+        transformed_features = self.apply_transforms(features)
+        all_features = pd.concat([transformed_features, vectors], axis=1)
         prediction = self._model.predict(all_features)
         return prediction[0]
 
