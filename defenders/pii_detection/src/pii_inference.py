@@ -1,8 +1,11 @@
 import torch
 import torch.nn as nn
+from torchgen import model
 from transformers import AutoTokenizer, DistilBertModel
 from TorchCRF import CRF
 from typing import List, Tuple, Optional
+import fasttext
+
 
 
 NER_TAGS = [
@@ -65,7 +68,6 @@ class BiLSTMCRF(nn.Module):
         self.bilstm1 = nn.LSTM(embedding_dim,hidden_size,batch_first=True,bidirectional=True)
         self.bilstm2 = nn.LSTM(hidden_size * 2,hidden_size,batch_first=True,bidirectional=True)
         self.bilstm3 = nn.LSTM(hidden_size * 2,hidden_size,batch_first=True,bidirectional=True)
-
         self.dropout = nn.Dropout(dropout)
 
         self.classifier = nn.Sequential(
@@ -86,9 +88,9 @@ class BiLSTMCRF(nn.Module):
 
         return emissions
 
-    def decode(self, x, lengths, mask):
+    def decode(self, x, mask):
 
-        emissions = self.forward(x, lengths)
+        emissions = self.forward(x)
 
         prediction = self.crf.decode(
             emissions,
@@ -99,7 +101,6 @@ class BiLSTMCRF(nn.Module):
 
 
 class PIIDetector:
-
     def __init__(self, checkpoint_path: str,checkpoint_path2: str, device= None):
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -113,13 +114,29 @@ class PIIDetector:
         self.model.to(self.device)
         self.model.eval()
 
-        self.model2 = DistilBERTBiLSTMCRF()
+        self.ENWE = fasttext.load_model("./../models/cc.en.300.bin")
+
         state2 = torch.load(checkpoint_path2, map_location=self.device)
         self.label2id=state2["label2id"]
         self.id2label=state2["id2label"]
+        self.model2=BiLSTMCRF(embedding_dim=300,hidden_size=256,num_classes=len(self.label2id))
         self.model2.load_state_dict(state2,map_location=self.device)
         self.model2.to(self.device)
         self.model2.eval()
+
+    
+    def trust_strategy(self, predictions1, predictions2):
+        # trust model2 in ip addresses
+        final_predictions = []
+
+        for pred1, pred2 in zip(predictions1, predictions2):
+            if pred2.contains("IPV4") or pred2.contains("IPV6"):
+                final_predictions.append(pred2)
+            else:
+                final_predictions.append(pred1)
+
+        return final_predictions
+            
 
     def predict(self, text) :
         words, subword_ids, word_first_subword = self.tokenise_with_alignment(text)
@@ -133,18 +150,20 @@ class PIIDetector:
         subword_tags = predictions[0] 
 
 
-        # # embeddings to be added to fasttext
-        # with torch.no_grad():
-        
-        #     mask = torch.ones_like(input_ids).to(self.device)
-        #     # make it ones mask
-        #     # predictions2 = self.model2.crf.decode(x, mask=mask)
-        predictions2 = []
+        tokens=[]  # TODO modify this
+        with torch.no_grad():
+            x = torch.tensor([[self.ENWE.get_word_vector(tok) for tok in tokens]],dtype=torch.float32).to(self.device)
+            length = len(tokens)
+            mask = torch.ones((1, length), dtype=torch.bool, device=self.device)
+            pred = self.model2.decode(x, mask)[0]
+
+        predictions2 = [self.label2id.get(self.id2label[idx], self.label2id["O"])for idx in pred]
 
         word_tags = [IDX2TAG[subword_tags[idx]] for idx in word_first_subword]
         word_tags2 = [self.id2label[predictions2[0][idx]] for idx in word_first_subword]
 
-        return list(zip(words, word_tags)) , list(zip(words, word_tags2))
+        final_tags = self.trust_strategy(word_tags,word_tags2)
+        return list(zip(words, final_tags))
 
 
 
