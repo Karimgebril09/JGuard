@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import unicodedata
-from defenses.obfuscation.helper import normalize_input
+from defenders.obfuscation.helper import normalize_input
 
 
 ZERO_WIDTH_CHARACTERS = {

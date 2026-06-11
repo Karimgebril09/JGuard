@@ -3,14 +3,14 @@ from __future__ import annotations
 from typing import Any
 from collections.abc import Callable
 
-from defenses.obfuscation.stage1_profiling import profile_input
-from defenses.obfuscation.stage2_decoding import decode_stage2
-from defenses.obfuscation.stage3_unicoding import normalize_stage3
-from defenses.obfuscation.stage4_leet import resolve_stage4
-from defenses.obfuscation.stage5_defragmenting import defragment_stage5
-from defenses.obfuscation.stage6_canonicalizing import canonicalize_stage6
-from defenses.obfuscation.stage7_metadata import package_stage7
-from defenses.obfuscation.stage8_harm_classifier import (
+from defenders.obfuscation.stage1_profiling import profile_input
+from defenders.obfuscation.stage2_decoding import decode_stage2
+from defenders.obfuscation.stage3_unicoding import normalize_stage3
+from defenders.obfuscation.stage4_leet import resolve_stage4
+from defenders.obfuscation.stage5_defragmenting import defragment_stage5
+from defenders.obfuscation.stage6_canonicalizing import canonicalize_stage6
+from defenders.obfuscation.stage7_metadata import package_stage7
+from defenders.obfuscation.stage8_harm_classifier import (
     DEFAULT_USE_DISTILBERT,
     classify_stage8,
 )

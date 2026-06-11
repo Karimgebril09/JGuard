@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 import re
 
-from defenses.obfuscation.stage8_custom_classifier import load_stage8_distilbert_classifier
+from defenders.obfuscation.stage8_custom_classifier import load_stage8_distilbert_classifier
 
 
 def _env_flag(name: str, default: bool) -> bool:

@@ -6,7 +6,7 @@ import html
 import re
 from typing import Any
 from urllib.parse import unquote, unquote_plus
-from defenses.obfuscation.helper import normalize_input
+from defenders.obfuscation.helper import normalize_input
 
 
 BASE64_REGEX = re.compile(r"^[A-Za-z0-9+/=_-]+$")

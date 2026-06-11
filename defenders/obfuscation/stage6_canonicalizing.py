@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from defenses.obfuscation.helper import normalize_input
+from defenders.obfuscation.helper import normalize_input
 
 
 _PUNCT_TRANSLATION = str.maketrans(

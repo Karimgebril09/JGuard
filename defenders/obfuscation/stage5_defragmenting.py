@@ -4,7 +4,7 @@ import importlib
 from math import log
 import re
 from typing import Any
-from defenses.obfuscation.helper import normalize_input
+from defenders.obfuscation.helper import normalize_input
 
 zipf_frequency = importlib.import_module("wordfreq").zipf_frequency
 

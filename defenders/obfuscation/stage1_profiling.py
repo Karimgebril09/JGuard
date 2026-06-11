@@ -1,7 +1,7 @@
 from __future__ import annotations
 from math import log2
 import unicodedata
-from defenses.obfuscation.helper import normalize_input
+from defenders.obfuscation.helper import normalize_input
 
 def calculate_shannon_entropy(data: bytes) -> float:
     if not data:
