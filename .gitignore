@@ -23,23 +23,23 @@ paper*
 *.joblib
 
 # Obfuscation stage-8 training artifacts (large/generated)
-defenses/obfuscation/stage8_custom_classifier/artifacts/
-defenses/obfuscation/stage8_custom_classifier/artifacts_balanced/
-defenses/obfuscation/stage8_custom_classifier/artifacts_binary_balanced/
-defenses/obfuscation/stage8_custom_classifier/distilbert_artifacts/
-defenses/obfuscation/stage8_custom_classifier/distilbert_artifacts_*/
-defenses/obfuscation/stage8_custom_classifier/**/checkpoint-*/
-defenses/obfuscation/stage8_custom_classifier/**/binary_run/
-defenses/obfuscation/stage8_custom_classifier/**/category_run/
-defenses/obfuscation/stage8_custom_classifier/**/wandb/
-defenses/obfuscation/stage8_custom_classifier/**/runs/
-defenses/obfuscation/stage8_custom_classifier/.ipynb_checkpoints/
+defenders/obfuscation/stage8_custom_classifier/artifacts/
+defenders/obfuscation/stage8_custom_classifier/artifacts_balanced/
+defenders/obfuscation/stage8_custom_classifier/artifacts_binary_balanced/
+defenders/obfuscation/stage8_custom_classifier/distilbert_artifacts/
+defenders/obfuscation/stage8_custom_classifier/distilbert_artifacts_*/
+defenders/obfuscation/stage8_custom_classifier/**/checkpoint-*/
+defenders/obfuscation/stage8_custom_classifier/**/binary_run/
+defenders/obfuscation/stage8_custom_classifier/**/category_run/
+defenders/obfuscation/stage8_custom_classifier/**/wandb/
+defenders/obfuscation/stage8_custom_classifier/**/runs/
+defenders/obfuscation/stage8_custom_classifier/.ipynb_checkpoints/
 
 # Model weight formats produced by fine-tuning
-defenses/obfuscation/stage8_custom_classifier/**/*.safetensors
-defenses/obfuscation/stage8_custom_classifier/**/*.bin
-defenses/obfuscation/stage8_custom_classifier/**/*.pt
-defenses/obfuscation/stage8_custom_classifier/**/*.pth
-defenses/obfuscation/stage8_custom_classifier/**/*.pkl
+defenders/obfuscation/stage8_custom_classifier/**/*.safetensors
+defenders/obfuscation/stage8_custom_classifier/**/*.bin
+defenders/obfuscation/stage8_custom_classifier/**/*.pt
+defenders/obfuscation/stage8_custom_classifier/**/*.pth
+defenders/obfuscation/stage8_custom_classifier/**/*.pkl
 
 .venv/

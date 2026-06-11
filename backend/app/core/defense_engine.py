@@ -3,7 +3,7 @@ import importlib
 from typing import Any, TypedDict
 
 from backend.app.models.chat_models import ChatRequest
-from defenses.obfuscation.pipeline import run_obfuscation_guard
+from defenders.obfuscation.pipeline import run_obfuscation_guard
 
 _CHAT_HISTORY: list[dict[str, str]] = []
 _AGENT_CHAT_HISTORY: list[dict[str, str]] = []
