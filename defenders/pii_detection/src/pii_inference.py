@@ -120,7 +120,7 @@ class PIIDetector:
         self.label2id=state2["label2id"]
         self.id2label=state2["id2label"]
         self.model2=BiLSTMCRF(embedding_dim=300,hidden_size=256,num_classes=len(self.label2id))
-        self.model2.load_state_dict(state2,map_location=self.device)
+        self.model2.load_state_dict(state2["model_state_dict"])
         self.model2.to(self.device)
         self.model2.eval()
 
@@ -130,7 +130,7 @@ class PIIDetector:
         final_predictions = []
 
         for pred1, pred2 in zip(predictions1, predictions2):
-            if pred2.contains("IPV4") or pred2.contains("IPV6"):
+            if "IPV4" in pred2 or "IPV6" in pred2:
                 final_predictions.append(pred2)
             else:
                 final_predictions.append(pred1)
@@ -149,17 +149,15 @@ class PIIDetector:
             predictions = self.model(input_ids=input_ids, attention_mask=attn_mask)
         subword_tags = predictions[0] 
 
-
         with torch.no_grad():
             x = torch.tensor([[self.ENWE.get_word_vector(tok) for tok in tokens]],dtype=torch.float32).to(self.device)
             length = len(tokens)
             mask = torch.ones((1, length), dtype=torch.bool, device=self.device)
             pred = self.model2.decode(x, mask)[0]
 
-        predictions2 = [self.label2id.get(self.id2label[idx], self.label2id["O"])for idx in pred]
-
+        predictions2 = [self.label2id.get(self.id2label[idx], self.label2id["O"]) for idx in pred]
         word_tags = [IDX2TAG[subword_tags[idx]] for idx in word_first_subword]
-        word_tags2 = [self.id2label[predictions2[0][idx]] for idx in word_first_subword]
+        word_tags2 = [self.id2label[predictions2[idx]] for idx in word_first_subword]
 
         final_tags = self.trust_strategy(word_tags,word_tags2)
         return list(zip(words, final_tags))
@@ -186,12 +184,3 @@ class PIIDetector:
 
 
 
-
-if __name__ == "__main__":
-    detector = PIIDetector(
-        checkpoint_path="./../models/best_bert_bilstm_crf.pth",
-        checkpoint_path2="./../models/bilstm_crf.pth"
-    )
-    text = "My email is john.doe@example.com"
-    result = detector.predict(text)
-    print(result)
