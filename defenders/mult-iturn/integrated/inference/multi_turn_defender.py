@@ -12,7 +12,7 @@ from transforms import TRANSFORMS
 
 class MultiTurnDefender:
     def __init__(self):
-        self._model=joblib.load("./../models/mutli_turn_xgb_model_best_result.pkl")
+        self._model=joblib.load("./../models/xgb_model_best_result_fixed.pkl")
         self._embedding_model=SentenceTransformer("all-mpnet-base-v2")
         self._ssm_feature_extractor=StateFeatureExtractor(self._embedding_model)
         self._tca_feature_extractor=TCAFeatures(self._embedding_model)
@@ -58,7 +58,6 @@ class MultiTurnDefender:
         # transformed_features = self.apply_transforms(features)
         all_features = pd.concat([features, vectors], axis=1)
         prediction = self._model.predict(all_features)
-        print(prediction)
         return prediction[0]
 
 
