@@ -29,6 +29,8 @@ class ChatResponse(BaseModel):
     reply: str
     blocked: bool
     triggered_defense: str | None
+    decision: str | None = None
+    harm_label: str | None = None
     timestamp: str
 
 

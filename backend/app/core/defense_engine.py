@@ -3,6 +3,7 @@ import importlib
 from typing import Any
 
 from backend.app.models.chat_models import ChatRequest
+from defenses.obfuscation.pipeline import run_obfuscation_guard
 
 _CHAT_HISTORY: list[dict[str, str]] = []
 
@@ -11,40 +12,53 @@ def run_chat(mode: str, payload: ChatRequest) -> dict[str, object]:
     _CHAT_HISTORY.extend([message.model_dump() for message in payload.history])
     _CHAT_HISTORY.append({"role": "user", "content": payload.prompt})
 
-    triggered_defense = None
-    blocked = False
-    lowered_prompt = payload.prompt.lower()
-    if payload.roleplay_protection and "pretend" in lowered_prompt:
-        triggered_defense = "roleplay"
-        blocked = True
-    elif payload.obfuscation_protection and any(ch.isdigit() for ch in payload.prompt):
-        triggered_defense = "obfuscation"
-    elif payload.multi_turn_protection and len(payload.history) >= 4:
-        triggered_defense = "multi_turn"
+    clean_prompt = payload.prompt
+    decision: str | None = None
+    harm_label: str | None = None
 
-    reply = (
-        "Request blocked by safety defense layer."
-        if blocked
-        else _dispatch_llm_reply(mode=mode, payload=payload)
-    )
+    if payload.obfuscation_protection:
+        guard_result = run_obfuscation_guard(payload.prompt)
+        clean_prompt = str(guard_result.get("clean_text", payload.prompt))
+        decision = str(guard_result.get("decision")) if guard_result.get("decision") is not None else None
+        harm_label = str(guard_result.get("harm_label")) if guard_result.get("harm_label") is not None else None
+
+        is_safe = bool(guard_result.get("is_safe", True))
+        if not is_safe:
+            blocked_reply = (
+                "Request blocked by obfuscation guard. "
+                f"decision={decision or 'unknown'}, harm_label={harm_label or 'unknown'}"
+            )
+            _CHAT_HISTORY.append({"role": "assistant", "content": blocked_reply})
+            return {
+                "reply": blocked_reply,
+                "blocked": True,
+                "triggered_defense": "obfuscation",
+                "decision": decision,
+                "harm_label": harm_label,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+
+    reply = _dispatch_llm_reply(mode=mode, payload=payload, prompt_text=clean_prompt)
 
     _CHAT_HISTORY.append({"role": "assistant", "content": reply})
     return {
         "reply": reply,
-        "blocked": blocked,
-        "triggered_defense": triggered_defense,
+        "blocked": False,
+        "triggered_defense": None,
+        "decision": decision,
+        "harm_label": harm_label,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
-def _dispatch_llm_reply(mode: str, payload: ChatRequest) -> str:
+def _dispatch_llm_reply(mode: str, payload: ChatRequest, prompt_text: str) -> str:
     if payload.local_llm:
-        return _call_local_ollama(payload)
+        return _call_local_ollama(payload, prompt_text)
 
     provider = _resolve_cloud_provider(payload.llm_type)
     if provider == "gemini":
-        return _call_gemini(payload)
-    return _call_openai(payload)
+        return _call_gemini(payload, prompt_text)
+    return _call_openai(payload, prompt_text)
 
 
 def _resolve_cloud_provider(llm_type: str) -> str:
@@ -54,7 +68,7 @@ def _resolve_cloud_provider(llm_type: str) -> str:
     return "openai"
 
 
-def _call_local_ollama(payload: ChatRequest) -> str:
+def _call_local_ollama(payload: ChatRequest, prompt_text: str) -> str:
     try:
         ollama = importlib.import_module("ollama")
     except ModuleNotFoundError as exc:
@@ -67,7 +81,7 @@ def _call_local_ollama(payload: ChatRequest) -> str:
         }
         for message in payload.history
     ]
-    messages.append({"role": "user", "content": payload.prompt})
+    messages.append({"role": "user", "content": prompt_text})
 
     try:
         response: dict[str, Any] = ollama.chat(model=payload.llm_type, messages=messages)
@@ -80,7 +94,7 @@ def _call_local_ollama(payload: ChatRequest) -> str:
         raise RuntimeError(f"Local Ollama call failed: {exc}") from exc
 
 
-def _call_gemini(payload: ChatRequest) -> str:
+def _call_gemini(payload: ChatRequest, prompt_text: str) -> str:
     try:
         genai = importlib.import_module("google.genai")
     except ModuleNotFoundError as exc:
@@ -99,7 +113,7 @@ def _call_gemini(payload: ChatRequest) -> str:
         full_prompt = (
             "You are in a chat session. Continue the assistant reply based on the conversation.\n\n"
             f"Conversation:\n{history_text}\n"
-            f"user: {payload.prompt}\n"
+            f"user: {prompt_text}\n"
             "assistant:"
         )
 
@@ -127,7 +141,7 @@ def _call_gemini(payload: ChatRequest) -> str:
         raise RuntimeError(f"Gemini call failed: {exc}") from exc
 
 
-def _call_openai(payload: ChatRequest) -> str:
+def _call_openai(payload: ChatRequest, prompt_text: str) -> str:
     try:
         openai_module = importlib.import_module("openai")
     except ModuleNotFoundError as exc:
@@ -144,7 +158,7 @@ def _call_openai(payload: ChatRequest) -> str:
             }
             for message in payload.history
         ]
-        messages.append({"role": "user", "content": payload.prompt})
+        messages.append({"role": "user", "content": prompt_text})
 
         response = client.chat.completions.create(
             model=payload.llm_type,
