@@ -8,7 +8,17 @@ token.pickle
 __pycache__/
 *.pyc
 
-.venv/
+*.pth
+*.pt
+*.png
+*.db
+mlruns
+*.csv
+paper*
+*.pkl
+*.egg-info
+*.bin
+*joblib.venv/
 
 *.joblib
 
