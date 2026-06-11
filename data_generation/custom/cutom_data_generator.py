@@ -12,7 +12,7 @@ class CustomGenerator:
         self.attacker = attacker
         self.target = target
 
-        # TODO: add llms here 
+        # TODO: add llms here and judge 
 
 
     def generate_dataset(self, num_samples):
