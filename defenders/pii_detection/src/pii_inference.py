@@ -139,7 +139,7 @@ class PIIDetector:
             
 
     def predict(self, text) :
-        words, subword_ids, word_first_subword = self.tokenise_with_alignment(text)
+        words, tokens, subword_ids, word_first_subword = self.tokenise_with_alignment(text)
         if not subword_ids:
             return []
 
@@ -150,7 +150,6 @@ class PIIDetector:
         subword_tags = predictions[0] 
 
 
-        tokens=[]  # TODO modify this
         with torch.no_grad():
             x = torch.tensor([[self.ENWE.get_word_vector(tok) for tok in tokens]],dtype=torch.float32).to(self.device)
             length = len(tokens)
@@ -168,21 +167,31 @@ class PIIDetector:
 
 
     def tokenise_with_alignment(self, text):
-
         words= text.strip().split()
         subword_ids= []
         word_first_subword = []
+        tokens = []
 
         for word in words:
             pieces = self.tokenizer.tokenize(word)
             if not pieces:
                 pieces = [self.tokenizer.unk_token]
             ids = self.tokenizer.convert_tokens_to_ids(pieces)
+            tokens.extend(pieces)
 
             word_first_subword.append(len(subword_ids))
             subword_ids.extend(ids)
 
-        return words, subword_ids, word_first_subword
+        return words, tokens, subword_ids, word_first_subword
 
 
-    
+
+
+if __name__ == "__main__":
+    detector = PIIDetector(
+        checkpoint_path="./../models/best_bert_bilstm_crf.pth",
+        checkpoint_path2="./../models/bilstm_crf.pth"
+    )
+    text = "My email is john.doe@example.com"
+    result = detector.predict(text)
+    print(result)
