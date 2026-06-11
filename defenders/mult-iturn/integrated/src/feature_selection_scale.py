@@ -9,40 +9,49 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import RobustScaler
 from sklearn.tree import DecisionTreeClassifier
 
-
 TRANSFORMS = {
-    "toxicity_score":"log1p",
-    "threat_score":"log1p",
-    "toxicity_score_ema3":"log1p",
-    "toxicity_score_rolling3_mean":"log1p",
-    "toxicity_score_rolling3_max":"log1p",
-    "threat_score_ema3":"log1p",
-    "threat_score_rolling3_mean":"log1p",
-    "threat_score_rolling3_max":"log1p",
-    "toxicity_diff":"square",
-    "threat_diff":"square",
-    "toxicity_accel":"square",
-    "max_toxicity_so_far":"log1p",
-    "max_threat_so_far":"log1p",
-    "risk_growth_ratio":"log1p",
-    "interaction_risk":"log1p",
-    "interaction_risk_ema3":"log1p",
-    "interaction_risk_rolling3_mean":"log1p",
-    "interaction_risk_rolling3_max":"log1p",
-    "topic_drift_score":"binarize",
-    "cumulative_drift":"binarize",
-    "pattern_risk":"binarize",
-    "pattern_risk_ema3":"binarize",
-    "pattern_risk_rolling3_mean":"binarize",
-    "pattern_risk_rolling3_max":"binarize",
-    "prev_progressive":"binarize",
-    "risk_slope_3":"square",
-    "mean_risk_so_far":"log1p",
-    "refusal_seen_so_far":"log1p",
-    "after_refusal_flag":"log1p",
-    "post_refusal":"log1p",
-}
+    # Strong features
+    "interaction_risk": "log1p",
+    "progressive_risk": "log1p",
+    "interaction_risk_ema3": "log1p",
+    "toxicity_score": "log1p",
+    "interaction_risk_rolling3_mean": "log1p",
+    "mean_risk_so_far": "log1p",
+    "interaction_risk_rolling3_max": "log1p",
+    "toxicity_score_ema3": "log1p",
+    "toxicity_score_rolling3_mean": "log1p",
+    "toxicity_score_rolling3_max": "log1p",
+    "max_toxicity_so_far": "log1p",
+    "threat_score": "log1p",
+    "threat_score_ema3": "log1p",
+    "threat_score_rolling3_mean": "log1p",
+    "threat_score_rolling3_max": "log1p",
+    "max_threat_so_far": "log1p",
+    "late_risk_increase": "log1p",
+    "early_high_risk": "log1p",
 
+    # Features benefiting from transformation
+    "risk_slope_3": "square",
+    "toxicity_diff": "square",
+    "toxicity_accel": "square",
+    "threat_diff": "square",
+
+    # Weak but non-noise
+    "prev_progressive": "log1p",
+    "state_input_similarity": "yeo-johnson",
+    "long_term_state_similarity": "log1p",
+    "long_term_state_drift": "log1p",
+    "state_input_distance": "log1p",
+    "drift_acceleration": "log1p",
+
+    "state_similarity": "binarize",
+    "topic_drift_score": "log1p",
+
+    "pattern_risk": "binarize",
+    "pattern_risk_ema3": "binarize",
+    "pattern_risk_rolling3_mean": "log1p",
+    "pattern_risk_rolling3_max": "binarize",
+}
 
 
 
@@ -134,10 +143,7 @@ def load_splits():
     meta_val= val_df[["conv_id","turn_id"]]
     meta_test= test_df[["conv_id","turn_id"]]
 
-    # X_train= apply_transform(train_df)
-    # X_val= apply_transform(val_df)
-    # X_test= apply_transform(test_df)
-
+  
     print(f"Train:{X_train.shape}  pos={y_train.mean():.3f}")
     print(f"Val:{X_val.shape}  pos={y_val.mean():.3f}")
     print(f"Test:{X_test.shape}  pos={y_test.mean():.3f}")
@@ -146,29 +152,48 @@ def load_splits():
 
 
 def main():
-    df= pd.read_csv("data/total/features_before_selection.csv")
-    print("Loaded:",df.shape)
+    # df = pd.read_csv("data/merged/merged_features.csv")
 
-    feature_cols= [c for c in df.columns if c not in ["conv_id","turn_id","label"]]
+    train_df= pd.read_csv("data/merged/train_df.csv")
+    val_df= pd.read_csv("data/merged/val_df.csv")
+    test_df= pd.read_csv("data/merged/test_df.csv")
 
-    splits= conversation_split(df)
-    X_train_raw= splits["train"][feature_cols].reset_index(drop=True)
-    X_val_raw= splits["val"][feature_cols].reset_index(drop=True)
-    X_test_raw= splits["test"][feature_cols].reset_index(drop=True)
 
-    y_train= splits["train"]["label"].reset_index(drop=True)
-    y_val= splits["val"]["label"].reset_index(drop=True)
-    y_test= splits["test"]["label"].reset_index(drop=True)
-    meta_train= splits["train"][["conv_id","turn_id"]].reset_index(drop=True)
-    meta_val= splits["val"][["conv_id","turn_id"]].reset_index(drop=True)
-    meta_test= splits["test"][["conv_id","turn_id"]].reset_index(drop=True)
+
+    embedding_cols = [c for c in train_df.columns if c.strip().isdigit()]
+
+
+
+    print(f"Excluding {len(embedding_cols)} embedding columns")
+
+    feature_cols = [c for c in train_df.columns if c not in embedding_cols]
+
+    train_df_trans = apply_transform(train_df[feature_cols])
+    val_df_trans = apply_transform(val_df[feature_cols])
+    test_df_trans = apply_transform(test_df[feature_cols])
+
+    feature_cols = [c for c in train_df_trans.columns if c not in ["conv_id", "turn_id", "label"]]
+
+    meta_train= train_df[["conv_id","turn_id"]]
+    meta_val= val_df[["conv_id","turn_id"]]
+    meta_test= test_df[["conv_id","turn_id"]]
+
+    X_train= train_df_trans[feature_cols]
+    X_val= val_df_trans[feature_cols]
+    X_test= test_df_trans[feature_cols]
+
+    y_train= train_df["label"]
+    y_val= val_df["label"]
+    y_test= test_df["label"]
+  
+
 
 
     #first scale using robust because of the skewness
     scaler= RobustScaler()
-    X_train_scaled= pd.DataFrame(scaler.fit_transform(X_train_raw),columns=feature_cols)
-    X_val_scaled= pd.DataFrame(scaler.transform(X_val_raw),columns=feature_cols)
-    X_test_scaled= pd.DataFrame(scaler.transform(X_test_raw),columns=feature_cols)
+    X_train_scaled= pd.DataFrame(scaler.fit_transform(X_train),columns=feature_cols)
+    X_val_scaled= pd.DataFrame(scaler.transform(X_val),columns=feature_cols)
+    X_test_scaled= pd.DataFrame(scaler.transform(X_test),columns=feature_cols)
     joblib.dump(scaler,"models/scaler.pkl")
 
 
@@ -191,30 +216,35 @@ def main():
     mc_cols= remove_multicollinear(X_train_corr,y_train,0.9)
 
 
-    X_train_mc= X_train_corr[mc_cols]
-    X_val_mc= X_val_corr[mc_cols]
-    X_test_mc= X_test_corr[mc_cols]
+    X_train_final= X_train_corr[mc_cols]
+    X_val_final= X_val_corr[mc_cols]
+    X_test_final= X_test_corr[mc_cols]
     print(f"After multicollinearity:{len(mc_cols)}")
 
 
-    rfecv= RFECV(
-        estimator=DecisionTreeClassifier(max_depth=7,min_samples_leaf=5,
-                                         min_samples_split=10,random_state=42),
-        step=1,cv=5,scoring="f1_macro",n_jobs=-1,
-    )
-    rfecv.fit(X_train_mc,y_train)
-    final_cols= X_train_mc.columns[rfecv.support_].tolist()
-    X_train_final= X_train_mc[final_cols]
-    X_val_final= X_val_mc[final_cols]
-    X_test_final= X_test_mc[final_cols]
-    print(f"After RFECV:{len(final_cols)}")
+    # rfecv= RFECV(
+    #     estimator=DecisionTreeClassifier(max_depth=7,min_samples_leaf=5,
+    #                                      min_samples_split=10,random_state=42),
+    #     step=1,cv=5,scoring="f1_macro",n_jobs=-1,
+    # )
+    # rfecv.fit(X_train_mc,y_train)
+    # final_cols= X_train_mc.columns[rfecv.support_].tolist()
+    # X_train_final= X_train_mc[final_cols]
+    # X_val_final= X_val_mc[final_cols]
+    # X_test_final= X_test_mc[final_cols]
+    # print(f"After RFECV:{len(final_cols)}")
+    #return the embeding columns as well to the final splits
 
-    save_split(X_train_final,meta_train,y_train,f"{"data/processed"}/train.csv")
-    save_split(X_val_final,meta_val,y_val,f"{"data/processed"}/validation.csv")
-    save_split(X_test_final,meta_test,y_test,f"{"data/processed"}/test.csv")
+    X_train_final= pd.concat([X_train_final, train_df[embedding_cols]], axis=1)
+    X_val_final= pd.concat([X_val_final, val_df[embedding_cols]], axis=1)
+    X_test_final= pd.concat([X_test_final, test_df[embedding_cols]], axis=1)
+
+    save_split(X_train_final,meta_train,y_train,f"data/processed/train.csv")
+    save_split(X_val_final,meta_val,y_val,f"data/processed/validation.csv")
+    save_split(X_test_final,meta_test,y_test,f"data/processed/test.csv")
     with open("config/feature_info.json","w") as f:
-        json.dump({"selected_features":final_cols,"scaler_path":"models/scaler.pkl"},f,indent=4)
-    print(f"\nOriginal:{len(feature_cols)}  Final:{len(final_cols)}")
+        json.dump({"selected_features":mc_cols,"scaler_path":"models/scaler.pkl"},f,indent=4)
+    print(f"\nOriginal:{len(feature_cols)}  Final:{len(mc_cols)}")
 
 
 if __name__== "__main__":
