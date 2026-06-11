@@ -2,6 +2,9 @@
 settings.json
 .vscode/
 
+credentials.json
+token.pickle
+
 __pycache__/
 *.pyc
 

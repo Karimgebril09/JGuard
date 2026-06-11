@@ -10,7 +10,7 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 @router.post("/foundational", response_model=ChatResponse)
 def foundational_chat(payload: ChatRequest) -> ChatResponse:
     try:
-        return ChatResponse(**defense_engine.run_chat(mode="foundational_llm", payload=payload))
+        return ChatResponse(**defense_engine.run_chat(payload=payload))
     except RuntimeError as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
 
@@ -18,7 +18,7 @@ def foundational_chat(payload: ChatRequest) -> ChatResponse:
 @router.post("/agent", response_model=ChatResponse)
 def agent_chat(payload: ChatRequest) -> ChatResponse:
     try:
-        return ChatResponse(**defense_engine.run_chat(mode="agent_based", payload=payload))
+        return ChatResponse(**defense_engine.run_agent_chat(payload=payload))
     except RuntimeError as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
 
