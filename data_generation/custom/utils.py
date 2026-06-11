@@ -5,8 +5,8 @@ from langchain.messages import SystemMessage, HumanMessage, AIMessage
 
 
 
-def generate_attack(judge,attacker,target,target_system_message,system_prompt):
-    system_message = SystemMessage(content=system_prompt)
+def generate_attack(judge,attacker,target,target_system_message,attacker_system_prompt):
+    system_message = SystemMessage(content=attacker_system_prompt)
     max_convo_len=10
     history = deque(maxlen=5)
     feed_back_message=None
@@ -51,37 +51,3 @@ def generate_attack(judge,attacker,target,target_system_message,system_prompt):
     return data
 
 
-def generate_dataset(num_samples,judge, attacker, target:str,target_system_message, system_prompt):
-    dataset = []
-    for i in range(num_samples):
-        result = generate_attack(target=target,judge=judge,\
-                                attacker=attacker,target_system_message=target_system_message,\
-                                system_prompt=system_prompt)
-
-        if result:
-            dataset.append(result)
-
-        if (i + 1) % 2 == 0:
-            current_dataset = pd.DataFrame(dataset)
-
-            try:
-                df = pd.read_csv("jailbreak_dataset.csv")
-                current_dataset = pd.concat([df, current_dataset], ignore_index=True)
-            except FileNotFoundError:
-                pass
-
-            current_dataset.to_csv("jailbreak_dataset.csv", index=False)
-            dataset = []
-
-    # save remaining samples
-    if dataset:
-        current_dataset = pd.DataFrame(dataset)
-        try:
-            df = pd.read_csv("jailbreak_dataset.csv")
-            current_dataset = pd.concat([df, current_dataset], ignore_index=True)
-        except FileNotFoundError:
-            pass
-
-        current_dataset.to_csv("jailbreak_dataset.csv", index=False)
-
-    return dataset
