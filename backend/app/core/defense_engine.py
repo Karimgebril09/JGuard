@@ -1,17 +1,15 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import importlib
-import importlib.util
-import sys
 from threading import Lock
 from typing import Any
 from uuid import uuid4
-from pathlib import Path
 
 from fastapi import Request
 
 from backend.app.models.chat_models import ChatResponse, SessionConfig
 from defenders.obfuscation.pipeline import run_obfuscation
+from defenders.multi_turn.integrated.inference.multi_turn_defender import MultiTurnDefender
 from defenders.pii_detection.src.pii_engine import PIIEngine
 from defenders.pii_detection.src.strategies import BlockStrategy, EncryptStrategy, MaskStrategy, PIIStrategy
 
@@ -30,7 +28,7 @@ class RuntimeResources:
 class SessionState:
     session_id: str
     history: list[dict[str, str]]
-    multi_turn_state: dict[str, Any]
+    multi_turn_state: dict[str, Any] # why
     multi_turn_defender: Any | None
     multi_turn_lock: Lock
     last_response: str
@@ -50,10 +48,10 @@ class SessionStore:
         session = SessionState(
             session_id=str(uuid4()),
             history=[],
-            multi_turn_state={},
-            multi_turn_defender=_build_multi_turn_defender() if config.multi_turn_protection else None,
+            multi_turn_state={}, # why
+            multi_turn_defender=MultiTurnDefender() if config.multi_turn_protection else None,
             multi_turn_lock=Lock(),
-            last_response="",
+            last_response="", # why
             config=config,
             created_at=now,
             last_active=now,
@@ -123,29 +121,6 @@ def _warmup_obfuscation(runtime: RuntimeResources) -> bool:
     return True
 
 
-def _build_multi_turn_defender() -> Any | None:
-    module_path = Path(__file__).resolve().parents[3] / "defenders" / "mult-iturn" / "integrated" / "inference" / "multi_turn_defender.py"
-    if not module_path.exists():
-        raise RuntimeError(f"Multi-turn defender module was not found at {module_path}")
-
-    module_dir = str(module_path.parent)
-    if module_dir not in sys.path:
-        sys.path.insert(0, module_dir)
-
-    spec = importlib.util.spec_from_file_location("jguard_multi_turn_defender", module_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Failed to load multi-turn defender module from {module_path}")
-
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-
-    defender_cls = getattr(module, "MultiTurnDefender", None)
-    if defender_cls is None:
-        raise RuntimeError("MultiTurnDefender class was not found in multi_turn_defender.py")
-
-    return defender_cls()
-
-
 def _apply_obfuscation_if_enabled(
     session: SessionState,
     prompt: str,
@@ -154,8 +129,6 @@ def _apply_obfuscation_if_enabled(
     if not session.config.obfuscation_protection:
         return prompt, None, None, False
 
-    _warmup_obfuscation(runtime)
-    
     clean_prompt = prompt
     decision: str | None = None
     harm_label: str | None = None
@@ -170,9 +143,9 @@ def _apply_obfuscation_if_enabled(
     return clean_prompt, decision, harm_label, blocked
 
 
-def _apply_multi_turn_if_enabled(session: SessionState, prompt_text: str) -> tuple[bool, str | None]:
+def _apply_multi_turn_if_enabled(session: SessionState, prompt_text: str) -> bool:
     if not session.config.multi_turn_protection:
-        return False, None
+        return False
 
     defender = session.multi_turn_defender
     if defender is None:
@@ -184,9 +157,9 @@ def _apply_multi_turn_if_enabled(session: SessionState, prompt_text: str) -> tup
     prediction_value = int(prediction)
     session.multi_turn_state["last_prediction"] = prediction_value
     if prediction_value == 1:
-        return True, str(prediction_value)
+        return True
 
-    return False, str(prediction_value)
+    return False
 
 
 def _resolve_pii_strategy(pii_strategy: str) -> PIIStrategy:
@@ -198,15 +171,13 @@ def _resolve_pii_strategy(pii_strategy: str) -> PIIStrategy:
     return MaskStrategy()  # default to masking
 
 
-def _get_pii_engine(runtime: RuntimeResources) -> PIIEngine:
-    return runtime.pii_engine
-
 
 def _apply_pii_if_enabled(session: SessionState, prompt_text: str, runtime: RuntimeResources) -> tuple[str, bool]:
     if not session.config.pii_protection:
         return prompt_text, False
 
-    pii_engine = _get_pii_engine(runtime)
+    pii_engine = runtime.pii_engine
+
     with runtime.pii_lock:
         pii_engine.set_strategy(_resolve_pii_strategy(session.config.pii_strategy))
         pii_result = str(pii_engine.process(prompt_text))
@@ -236,7 +207,7 @@ def run_session_chat(session: SessionState, prompt: str, runtime: RuntimeResourc
             "timestamp": _now_iso(),
         }
 
-    multi_turn_blocked, multi_turn_prediction = _apply_multi_turn_if_enabled(session, clean_prompt)
+    multi_turn_blocked = _apply_multi_turn_if_enabled(session, clean_prompt)
     if multi_turn_blocked:
         blocked_reply = "Request blocked by multi-turn defender."
         session.history.append({"role": "assistant", "content": blocked_reply})
@@ -246,7 +217,7 @@ def run_session_chat(session: SessionState, prompt: str, runtime: RuntimeResourc
             "reply": blocked_reply,
             "blocked": True,
             "triggered_defense": "multi_turn",
-            "decision": multi_turn_prediction,
+            "decision": "unsafe",
             "harm_label": None,
             "timestamp": _now_iso(),
         }
@@ -261,7 +232,7 @@ def run_session_chat(session: SessionState, prompt: str, runtime: RuntimeResourc
             "reply": blocked_reply,
             "blocked": True,
             "triggered_defense": "pii",
-            "decision": decision,
+            "decision": "unsafe",
             "harm_label": harm_label,
             "timestamp": _now_iso(),
         }
@@ -273,7 +244,7 @@ def run_session_chat(session: SessionState, prompt: str, runtime: RuntimeResourc
 
     session.history.append({"role": "assistant", "content": reply})
     session.last_response = reply
-    session.multi_turn_state["last_response"] = reply
+    session.multi_turn_state["last_response"] = reply #why
     return {
         "reply": reply,
         "blocked": False,

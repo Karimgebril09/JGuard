@@ -1,4 +1,10 @@
 import os
+import sys
+
+_INFERENCE_DIR = os.path.dirname(os.path.abspath(__file__))
+if _INFERENCE_DIR not in sys.path:
+    sys.path.insert(0, _INFERENCE_DIR)
+
 import joblib
 import json
 import pandas as pd
