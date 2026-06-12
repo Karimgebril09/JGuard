@@ -1,12 +1,13 @@
+import os
 import torch
 import torch.nn as nn
 from torchgen import model
 from transformers import AutoTokenizer, DistilBertModel
-from TorchCRF import CRF
+from torchcrf import CRF
 from typing import List, Tuple, Optional
 import fasttext
 
-
+_HERE = os.path.dirname(os.path.abspath(__file__))
 
 NER_TAGS = [
     "B-ACCOUNTNAME",    "B-ACCOUNTNUMBER",   "B-CREDITCARDNUMBER",
@@ -114,7 +115,8 @@ class PIIDetector:
         self.model.to(self.device)
         self.model.eval()
 
-        self.ENWE = fasttext.load_model("./../models/cc.en.300.bin")
+        # self.ENWE = fasttext.load_model("./../models/cc.en.300.bin")
+        self.ENWE = fasttext.load_model(os.path.join(_HERE, "..", "models", "cc.en.300.bin"))
 
         state2 = torch.load(checkpoint_path2, map_location=self.device)
         self.label2id=state2["label2id"]
