@@ -190,14 +190,18 @@ def main():
 
 
     #first scale using robust because of the skewness
-    scaler= RobustScaler()
-    X_train_scaled= pd.DataFrame(scaler.fit_transform(X_train),columns=feature_cols)
-    X_val_scaled= pd.DataFrame(scaler.transform(X_val),columns=feature_cols)
-    X_test_scaled= pd.DataFrame(scaler.transform(X_test),columns=feature_cols)
-    joblib.dump(scaler,"models/scaler.pkl")
+    # scaler= RobustScaler()
+    # X_train_scaled= pd.DataFrame(scaler.fit_transform(X_train),columns=feature_cols)
+    # X_val_scaled= pd.DataFrame(scaler.transform(X_val),columns=feature_cols)
+    # X_test_scaled= pd.DataFrame(scaler.transform(X_test),columns=feature_cols)
+    # joblib.dump(scaler,"models/scaler.pkl")
+
+    X_train_scaled= X_train[feature_cols]
+    X_val_scaled= X_val[feature_cols]   
+    X_test_scaled= X_test[feature_cols]
 
 
-    var_sel= VarianceThreshold(threshold=0.05)
+    var_sel= VarianceThreshold(threshold=0.005)
     var_sel.fit(X_train_scaled)
     var_cols= X_train_scaled.columns[var_sel.get_support()].tolist()
     X_train_var= pd.DataFrame(var_sel.transform(X_train_scaled),columns=var_cols)

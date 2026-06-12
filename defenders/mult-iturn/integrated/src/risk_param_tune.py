@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 from risk_calculator import RiskCalculator
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
-df= pd.read_csv("data/processed/multi_turn_data.csv")
+df= pd.read_csv("data/primitive/multi_turn_data.csv")
 conv_ids= df["conv_id"].unique()
 train_conv_ids, valid_conv_ids= train_test_split(
     conv_ids,

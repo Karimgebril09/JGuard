@@ -113,7 +113,7 @@ def find_correlated_features(corr_matrix, threshold= 0.9):
     return pd.DataFrame(pairs)
 
 def main():
-    df= pd.read_csv("data/processed/multi_turn_data.csv")
+    df= pd.read_csv("data/primitive/multi_turn_data.csv")
     print("Shape:", df.shape)
     params_path= "config/optimized_params_risk.json"
     if os.path.exists(params_path):
@@ -128,7 +128,7 @@ def main():
     df= build_features(df.copy())
 
     #save data 
-    df.to_csv(f"data/total/features_before_selection.csv", index=False)
+    df.to_csv(f"data/total/features_before_selection2.csv", index=False)
 
 if __name__== "__main__":
     main()
