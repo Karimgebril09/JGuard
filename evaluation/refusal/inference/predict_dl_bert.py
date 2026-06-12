@@ -74,13 +74,17 @@ class LSTMClassifier(nn.Module):
     
 
 class RefusalInference:
-    def __init__(self, model_path,tokenizer,bert, embed_dim=768, hidden_dim=256, dropout=0.3):
+    def __init__(self, model_path, embed_dim=768, hidden_dim=256, dropout=0.3):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.tokenizer=tokenizer
-        self.bert=bert
+        self.tokenizer=DistilBertTokenizerFast.from_pretrained(
+            "distilbert-base-uncased"
+        )
+        self.bert=DistilBertModel.from_pretrained(
+            "distilbert-base-uncased"
+        )
         self.bert.eval()
         self.model = LSTMClassifier(embed_dim, hidden_dim, dropout)
-        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+        self.model.load_state_dict(torch.load("./evaluation/refusal/models/best_model_refusal_fasttext.pth", map_location=self.device))
         self.model.to(self.device)
         self.model.eval()
 
@@ -96,15 +100,15 @@ class RefusalInference:
         return {"label": int(prob >= 0.5), "score": prob}
     
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
 
-    tokenizer = DistilBertTokenizerFast.from_pretrained(
-        "distilbert-base-uncased"
-    )
+#     tokenizer = DistilBertTokenizerFast.from_pretrained(
+#         "distilbert-base-uncased"
+#     )
 
-    model = DistilBertModel.from_pretrained(
-        "distilbert-base-uncased"
-    )
-    refusal = RefusalInference(model_path="models/best_model.pth",tokenizer=tokenizer,bert=model)
+#     model = DistilBertModel.from_pretrained(
+#         "distilbert-base-uncased"
+#     )
+#     refusal = RefusalInference(model_path="models/best_model.pth",tokenizer=tokenizer,bert=model)
 
-    refusal.predict("I can't help with that request.")
+#     refusal.predict("I can't help with that request.")
