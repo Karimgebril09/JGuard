@@ -14,7 +14,7 @@ from sklearn.preprocessing import MinMaxScaler
 from evaluation.refusal.ML_refusal_model import pipeline
 
 
-class RefusalClassifierInterface:
+class MLRefusalClassifierInterface:
     def __init__(
         self,
         model_path: str | Path = "models/xgb_refusal_model.json",
@@ -146,8 +146,8 @@ class RefusalClassifierInterface:
 
 def classify_text(text: str) -> int:
     """Return binary class: 1 = refusal, 0 = not refusal."""
-    return int(RefusalClassifierInterface().predict(text)["label"])
+    return int(MLRefusalClassifierInterface().predict(text)["label"])
 
 
 def classify_text_with_details(text: str) -> Dict[str, Any]:
-    return RefusalClassifierInterface().predict(text)
+    return MLRefusalClassifierInterface().predict(text)
