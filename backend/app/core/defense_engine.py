@@ -6,6 +6,8 @@ from typing import Any
 from uuid import uuid4
 
 from fastapi import Request
+import ollama
+import google.genai as genai
 
 from backend.app.models.chat_models import ChatResponse, SessionConfig
 from defenders.obfuscation.pipeline import run_obfuscation
@@ -193,15 +195,12 @@ def run_session_chat(session: SessionState, prompt: str, runtime: RuntimeResourc
 
     clean_prompt, decision, harm_label, blocked = _apply_obfuscation_if_enabled(session, prompt, runtime)
     if blocked:
-        blocked_reply = (
-            "Request blocked by obfuscation guard. "
-            f"decision={decision or 'unknown'}, harm_label={harm_label or 'unknown'}"
-        )
+        blocked_reply = "Request blocked by harm detector."
         session.history.append({"role": "assistant", "content": blocked_reply})
         return {
             "reply": blocked_reply,
             "blocked": True,
-            "triggered_defense": "obfuscation",
+            "triggered_defense": "obfuscation and preprocessing",
             "decision": decision,
             "harm_label": harm_label,
             "timestamp": _now_iso(),
@@ -233,7 +232,7 @@ def run_session_chat(session: SessionState, prompt: str, runtime: RuntimeResourc
             "blocked": True,
             "triggered_defense": "pii",
             "decision": "unsafe",
-            "harm_label": harm_label,
+            "harm_label": None,
             "timestamp": _now_iso(),
         }
 
@@ -339,15 +338,10 @@ def _session_messages_for_llm(session: SessionState, prompt_text: str) -> list[d
 
 
 def _call_local_ollama(session: SessionState, prompt_text: str) -> str:
-    try:
-        ollama = importlib.import_module("ollama")
-    except ModuleNotFoundError as exc:
-        raise RuntimeError("Ollama package is not installed. Install backend requirements first.") from exc
-
     messages = _session_messages_for_llm(session, prompt_text)
 
     try:
-        response: dict[str, Any] = ollama.chat(model=session.config.llm_type, messages=messages)
+        response = ollama.chat(model=session.config.llm_type, messages=messages)
         message = response.get("message", {})
         content = message.get("content")
         if isinstance(content, str) and content.strip():
@@ -358,13 +352,6 @@ def _call_local_ollama(session: SessionState, prompt_text: str) -> str:
 
 
 def _call_gemini(session: SessionState, prompt_text: str) -> str:
-    try:
-        genai = importlib.import_module("google.genai")
-    except ModuleNotFoundError as exc:
-        raise RuntimeError(
-            "Gemini package is not installed. Install backend requirements first."
-        ) from exc
-
     try:
         client = genai.Client(api_key=session.config.llm_api_key)
 
