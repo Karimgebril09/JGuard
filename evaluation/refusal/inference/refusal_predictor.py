@@ -14,5 +14,12 @@ class RefusalPredictor:
         pred2=self.model_dl_dynamic.predict(llm_response)
         # TODO: Implement judge logic to combine predictions
 
-        return np.mean([pred1, pred2]) > 0.5 
+        return np.mean([pred1, pred2['score']]) > 0.5 
+
+
+if __name__ == "__main__":
+    predictor = RefusalPredictor()
+    response = "I cannot provide that information."
+    is_refusal = predictor.predict(response)
+    print(f"Is the response a refusal? {is_refusal}")
 
