@@ -1,14 +1,17 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import importlib
+import importlib.util
+import sys
 from threading import Lock
-from typing import Any, TypedDict
+from typing import Any
 from uuid import uuid4
+from pathlib import Path
 
 from fastapi import Request
 
 from backend.app.models.chat_models import ChatResponse, SessionConfig
-from defenders.obfuscation.pipeline import run_obfuscation_guard
+from defenders.obfuscation.pipeline import run_obfuscation
 from defenders.pii_detection.src.pii_engine import PIIEngine
 from defenders.pii_detection.src.strategies import BlockStrategy, EncryptStrategy, MaskStrategy, PIIStrategy
 
@@ -19,6 +22,7 @@ class RuntimeResources:
     mas_app: Any | None
     pii_lock: Lock
     mas_lock: Lock
+    obfuscation_lock: Lock
     obfuscation_warmed_up: bool = False
 
 
@@ -27,6 +31,9 @@ class SessionState:
     session_id: str
     history: list[dict[str, str]]
     multi_turn_state: dict[str, Any]
+    multi_turn_defender: Any | None
+    multi_turn_lock: Lock
+    last_response: str
     config: SessionConfig
     created_at: datetime
     last_active: datetime
@@ -44,6 +51,9 @@ class SessionStore:
             session_id=str(uuid4()),
             history=[],
             multi_turn_state={},
+            multi_turn_defender=_build_multi_turn_defender() if config.multi_turn_protection else None,
+            multi_turn_lock=Lock(),
+            last_response="",
             config=config,
             created_at=now,
             last_active=now,
@@ -88,59 +98,118 @@ def _now_iso() -> str:
 
 def initialize_runtime_resources() -> RuntimeResources:
     pii_engine = PIIEngine(strategy=MaskStrategy())
-    warmed_up = _warmup_obfuscation()
-    return RuntimeResources(
+    runtime = RuntimeResources(
         pii_engine=pii_engine,
         mas_app=None,
         pii_lock=Lock(),
         mas_lock=Lock(),
-        obfuscation_warmed_up=warmed_up,
+        obfuscation_lock=Lock(),
+        obfuscation_warmed_up=False,
     )
+    _warmup_obfuscation(runtime)
+    return runtime
 
 
 def shutdown_runtime_resources() -> None:
     return
 
 
-def _warmup_obfuscation() -> bool:
-    run_obfuscation_guard("warmup")
+def _warmup_obfuscation(runtime: RuntimeResources) -> bool:
+    with runtime.obfuscation_lock:
+        if runtime.obfuscation_warmed_up:
+            return True
+        run_obfuscation("warmup")
+        runtime.obfuscation_warmed_up = True
     return True
 
 
-def _apply_obfuscation_if_enabled(session: SessionState, prompt: str) -> tuple[str, str | None, str | None, bool]:
+def _build_multi_turn_defender() -> Any | None:
+    module_path = Path(__file__).resolve().parents[3] / "defenders" / "mult-iturn" / "integrated" / "inference" / "multi_turn_defender.py"
+    if not module_path.exists():
+        raise RuntimeError(f"Multi-turn defender module was not found at {module_path}")
+
+    module_dir = str(module_path.parent)
+    if module_dir not in sys.path:
+        sys.path.insert(0, module_dir)
+
+    spec = importlib.util.spec_from_file_location("jguard_multi_turn_defender", module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Failed to load multi-turn defender module from {module_path}")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    defender_cls = getattr(module, "MultiTurnDefender", None)
+    if defender_cls is None:
+        raise RuntimeError("MultiTurnDefender class was not found in multi_turn_defender.py")
+
+    return defender_cls()
+
+
+def _apply_obfuscation_if_enabled(
+    session: SessionState,
+    prompt: str,
+    runtime: RuntimeResources,
+) -> tuple[str, str | None, str | None, bool]:
+    if not session.config.obfuscation_protection:
+        return prompt, None, None, False
+
+    _warmup_obfuscation(runtime)
+    
     clean_prompt = prompt
     decision: str | None = None
     harm_label: str | None = None
     blocked = False
 
-    if session.config.obfuscation_protection:
-        guard_result = run_obfuscation_guard(prompt)
-        clean_prompt = str(guard_result.get("clean_text", prompt))
-        decision = str(guard_result.get("decision")) if guard_result.get("decision") is not None else None
-        harm_label = str(guard_result.get("harm_label")) if guard_result.get("harm_label") is not None else None
-        blocked = not bool(guard_result.get("is_safe", True))
+    result = run_obfuscation(prompt)
+    clean_prompt = str(result.get("clean_text", prompt))
+    decision = str(result.get("decision")) if result.get("decision") is not None else None
+    harm_label = str(result.get("harm_label")) if result.get("harm_label") is not None else None
+    blocked = not bool(result.get("is_safe", True))
 
     return clean_prompt, decision, harm_label, blocked
 
 
+def _apply_multi_turn_if_enabled(session: SessionState, prompt_text: str) -> tuple[bool, str | None]:
+    if not session.config.multi_turn_protection:
+        return False, None
+
+    defender = session.multi_turn_defender
+    if defender is None:
+        raise RuntimeError("Multi-turn defender is not initialized for this session.")
+
+    with session.multi_turn_lock:
+        prediction = defender.predict(prompt_text, session.last_response)
+
+    prediction_value = int(prediction)
+    session.multi_turn_state["last_prediction"] = prediction_value
+    if prediction_value == 1:
+        return True, str(prediction_value)
+
+    return False, str(prediction_value)
+
+
 def _resolve_pii_strategy(pii_strategy: str) -> PIIStrategy:
     strategy_name = pii_strategy.strip().lower()
-    if strategy_name == "mask":
-        return MaskStrategy()
     if strategy_name == "encrypt":
         return EncryptStrategy()
     if strategy_name == "block":
         return BlockStrategy()
-    raise RuntimeError(f"Unsupported pii_strategy '{pii_strategy}'. Expected one of: mask, encrypt, block.")
+    return MaskStrategy()  # default to masking
+
+
+def _get_pii_engine(runtime: RuntimeResources) -> PIIEngine:
+    return runtime.pii_engine
 
 
 def _apply_pii_if_enabled(session: SessionState, prompt_text: str, runtime: RuntimeResources) -> tuple[str, bool]:
     if not session.config.pii_protection:
         return prompt_text, False
 
+    pii_engine = _get_pii_engine(runtime)
     with runtime.pii_lock:
-        runtime.pii_engine.set_strategy(_resolve_pii_strategy(session.config.pii_strategy))
-        pii_result = str(runtime.pii_engine.process(prompt_text))
+        pii_engine.set_strategy(_resolve_pii_strategy(session.config.pii_strategy))
+        pii_result = str(pii_engine.process(prompt_text))
 
     if pii_result == "[BLOCKED: PII DETECTED]":
         return pii_result, True
@@ -151,7 +220,7 @@ def _apply_pii_if_enabled(session: SessionState, prompt_text: str, runtime: Runt
 def run_session_chat(session: SessionState, prompt: str, runtime: RuntimeResources) -> dict[str, str | bool | None]:
     session.history.append({"role": "user", "content": prompt})
 
-    clean_prompt, decision, harm_label, blocked = _apply_obfuscation_if_enabled(session, prompt)
+    clean_prompt, decision, harm_label, blocked = _apply_obfuscation_if_enabled(session, prompt, runtime)
     if blocked:
         blocked_reply = (
             "Request blocked by obfuscation guard. "
@@ -167,10 +236,27 @@ def run_session_chat(session: SessionState, prompt: str, runtime: RuntimeResourc
             "timestamp": _now_iso(),
         }
 
+    multi_turn_blocked, multi_turn_prediction = _apply_multi_turn_if_enabled(session, clean_prompt)
+    if multi_turn_blocked:
+        blocked_reply = "Request blocked by multi-turn defender."
+        session.history.append({"role": "assistant", "content": blocked_reply})
+        session.last_response = blocked_reply
+        session.multi_turn_state["last_response"] = blocked_reply
+        return {
+            "reply": blocked_reply,
+            "blocked": True,
+            "triggered_defense": "multi_turn",
+            "decision": multi_turn_prediction,
+            "harm_label": None,
+            "timestamp": _now_iso(),
+        }
+
     pii_prompt, pii_blocked = _apply_pii_if_enabled(session=session, prompt_text=clean_prompt, runtime=runtime)
     if pii_blocked:
         blocked_reply = "Request blocked by pii model."
         session.history.append({"role": "assistant", "content": blocked_reply})
+        session.last_response = blocked_reply
+        session.multi_turn_state["last_response"] = blocked_reply
         return {
             "reply": blocked_reply,
             "blocked": True,
@@ -186,6 +272,8 @@ def run_session_chat(session: SessionState, prompt: str, runtime: RuntimeResourc
         reply = _dispatch_foundational_reply(session=session, prompt_text=pii_prompt)
 
     session.history.append({"role": "assistant", "content": reply})
+    session.last_response = reply
+    session.multi_turn_state["last_response"] = reply
     return {
         "reply": reply,
         "blocked": False,
