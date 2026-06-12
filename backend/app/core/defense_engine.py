@@ -4,10 +4,13 @@ from typing import Any, TypedDict
 
 from backend.app.models.chat_models import ChatRequest
 from defenders.obfuscation.pipeline import run_obfuscation_guard
+from defenders.pii_detection.src.pii_engine import PIIEngine
+from defenders.pii_detection.src.strategies import BlockStrategy, EncryptStrategy, MaskStrategy, PIIStrategy
 
 _CHAT_HISTORY: list[dict[str, str]] = []
 _AGENT_CHAT_HISTORY: list[dict[str, str]] = []
 _MAS_APP: Any | None = None
+_PII_ENGINE: PIIEngine | None = None
 
 
 class ChatResult(TypedDict):
@@ -39,6 +42,38 @@ def _apply_obfuscation_if_enabled(payload: ChatRequest) -> tuple[str, str | None
     return clean_prompt, decision, harm_label, blocked
 
 
+def _resolve_pii_strategy(pii_strategy: str) -> PIIStrategy:
+    strategy_name = pii_strategy.strip().lower()
+    if strategy_name == "mask":
+        return MaskStrategy()
+    if strategy_name == "encrypt":
+        return EncryptStrategy()
+    if strategy_name == "block":
+        return BlockStrategy()
+    raise RuntimeError(f"Unsupported pii_strategy '{pii_strategy}'. Expected one of: mask, encrypt, block.")
+
+
+def _get_pii_engine() -> PIIEngine:
+    global _PII_ENGINE
+    if _PII_ENGINE is None:
+        _PII_ENGINE = PIIEngine(strategy=MaskStrategy())
+    return _PII_ENGINE
+
+
+def _apply_pii_if_enabled(payload: ChatRequest, prompt_text: str) -> tuple[str, bool]:
+    if not payload.pii_protection:
+        return prompt_text, False
+
+    pii_engine = _get_pii_engine()
+    pii_engine.set_strategy(_resolve_pii_strategy(payload.pii_strategy))
+    pii_result = str(pii_engine.process(prompt_text))
+
+    if pii_result == "[BLOCKED: PII DETECTED]":
+        return pii_result, True
+
+    return pii_result, False
+
+
 def run_chat(payload: ChatRequest) -> ChatResult:
     _CHAT_HISTORY.extend([message.model_dump() for message in payload.history])
     _CHAT_HISTORY.append({"role": "user", "content": payload.prompt})
@@ -59,7 +94,20 @@ def run_chat(payload: ChatRequest) -> ChatResult:
             "timestamp": _now_iso(),
         }
 
-    reply = _dispatch_llm_reply(payload=payload, prompt_text=clean_prompt)
+    pii_prompt, pii_blocked = _apply_pii_if_enabled(payload=payload, prompt_text=clean_prompt)
+    if pii_blocked:
+        blocked_reply = "Request blocked by pii model."
+        _CHAT_HISTORY.append({"role": "assistant", "content": blocked_reply})
+        return {
+            "reply": blocked_reply,
+            "blocked": True,
+            "triggered_defense": "pii",
+            "decision": decision,
+            "harm_label": harm_label,
+            "timestamp": _now_iso(),
+        }
+
+    reply = _dispatch_llm_reply(payload=payload, prompt_text=pii_prompt)
 
     _CHAT_HISTORY.append({"role": "assistant", "content": reply})
     return {
@@ -108,11 +156,24 @@ def run_agent_chat(payload: ChatRequest) -> ChatResult:
             "timestamp": _now_iso(),
         }
 
+    pii_prompt, pii_blocked = _apply_pii_if_enabled(payload=payload, prompt_text=clean_prompt)
+    if pii_blocked:
+        blocked_reply = "Request blocked by pii model."
+        _AGENT_CHAT_HISTORY.append({"role": "assistant", "content": blocked_reply})
+        return {
+            "reply": blocked_reply,
+            "blocked": True,
+            "triggered_defense": "pii",
+            "decision": decision,
+            "harm_label": harm_label,
+            "timestamp": _now_iso(),
+        }
+
     app = _get_mas_app()
     try:
         final_state = app.invoke(
             {
-                "user_message": clean_prompt,
+                "user_message": pii_prompt,
                 "messages": [],
             },
             config={"recursion_limit": 30},

@@ -17,6 +17,7 @@ class ChatRequest(BaseModel):
     multi_turn_protection: bool
     roleplay_protection: bool
     pii_protection: bool
+    pii_strategy: str
     history: list[ChatHistoryMessage] = Field(default_factory=list)
 
     @model_validator(mode="after")

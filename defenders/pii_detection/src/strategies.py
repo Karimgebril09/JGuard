@@ -1,7 +1,7 @@
 import hashlib
 
 class PIIStrategy:
-    def apply(self, words, tags):
+    def apply(self, word_tags_pairs):
         raise NotImplementedError
 
 

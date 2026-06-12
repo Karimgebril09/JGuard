@@ -1,16 +1,18 @@
-import os
-from pii_inference import PIIDetector
-from strategies import PIIStrategy, MaskStrategy, EncryptStrategy, BlockStrategy
+import os,sys
+
 import warnings
 warnings.filterwarnings("ignore")
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
+from defenders.pii_detection.src.pii_inference import PIIDetector
+from defenders.pii_detection.src.strategies import PIIStrategy, MaskStrategy, EncryptStrategy, BlockStrategy
 
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _MODELS_DIR = os.path.join(_BASE_DIR, "..", "models")
 
 
 class PIIEngine:
-    def __init__(self, strategy: PIIStrategy = None):
+    def __init__(self, strategy: PIIStrategy | None = None):
         self.detector = PIIDetector(
             checkpoint_path=os.path.join(_MODELS_DIR, "best_bert_bilstm_crf.pt"),
             checkpoint_path2=os.path.join(_MODELS_DIR, "pii_ner_model.pth")
@@ -35,14 +37,14 @@ if __name__ == "__main__":
     strategy3 = BlockStrategy()
 
 
-    PIIEngine = PIIEngine(strategy=strategy1)
-    result = PIIEngine.process(text)
+    pii_engine = PIIEngine(strategy=strategy1)
+    result = pii_engine.process(text)
     print(result)
 
-    PIIEngine.set_strategy(strategy2)
-    result = PIIEngine.process(text)
+    pii_engine.set_strategy(strategy2)
+    result = pii_engine.process(text)
     print(result)
 
-    PIIEngine.set_strategy(strategy3)
-    result = PIIEngine.process(text)
+    pii_engine.set_strategy(strategy3)
+    result = pii_engine.process(text)
     print(result)
