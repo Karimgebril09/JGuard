@@ -12,47 +12,46 @@ from sklearn.tree import DecisionTreeClassifier
 TRANSFORMS = {
     # Strong features
     "interaction_risk": "log1p",
-    "progressive_risk": "log1p",
-    "interaction_risk_ema3": "log1p",
     "toxicity_score": "log1p",
     "interaction_risk_rolling3_mean": "log1p",
-    "mean_risk_so_far": "log1p",
-    "interaction_risk_rolling3_max": "log1p",
-    "toxicity_score_ema3": "log1p",
-    "toxicity_score_rolling3_mean": "log1p",
-    "toxicity_score_rolling3_max": "log1p",
-    "max_toxicity_so_far": "log1p",
     "threat_score": "log1p",
+    "interaction_risk_ema3": "log1p",
+    "toxicity_score_rolling3_mean": "log1p",
+    "toxicity_score_ema3": "log1p",
+    "interaction_risk_rolling3_max": "log1p",
+    "toxicity_score_rolling3_max": "log1p",
+    "mean_risk_so_far": "log1p",
+    "max_toxicity_so_far": "log1p",
+    "threat_score_rolling3_max": "log1p",
     "threat_score_ema3": "log1p",
     "threat_score_rolling3_mean": "log1p",
-    "threat_score_rolling3_max": "log1p",
     "max_threat_so_far": "log1p",
-    "late_risk_increase": "log1p",
-    "early_high_risk": "log1p",
 
     # Features benefiting from transformation
-    "risk_slope_3": "square",
+    "risk_slope_3": "yeo-johnson",
     "toxicity_diff": "square",
     "toxicity_accel": "square",
+    "progressive_risk": "quantile",
     "threat_diff": "square",
 
-    # Weak but non-noise
-    "prev_progressive": "log1p",
+    # Weak but useful
+    "late_risk_increase": "log1p",
+    "early_high_risk": "log1p",
     "state_input_similarity": "yeo-johnson",
-    "long_term_state_similarity": "log1p",
-    "long_term_state_drift": "log1p",
-    "state_input_distance": "log1p",
     "drift_acceleration": "log1p",
-
-    "state_similarity": "binarize",
-    "topic_drift_score": "log1p",
-
-    "pattern_risk": "binarize",
-    "pattern_risk_ema3": "binarize",
+    "long_term_state_similarity": "log1p",
+    "prev_progressive": "log1p",
+    "long_term_state_drift": "log1p",
     "pattern_risk_rolling3_mean": "log1p",
-    "pattern_risk_rolling3_max": "binarize",
-}
+    "pattern_risk_ema3": "log1p",
+    "pattern_risk_rolling3_max": "log1p",
+    "state_input_distance": "log1p",
 
+    # Binary transforms
+    "state_similarity": "binarize",
+    "topic_drift_score": "binarize",
+    "pattern_risk": "binarize",
+}
 
 
 os.makedirs("data/processed",exist_ok=True)
