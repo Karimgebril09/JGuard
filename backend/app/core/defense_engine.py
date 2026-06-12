@@ -14,6 +14,7 @@ from defenders.obfuscation.pipeline import run_obfuscation
 from defenders.multi_turn.integrated.inference.multi_turn_defender import MultiTurnDefender
 from defenders.pii_detection.src.pii_engine import PIIEngine
 from defenders.pii_detection.src.strategies import BlockStrategy, EncryptStrategy, MaskStrategy, PIIStrategy
+from defenders.role_playing.pipeline import run_role_playing_guard
 
 
 @dataclass
@@ -164,6 +165,20 @@ def _apply_multi_turn_if_enabled(session: SessionState, prompt_text: str) -> boo
     return False
 
 
+def _apply_role_playing_if_enabled(session: SessionState, prompt_text: str) -> bool:
+    if not session.config.roleplay_protection:
+        return False
+
+    result = run_role_playing_guard(prompt_text)
+    action = str(result.get("action", "")).strip().lower()
+
+    if action == "block":
+        return True
+
+    is_safe = bool(result.get("is_safe", True))
+    return not is_safe
+
+
 def _resolve_pii_strategy(pii_strategy: str) -> PIIStrategy:
     strategy_name = pii_strategy.strip().lower()
     if strategy_name == "encrypt":
@@ -203,6 +218,21 @@ def run_session_chat(session: SessionState, prompt: str, runtime: RuntimeResourc
             "triggered_defense": "obfuscation and preprocessing",
             "decision": decision,
             "harm_label": harm_label,
+            "timestamp": _now_iso(),
+        }
+
+    roleplay_blocked = _apply_role_playing_if_enabled(session, clean_prompt)
+    if roleplay_blocked:
+        blocked_reply = "Request blocked by role-playing defender."
+        session.history.append({"role": "assistant", "content": blocked_reply})
+        session.last_response = blocked_reply
+        session.multi_turn_state["last_response"] = blocked_reply
+        return {
+            "reply": blocked_reply,
+            "blocked": True,
+            "triggered_defense": "roleplay",
+            "decision": "unsafe",
+            "harm_label": None,
             "timestamp": _now_iso(),
         }
 
