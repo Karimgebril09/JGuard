@@ -5,7 +5,7 @@ from matplotlib.pyplot import clf
 import torch
 
 from torch import nn
-from transformers import BertModel, DistilBertTokenizerFast, DistilBertModel ,BertTokenizerFast
+from transformers import DistilBertTokenizerFast, DistilBertModel
 
 def get_contextualized_embeddings(sentence, model, tokenizer, max_len, device='cuda'):
   
@@ -98,8 +98,13 @@ class RefusalInference:
 
 if __name__ == "__main__":
 
-    tokenizer = BertTokenizerFast.from_pretrained("bert-base-uncased")
-    Bertmodel = BertModel.from_pretrained("bert-base-uncased")
-    refusal = RefusalInference(model_path="models/best_model.pth",tokenizer=tokenizer,bert=Bertmodel)
+    tokenizer = DistilBertTokenizerFast.from_pretrained(
+        "distilbert-base-uncased"
+    )
+
+    model = DistilBertModel.from_pretrained(
+        "distilbert-base-uncased"
+    )
+    refusal = RefusalInference(model_path="models/best_model.pth",tokenizer=tokenizer,bert=model)
 
     refusal.predict("I can't help with that request.")
