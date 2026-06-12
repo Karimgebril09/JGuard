@@ -15,7 +15,7 @@ from defenders.pii_detection.src.strategies import BlockStrategy, EncryptStrateg
 
 @dataclass
 class RuntimeResources:
-    pii_engine: PIIEngine | None
+    pii_engine: PIIEngine
     mas_app: Any | None
     pii_lock: Lock
     mas_lock: Lock
@@ -88,14 +88,17 @@ def _now_iso() -> str:
 
 
 def initialize_runtime_resources() -> RuntimeResources:
-    return RuntimeResources(
-        pii_engine=None,
+    pii_engine = PIIEngine(strategy=MaskStrategy())
+    runtime = RuntimeResources(
+        pii_engine=pii_engine,
         mas_app=None,
         pii_lock=Lock(),
         mas_lock=Lock(),
         obfuscation_lock=Lock(),
         obfuscation_warmed_up=False,
     )
+    _warmup_obfuscation(runtime)
+    return runtime
 
 
 def shutdown_runtime_resources() -> None:
@@ -145,10 +148,7 @@ def _resolve_pii_strategy(pii_strategy: str) -> PIIStrategy:
 
 
 def _get_pii_engine(runtime: RuntimeResources) -> PIIEngine:
-    with runtime.pii_lock:
-        if runtime.pii_engine is None:
-            runtime.pii_engine = PIIEngine(strategy=MaskStrategy())
-        return runtime.pii_engine
+    return runtime.pii_engine
 
 
 def _apply_pii_if_enabled(session: SessionState, prompt_text: str, runtime: RuntimeResources) -> tuple[str, bool]:
