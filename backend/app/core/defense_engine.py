@@ -2,23 +2,24 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import importlib
 from threading import Lock
-from typing import Any, TypedDict
+from typing import Any
 from uuid import uuid4
 
 from fastapi import Request
 
 from backend.app.models.chat_models import ChatResponse, SessionConfig
-from defenders.obfuscation.pipeline import run_obfuscation_guard
+from defenders.obfuscation.pipeline import run_obfuscation
 from defenders.pii_detection.src.pii_engine import PIIEngine
 from defenders.pii_detection.src.strategies import BlockStrategy, EncryptStrategy, MaskStrategy, PIIStrategy
 
 
 @dataclass
 class RuntimeResources:
-    pii_engine: PIIEngine
+    pii_engine: PIIEngine | None
     mas_app: Any | None
     pii_lock: Lock
     mas_lock: Lock
+    obfuscation_lock: Lock
     obfuscation_warmed_up: bool = False
 
 
@@ -87,14 +88,13 @@ def _now_iso() -> str:
 
 
 def initialize_runtime_resources() -> RuntimeResources:
-    pii_engine = PIIEngine(strategy=MaskStrategy())
-    warmed_up = _warmup_obfuscation()
     return RuntimeResources(
-        pii_engine=pii_engine,
+        pii_engine=None,
         mas_app=None,
         pii_lock=Lock(),
         mas_lock=Lock(),
-        obfuscation_warmed_up=warmed_up,
+        obfuscation_lock=Lock(),
+        obfuscation_warmed_up=False,
     )
 
 
@@ -102,45 +102,63 @@ def shutdown_runtime_resources() -> None:
     return
 
 
-def _warmup_obfuscation() -> bool:
-    run_obfuscation_guard("warmup")
+def _warmup_obfuscation(runtime: RuntimeResources) -> bool:
+    with runtime.obfuscation_lock:
+        if runtime.obfuscation_warmed_up:
+            return True
+        run_obfuscation("warmup")
+        runtime.obfuscation_warmed_up = True
     return True
 
 
-def _apply_obfuscation_if_enabled(session: SessionState, prompt: str) -> tuple[str, str | None, str | None, bool]:
+def _apply_obfuscation_if_enabled(
+    session: SessionState,
+    prompt: str,
+    runtime: RuntimeResources,
+) -> tuple[str, str | None, str | None, bool]:
+    if not session.config.obfuscation_protection:
+        return prompt, None, None, False
+
+    _warmup_obfuscation(runtime)
+    
     clean_prompt = prompt
     decision: str | None = None
     harm_label: str | None = None
     blocked = False
 
-    if session.config.obfuscation_protection:
-        guard_result = run_obfuscation_guard(prompt)
-        clean_prompt = str(guard_result.get("clean_text", prompt))
-        decision = str(guard_result.get("decision")) if guard_result.get("decision") is not None else None
-        harm_label = str(guard_result.get("harm_label")) if guard_result.get("harm_label") is not None else None
-        blocked = not bool(guard_result.get("is_safe", True))
+    result = run_obfuscation(prompt)
+    clean_prompt = str(result.get("clean_text", prompt))
+    decision = str(result.get("decision")) if result.get("decision") is not None else None
+    harm_label = str(result.get("harm_label")) if result.get("harm_label") is not None else None
+    blocked = not bool(result.get("is_safe", True))
 
     return clean_prompt, decision, harm_label, blocked
 
 
 def _resolve_pii_strategy(pii_strategy: str) -> PIIStrategy:
     strategy_name = pii_strategy.strip().lower()
-    if strategy_name == "mask":
-        return MaskStrategy()
     if strategy_name == "encrypt":
         return EncryptStrategy()
     if strategy_name == "block":
         return BlockStrategy()
-    raise RuntimeError(f"Unsupported pii_strategy '{pii_strategy}'. Expected one of: mask, encrypt, block.")
+    return MaskStrategy()  # default to masking
+
+
+def _get_pii_engine(runtime: RuntimeResources) -> PIIEngine:
+    with runtime.pii_lock:
+        if runtime.pii_engine is None:
+            runtime.pii_engine = PIIEngine(strategy=MaskStrategy())
+        return runtime.pii_engine
 
 
 def _apply_pii_if_enabled(session: SessionState, prompt_text: str, runtime: RuntimeResources) -> tuple[str, bool]:
     if not session.config.pii_protection:
         return prompt_text, False
 
+    pii_engine = _get_pii_engine(runtime)
     with runtime.pii_lock:
-        runtime.pii_engine.set_strategy(_resolve_pii_strategy(session.config.pii_strategy))
-        pii_result = str(runtime.pii_engine.process(prompt_text))
+        pii_engine.set_strategy(_resolve_pii_strategy(session.config.pii_strategy))
+        pii_result = str(pii_engine.process(prompt_text))
 
     if pii_result == "[BLOCKED: PII DETECTED]":
         return pii_result, True
@@ -151,7 +169,7 @@ def _apply_pii_if_enabled(session: SessionState, prompt_text: str, runtime: Runt
 def run_session_chat(session: SessionState, prompt: str, runtime: RuntimeResources) -> dict[str, str | bool | None]:
     session.history.append({"role": "user", "content": prompt})
 
-    clean_prompt, decision, harm_label, blocked = _apply_obfuscation_if_enabled(session, prompt)
+    clean_prompt, decision, harm_label, blocked = _apply_obfuscation_if_enabled(session, prompt, runtime)
     if blocked:
         blocked_reply = (
             "Request blocked by obfuscation guard. "

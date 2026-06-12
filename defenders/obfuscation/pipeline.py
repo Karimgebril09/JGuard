@@ -112,7 +112,7 @@ def run_obfuscation_pipeline(
     }
 
 
-def run_obfuscation_guard(
+def run_obfuscation(
     raw_input: str | bytes,
     *,
     stage8_classifier: Stage8Classifier | None = None,
@@ -120,7 +120,7 @@ def run_obfuscation_guard(
     stage8_use_distilbert: bool = DEFAULT_USE_DISTILBERT,
     stage8_distilbert_artifacts_dir: str | None = None,
 ) -> dict[str, Any]:
-    """Run the 8-stage pipeline and return a minimal integration-friendly result."""
+    """Run the 8-stage pipeline and return a minimal result."""
     pipeline_result = run_obfuscation_pipeline(
         raw_input,
         stage8_classifier=stage8_classifier,
