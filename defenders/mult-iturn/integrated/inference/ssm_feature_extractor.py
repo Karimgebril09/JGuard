@@ -5,7 +5,9 @@ import pandas as pd
 import joblib
 from collections import deque
 
-
+import os
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_MODELS_DIR = os.path.join(_BASE_DIR, "..", "models")
 
 class stateSpaceModel(nn.Module):
     def __init__(self,state_dim, input_dim, hidden_dim1,hidden_dim2, output_dim):
@@ -49,11 +51,13 @@ class StateFeatureExtractor:
 
         self.embedding_model = embedding_model
         self.ssm = stateSpaceModel(self.state_dim, self.input_dim, self.hidden_dim_ssm1, self.hidden_dim_ssm2, self.output_dim)
-        checkpoint = torch.load("./../models/models_best_ssm.pth",map_location=torch.device("cpu"))
+        # checkpoint = torch.load("./../models/models_best_ssm.pth",map_location=torch.device("cpu"))
+        checkpoint = torch.load(os.path.join(_MODELS_DIR, "models_best_ssm.pth"), map_location=torch.device("cpu"))
         self.ssm.load_state_dict(checkpoint["ssm"])
         self.ssm.eval()
 
-        self.pca_model= joblib.load("./../models/pca_model.pkl")
+        # self.pca_model= joblib.load("./../models/pca_model.pkl")
+        self.pca_model= joblib.load(os.path.join(_MODELS_DIR, "pca_model.pkl"))
     
         self.x_prev=torch.zeros(self.state_dim)
         self.x_prev_4step_back = None
