@@ -53,19 +53,18 @@ class RolePlayingDefender:
 
         # 6. Decode label
         label = prediction
-        if self.label_encoder:
+        if self.label_encoder and hasattr(self.label_encoder, "classes_"):
             label = self.label_encoder.inverse_transform([prediction])[0]
+        else:
+            # Fallback if label_encoder is not fitted or missing
+            # In many binary classifiers, 0 is benign and 1 is attack
+            if prediction == 0:
+                label = "benign"
+            elif prediction == 1:
+                label = "attack"
 
-        # 7. Determine safety (Assume "benign" or similar is safe)
-        is_safe = True
-        if isinstance(label, str):
-            if label.lower() in ["attack", "malicious", "harmful"]:
-                is_safe = False
-            elif label.lower() in ["benign", "safe"]:
-                is_safe = True
-        elif isinstance(prediction, (int, float)):
-            # If it's a number, often 0 is safe and 1 is attack
-            is_safe = (prediction == 0)
+        # 7. Determine safety using the raw prediction
+        is_safe = bool(prediction == 0)
 
         return {
             "label": label,
