@@ -16,15 +16,15 @@ class ModelRef(BaseModel):
 class LaunchCampaignRequest(BaseModel):
     strategy: StrategyType
     tool_framework: ToolFrameworkType | None = None
-    attacker_model: ModelRef | None = None
-    target_model: ModelRef | None = None
-    judge_model: ModelRef | None = None
-    obfuscation_layer: bool
-    obfuscation_intensity: int
-    multi_turn_layer: bool
-    multi_turn_count: int
-    roleplaying_layer: bool
-    roleplaying_persona: str
+    # attacker_model: ModelRef | None = None
+    # target_model: ModelRef | None = None
+    # judge_model: ModelRef | None = None
+    # obfuscation_layer: bool 
+    # obfuscation_intensity: int
+    # multi_turn_layer: bool
+    # multi_turn_count: int
+    # roleplaying_layer: bool
+    # roleplaying_persona: str
 
 
 class LaunchCampaignResponse(BaseModel):

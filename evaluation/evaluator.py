@@ -9,5 +9,13 @@ class Evaluator:
 
     def evaluate_response(self, llm_response):
         refusal_prediction = self.refusal_predictor.predict(llm_response)
-        judge_result = self.judge(llm_response)
-        return refusal_prediction or judge_result["output"]
+        # TODO : add fine-tuned harm model 
+        fine_tuned_judge_pred = None
+        return refusal_prediction or fine_tuned_judge_pred
+    
+    def evaluate_response_with_feedback(self,user_prompt, llm_response):
+        print(f"evaluating response: {llm_response}")
+        print(f"user prompt: {user_prompt}")
+        refusal_prediction = self.refusal_predictor.predict(llm_response)
+        judge_result = self.judge.run(user_prompt, llm_response)
+        return refusal_prediction or judge_result["result"], judge_result

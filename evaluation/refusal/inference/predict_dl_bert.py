@@ -93,7 +93,7 @@ class RefusalInference:
         )
         self.bert.eval()
         self.model = LSTMClassifier(embed_dim, hidden_dim, dropout)
-        self.model.load_state_dict(torch.load("models/lstm_refusal_model_bert.pt", map_location=self.device))
+        self.model.load_state_dict(torch.load("./evaluation/refusal/models/lstm_refusal_model_bert.pt", map_location=self.device))
         self.model.to(self.device)
         self.model.eval()
 

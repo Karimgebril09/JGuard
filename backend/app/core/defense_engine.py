@@ -1,40 +1,26 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-import importlib
 from threading import Lock
 from typing import Any
 from uuid import uuid4
 
 from fastapi import Request
-import ollama
-import google.genai as genai
 
-from backend.app.models.chat_models import ChatResponse, SessionConfig
-from defenders.obfuscation.pipeline import run_obfuscation
-from defenders.multi_turn.integrated.inference.multi_turn_defender import MultiTurnDefender
-from defenders.pii_detection.src.pii_engine import PIIEngine
-from defenders.pii_detection.src.strategies import BlockStrategy, EncryptStrategy, MaskStrategy, PIIStrategy
-from defenders.role_playing.pipeline import run_role_playing_guard
+from backend.app.models.chat_models import SessionConfig
+from system.single_llm.llm import LLM
 
 
 @dataclass
 class RuntimeResources:
-    pii_engine: PIIEngine
     mas_app: Any | None
-    pii_lock: Lock
     mas_lock: Lock
-    obfuscation_lock: Lock
-    obfuscation_warmed_up: bool = False
 
 
 @dataclass
 class SessionState:
     session_id: str
     history: list[dict[str, str]]
-    multi_turn_state: dict[str, Any] # why
-    multi_turn_defender: Any | None
-    multi_turn_lock: Lock
-    last_response: str
+    llm: LLM
     config: SessionConfig
     created_at: datetime
     last_active: datetime
@@ -48,13 +34,22 @@ class SessionStore:
 
     def create_session(self, config: SessionConfig) -> SessionState:
         now = datetime.now(timezone.utc)
+        model_type = "ollama" if config.local_llm else _resolve_cloud_provider(config.llm_type)
+        llm = LLM(
+            model_name=config.llm_type,
+            model_type=model_type,
+            api_key=config.llm_api_key if not config.local_llm else None,
+            obfuscation_protection=config.obfuscation_protection,
+            roleplay_protection=config.roleplay_protection,
+            multi_turn_protection=config.multi_turn_protection,
+            pii_protection=config.pii_protection,
+            pii_strategy=config.pii_strategy,
+        )
+
         session = SessionState(
             session_id=str(uuid4()),
             history=[],
-            multi_turn_state={}, # why
-            multi_turn_defender=MultiTurnDefender() if config.multi_turn_protection else None,
-            multi_turn_lock=Lock(),
-            last_response="", # why
+            llm=llm,
             config=config,
             created_at=now,
             last_active=now,
@@ -98,190 +93,36 @@ def _now_iso() -> str:
 
 
 def initialize_runtime_resources() -> RuntimeResources:
-    pii_engine = PIIEngine(strategy=MaskStrategy())
-    runtime = RuntimeResources(
-        pii_engine=pii_engine,
+    return RuntimeResources(
         mas_app=None,
-        pii_lock=Lock(),
         mas_lock=Lock(),
-        obfuscation_lock=Lock(),
-        obfuscation_warmed_up=False,
     )
-    _warmup_obfuscation(runtime)
-    return runtime
 
 
 def shutdown_runtime_resources() -> None:
     return
 
 
-def _warmup_obfuscation(runtime: RuntimeResources) -> bool:
-    with runtime.obfuscation_lock:
-        if runtime.obfuscation_warmed_up:
-            return True
-        run_obfuscation("warmup")
-        runtime.obfuscation_warmed_up = True
-    return True
-
-
-def _apply_obfuscation_if_enabled(
-    session: SessionState,
-    prompt: str,
-    runtime: RuntimeResources,
-) -> tuple[str, str | None, str | None, bool]:
-    if not session.config.obfuscation_protection:
-        return prompt, None, None, False
-
-    clean_prompt = prompt
-    decision: str | None = None
-    harm_label: str | None = None
-    blocked = False
-
-    result = run_obfuscation(prompt)
-    clean_prompt = str(result.get("clean_text", prompt))
-    decision = str(result.get("decision")) if result.get("decision") is not None else None
-    harm_label = str(result.get("harm_label")) if result.get("harm_label") is not None else None
-    blocked = not bool(result.get("is_safe", True))
-
-    return clean_prompt, decision, harm_label, blocked
-
-
-def _apply_multi_turn_if_enabled(session: SessionState, prompt_text: str) -> bool:
-    if not session.config.multi_turn_protection:
-        return False
-
-    defender = session.multi_turn_defender
-    if defender is None:
-        raise RuntimeError("Multi-turn defender is not initialized for this session.")
-
-    with session.multi_turn_lock:
-        prediction = defender.predict(prompt_text, session.last_response)
-
-    prediction_value = int(prediction)
-    session.multi_turn_state["last_prediction"] = prediction_value
-    if prediction_value == 1:
-        return True
-
-    return False
-
-
-def _apply_role_playing_if_enabled(session: SessionState, prompt_text: str) -> bool:
-    if not session.config.roleplay_protection:
-        return False
-
-    result = run_role_playing_guard(prompt_text)
-    action = str(result.get("action", "")).strip().lower()
-
-    if action == "block":
-        return True
-
-    is_safe = bool(result.get("is_safe", True))
-    return not is_safe
-
-
-def _resolve_pii_strategy(pii_strategy: str) -> PIIStrategy:
-    strategy_name = pii_strategy.strip().lower()
-    if strategy_name == "encrypt":
-        return EncryptStrategy()
-    if strategy_name == "block":
-        return BlockStrategy()
-    return MaskStrategy()  # default to masking
-
-
-
-def _apply_pii_if_enabled(session: SessionState, prompt_text: str, runtime: RuntimeResources) -> tuple[str, bool]:
-    if not session.config.pii_protection:
-        return prompt_text, False
-
-    pii_engine = runtime.pii_engine
-
-    with runtime.pii_lock:
-        pii_engine.set_strategy(_resolve_pii_strategy(session.config.pii_strategy))
-        pii_result = str(pii_engine.process(prompt_text))
-
-    if pii_result == "[BLOCKED: PII DETECTED]":
-        return pii_result, True
-
-    return pii_result, False
-
-
 def run_session_chat(session: SessionState, prompt: str, runtime: RuntimeResources) -> dict[str, str | bool | None]:
     session.history.append({"role": "user", "content": prompt})
 
-    clean_prompt, decision, harm_label, blocked = _apply_obfuscation_if_enabled(session, prompt, runtime)
-    if blocked:
-        blocked_reply = "Request blocked by harm detector."
-        session.history.append({"role": "assistant", "content": blocked_reply})
-        return {
-            "reply": blocked_reply,
-            "blocked": True,
-            "triggered_defense": "obfuscation and preprocessing",
-            "decision": decision,
-            "harm_label": harm_label,
-            "timestamp": _now_iso(),
-        }
-
-    roleplay_blocked = _apply_role_playing_if_enabled(session, clean_prompt)
-    if roleplay_blocked:
-        blocked_reply = "Request blocked by role-playing defender."
-        session.history.append({"role": "assistant", "content": blocked_reply})
-        session.last_response = blocked_reply
-        session.multi_turn_state["last_response"] = blocked_reply
-        return {
-            "reply": blocked_reply,
-            "blocked": True,
-            "triggered_defense": "roleplay",
-            "decision": "unsafe",
-            "harm_label": None,
-            "timestamp": _now_iso(),
-        }
-
-    multi_turn_blocked = _apply_multi_turn_if_enabled(session, clean_prompt)
-    if multi_turn_blocked:
-        blocked_reply = "Request blocked by multi-turn defender."
-        session.history.append({"role": "assistant", "content": blocked_reply})
-        session.last_response = blocked_reply
-        session.multi_turn_state["last_response"] = blocked_reply
-        return {
-            "reply": blocked_reply,
-            "blocked": True,
-            "triggered_defense": "multi_turn",
-            "decision": "unsafe",
-            "harm_label": None,
-            "timestamp": _now_iso(),
-        }
-
-    pii_prompt, pii_blocked = _apply_pii_if_enabled(session=session, prompt_text=clean_prompt, runtime=runtime)
-    if pii_blocked:
-        blocked_reply = "Request blocked by pii model."
-        session.history.append({"role": "assistant", "content": blocked_reply})
-        session.last_response = blocked_reply
-        session.multi_turn_state["last_response"] = blocked_reply
-        return {
-            "reply": blocked_reply,
-            "blocked": True,
-            "triggered_defense": "pii",
-            "decision": "unsafe",
-            "harm_label": None,
-            "timestamp": _now_iso(),
-        }
-
+    reply_fn = None
     if session.config.chat_mode == "agent":
-        reply = _dispatch_agent_reply(session=session, prompt_text=pii_prompt, runtime=runtime)
-    else:
-        reply = _dispatch_foundational_reply(session=session, prompt_text=pii_prompt)
+        reply_fn = lambda clean_prompt: _dispatch_agent_reply(
+            session=session,
+            prompt_text=clean_prompt,
+            runtime=runtime,
+        )
 
-    session.history.append({"role": "assistant", "content": reply})
-    session.last_response = reply
-    session.multi_turn_state["last_response"] = reply #why
-    return {
-        "reply": reply,
-        "blocked": False,
-        "triggered_defense": None,
-        "decision": decision,
-        "harm_label": harm_label,
-        "timestamp": _now_iso(),
-    }
+    result = session.llm.chat_secure(
+        prompt=prompt,
+        history=session.history,
+        reply_fn=reply_fn,
+    )
+
+    session.history.append({"role": "assistant", "content": str(result["reply"])})
+    result["timestamp"] = _now_iso()
+    return result
 
 
 def _build_mas_app() -> Any:
@@ -298,8 +139,8 @@ def _dispatch_agent_reply(session: SessionState, prompt_text: str, runtime: Runt
         if runtime.mas_app is None:
             runtime.mas_app = _build_mas_app()
         mas_app: Any = runtime.mas_app
-    
-    prior_messages = session.multi_turn_state.get("messages", [])
+
+    prior_messages = session.meta.get("agent_messages", [])
     try:
         final_state = mas_app.invoke(
             {
@@ -311,11 +152,11 @@ def _dispatch_agent_reply(session: SessionState, prompt_text: str, runtime: Runt
     except Exception as exc:
         raise RuntimeError(f"Agent-based MAS call failed: {exc}") from exc
 
-    session.multi_turn_state["messages"] = final_state.get("messages", prior_messages)
+    session.meta["agent_messages"] = final_state.get("messages", prior_messages)
     if "response" in final_state:
-        session.multi_turn_state["response"] = final_state.get("response")
+        session.meta["agent_response"] = final_state.get("response")
     if "next_action" in final_state:
-        session.multi_turn_state["next_action"] = final_state.get("next_action")
+        session.meta["agent_next_action"] = final_state.get("next_action")
 
     return _extract_mas_reply(final_state)
 
@@ -337,115 +178,8 @@ def _extract_mas_reply(final_state: dict[str, Any]) -> str:
     return "Agent system returned no response."
 
 
-def _dispatch_foundational_reply(session: SessionState, prompt_text: str) -> str:
-    if session.config.local_llm:
-        return _call_local_ollama(session, prompt_text)
-
-    provider = _resolve_cloud_provider(session.config.llm_type)
-    if provider == "gemini":
-        return _call_gemini(session, prompt_text)
-    return _call_openai(session, prompt_text)
-
-
 def _resolve_cloud_provider(llm_type: str) -> str:
     lowered = llm_type.strip().lower()
     if lowered.startswith("gemini") or lowered.startswith("google/"):
         return "gemini"
     return "openai"
-
-
-def _session_messages_for_llm(session: SessionState, prompt_text: str) -> list[dict[str, str]]:
-    prior_messages = session.history[:-1]
-    messages = [
-        {
-            "role": str(message.get("role", "user")),
-            "content": str(message.get("content", "")),
-        }
-        for message in prior_messages
-    ]
-    messages.append({"role": "user", "content": prompt_text})
-    return messages
-
-
-def _call_local_ollama(session: SessionState, prompt_text: str) -> str:
-    messages = _session_messages_for_llm(session, prompt_text)
-
-    try:
-        response = ollama.chat(model=session.config.llm_type, messages=messages)
-        message = response.get("message", {})
-        content = message.get("content")
-        if isinstance(content, str) and content.strip():
-            return content
-        return "Local model returned an empty response."
-    except Exception as exc:
-        raise RuntimeError(f"Local Ollama call failed: {exc}") from exc
-
-
-def _call_gemini(session: SessionState, prompt_text: str) -> str:
-    try:
-        client = genai.Client(api_key=session.config.llm_api_key)
-
-        history_lines = [
-            f"{message.get('role', 'user')}: {message.get('content', '')}"
-            for message in session.history[:-1]
-        ]
-        history_text = "\n".join(history_lines)
-        full_prompt = (
-            "You are in a chat session. Continue the assistant reply based on the conversation.\n\n"
-            f"Conversation:\n{history_text}\n"
-            f"user: {prompt_text}\n"
-            "assistant:"
-        )
-
-        response = client.models.generate_content(
-            model=session.config.llm_type,
-            contents=full_prompt,
-        )
-        text = getattr(response, "text", None)
-        if isinstance(text, str) and text.strip():
-            return text
-
-        candidates = getattr(response, "candidates", None)
-        if isinstance(candidates, list):
-            for candidate in candidates:
-                content = getattr(candidate, "content", None)
-                parts = getattr(content, "parts", None)
-                if isinstance(parts, list):
-                    for part in parts:
-                        part_text = getattr(part, "text", None)
-                        if isinstance(part_text, str) and part_text.strip():
-                            return part_text
-
-        return "Gemini returned an empty response."
-    except Exception as exc:
-        raise RuntimeError(f"Gemini call failed: {exc}") from exc
-
-
-def _call_openai(session: SessionState, prompt_text: str) -> str:
-    try:
-        openai_module = importlib.import_module("openai")
-    except ModuleNotFoundError as exc:
-        raise RuntimeError(
-            "OpenAI package is not installed. Install backend requirements first."
-        ) from exc
-
-    try:
-        client = openai_module.OpenAI(api_key=session.config.llm_api_key)
-        messages = _session_messages_for_llm(session, prompt_text)
-
-        response = client.chat.completions.create(
-            model=session.config.llm_type,
-            messages=messages,
-        )
-
-        choices = getattr(response, "choices", None)
-        if isinstance(choices, list) and choices:
-            first = choices[0]
-            message = getattr(first, "message", None)
-            content = getattr(message, "content", None)
-            if isinstance(content, str) and content.strip():
-                return content
-
-        return "OpenAI returned an empty response."
-    except Exception as exc:
-        raise RuntimeError(f"OpenAI call failed: {exc}") from exc
