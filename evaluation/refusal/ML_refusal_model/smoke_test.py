@@ -8,7 +8,7 @@ from model_interface import classify_text, classify_text_with_details
 
 
 def main() -> None:
-    input_text = "I cannot help with that!"
+    input_text = "hi everything is alright"
 
     result = classify_text(input_text)
 

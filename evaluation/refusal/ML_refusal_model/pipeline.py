@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pandas as pd
 import numpy as np
 import re
@@ -8,6 +6,7 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
+from typing import Any, cast
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 
 from textblob import TextBlob
@@ -27,9 +26,8 @@ def load_data():
         train_df (DataFrame): Training dataset
         test_df (DataFrame): Testing dataset
     """
-    base_dir = Path(__file__).resolve().parent
-    train_df = pd.read_csv(base_dir / 'data/train.csv')
-    test_df = pd.read_csv(base_dir / 'data/test.csv')
+    train_df = pd.read_csv('data/train.csv')
+    test_df = pd.read_csv('data/test.csv')
     
     train_df = train_df.dropna(subset=["label"])
     test_df = test_df.dropna(subset=["label"])
@@ -365,7 +363,7 @@ def extract_all_features(train_df, test_df):
     
     return train_engineered_features, test_engineered_features
 
-def vectorize_tfidf(train_df, test_df):
+def vectorize_tfidf(train_df, test_df, return_vectorizer=False):
     print("Generating TF-IDF features...")
     tfidf_vectorizer = TfidfVectorizer(max_features=3000, ngram_range=(1, 2), min_df=5, max_df=0.8)
     train_tfidf = tfidf_vectorizer.fit_transform(train_df['processed_response'])
@@ -373,16 +371,19 @@ def vectorize_tfidf(train_df, test_df):
 
     print(f"TF-IDF shape - Train: {train_tfidf.shape}, Test: {test_tfidf.shape}")
     # Convert sparse matrices to dense for concatenation with other features
-    train_tfidf_dense = train_tfidf.toarray()
-    test_tfidf_dense = test_tfidf.toarray()
+    train_tfidf_dense = cast(Any, train_tfidf).toarray()
+    test_tfidf_dense = cast(Any, test_tfidf).toarray()
 
     # Create dataframes for vectorized features
     train_tfidf_df = pd.DataFrame(train_tfidf_dense, columns=[f'tfidf_{i}' for i in range(train_tfidf_dense.shape[1])])
     test_tfidf_df = pd.DataFrame(test_tfidf_dense, columns=[f'tfidf_{i}' for i in range(test_tfidf_dense.shape[1])])
 
+    if return_vectorizer:
+        return train_tfidf_df, test_tfidf_df, tfidf_vectorizer
+
     return train_tfidf_df, test_tfidf_df
 
-def vectorize_count(train_df, test_df):
+def vectorize_count(train_df, test_df, return_vectorizer=False):
     print("\nGenerating Count Vectorizer features...")
     count_vectorizer = CountVectorizer(max_features=2000, ngram_range=(1, 2), min_df=5, max_df=0.8)
     train_count = count_vectorizer.fit_transform(train_df['processed_response'])
@@ -391,12 +392,15 @@ def vectorize_count(train_df, test_df):
     print(f"Count Vectorizer shape - Train: {train_count.shape}, Test: {test_count.shape}")
 
     # Convert sparse matrices to dense for concatenation with other features
-    train_count_dense = train_count.toarray()
-    test_count_dense = test_count.toarray()
+    train_count_dense = cast(Any, train_count).toarray()
+    test_count_dense = cast(Any, test_count).toarray()
 
     # Create dataframes for vectorized features
     train_count_df = pd.DataFrame(train_count_dense, columns=[f'count_{i}' for i in range(train_count_dense.shape[1])])
     test_count_df = pd.DataFrame(test_count_dense, columns=[f'count_{i}' for i in range(test_count_dense.shape[1])])
+
+    if return_vectorizer:
+        return train_count_df, test_count_df, count_vectorizer
 
     return train_count_df, test_count_df
 

@@ -2,19 +2,17 @@ from __future__ import annotations
 
 from pathlib import Path
 import pickle
-from typing import Any, Dict
+from typing import Any, Dict, cast
 
 import numpy as np
 import pandas as pd
 import xgboost as xgb
 from sentence_transformers import SentenceTransformer
-from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
-from sklearn.preprocessing import MinMaxScaler
 
-from evaluation.refusal.ML_refusal_model import pipeline
+import pipeline
 
 
-class MLRefusalClassifierInterface:
+class RefusalClassifierInterface:
     def __init__(
         self,
         model_path: str | Path = "models/xgb_refusal_model.json",
@@ -37,38 +35,49 @@ class MLRefusalClassifierInterface:
         self._prepare_preprocessors()
 
     def _prepare_preprocessors(self) -> None:
-        train_df, _ = pipeline.load_data()
-        train_df = train_df.copy()
-        train_df["processed_response"] = train_df["response"].apply(lambda x: pipeline.preprocess_text(str(x))[0])
-
-        engineered_train = self._extract_engineered_features(train_df["response"])
-
         scaler = self.bundle.get("engineered_scaler")
         if scaler is None:
-            scaler = MinMaxScaler()
-            scaler.fit(engineered_train)
+            raise ValueError(
+                f"Missing 'engineered_scaler' in bundle at {self.bundle_path}. "
+                "Artifacts must include a pre-fitted scaler for inference."
+            )
         self.engineered_scaler = scaler
 
-        self.tfidf_vectorizer = TfidfVectorizer(
-            max_features=3000,
-            ngram_range=(1, 2),
-            min_df=5,
-            max_df=0.8,
-        )
-        self.tfidf_vectorizer.fit(train_df["processed_response"])
+        tfidf_vectorizer = self.bundle.get("tfidf_vectorizer")
+        if tfidf_vectorizer is None:
+            raise ValueError(
+                f"Missing 'tfidf_vectorizer' in bundle at {self.bundle_path}. "
+                "Artifacts must include a pre-fitted TF-IDF vectorizer for inference."
+            )
 
-        self.count_vectorizer = CountVectorizer(
-            max_features=2000,
-            ngram_range=(1, 2),
-            min_df=5,
-            max_df=0.8,
-        )
-        self.count_vectorizer.fit(train_df["processed_response"])
+        count_vectorizer = self.bundle.get("count_vectorizer")
+        if count_vectorizer is None:
+            raise ValueError(
+                f"Missing 'count_vectorizer' in bundle at {self.bundle_path}. "
+                "Artifacts must include a pre-fitted CountVectorizer for inference."
+            )
 
-        engineered_dim = engineered_train.shape[1]
-        tfidf_dim = len(self.tfidf_vectorizer.get_feature_names_out())
-        count_dim = len(self.count_vectorizer.get_feature_names_out())
+        assert tfidf_vectorizer is not None
+        assert count_vectorizer is not None
+        self.tfidf_vectorizer = tfidf_vectorizer
+        self.count_vectorizer = count_vectorizer
+
+        engineered_dim = int(
+            getattr(
+                self.engineered_scaler,
+                "n_features_in_",
+                self._extract_engineered_features(pd.Series([""])).shape[1],
+            )
+        )
+        tfidf_dim = len(tfidf_vectorizer.get_feature_names_out())
+        count_dim = len(count_vectorizer.get_feature_names_out())
         self.embedding_dim = int(self.model.n_features_in_) - (engineered_dim + tfidf_dim + count_dim)
+
+        if self.embedding_dim < 0:
+            raise ValueError(
+                "Computed negative embedding dimension. Check artifact compatibility between "
+                "model, scaler, and vectorizers."
+            )
 
         self.embedding_model = None
         try:
@@ -101,8 +110,10 @@ class MLRefusalClassifierInterface:
         engineered_features = self._extract_engineered_features(single_series)
         engineered_scaled = self.engineered_scaler.transform(engineered_features).astype(np.float32)
 
-        tfidf_features = self.tfidf_vectorizer.transform([processed_text]).toarray().astype(np.float32)
-        count_features = self.count_vectorizer.transform([processed_text]).toarray().astype(np.float32)
+        tfidf_matrix = cast(Any, self.tfidf_vectorizer.transform([processed_text]))
+        count_matrix = cast(Any, self.count_vectorizer.transform([processed_text]))
+        tfidf_features = tfidf_matrix.toarray().astype(np.float32)
+        count_features = count_matrix.toarray().astype(np.float32)
         if self.embedding_model is not None:
             embedding_features = np.asarray(
                 self.embedding_model.encode([text], show_progress_bar=False),
@@ -144,10 +155,20 @@ class MLRefusalClassifierInterface:
         }
 
 
+_INTERFACE: RefusalClassifierInterface | None = None
+
+
+def _get_interface() -> RefusalClassifierInterface:
+    global _INTERFACE
+    if _INTERFACE is None:
+        _INTERFACE = RefusalClassifierInterface()
+    return _INTERFACE
+
+
 def classify_text(text: str) -> int:
     """Return binary class: 1 = refusal, 0 = not refusal."""
-    return int(MLRefusalClassifierInterface().predict(text)["label"])
+    return int(_get_interface().predict(text)["label"])
 
 
 def classify_text_with_details(text: str) -> Dict[str, Any]:
-    return MLRefusalClassifierInterface().predict(text)
+    return _get_interface().predict(text)
