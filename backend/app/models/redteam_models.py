@@ -3,7 +3,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 
-StrategyType = Literal["tool_based", "custom_atj"]
+StrategyType = Literal["tool_based", "custom"]
 ToolFrameworkType = Literal["promptfoo", "garak", "deepteam"]
 CampaignStatusType = Literal["started", "running", "completed", "failed", "stopped"]
 
@@ -16,15 +16,33 @@ class ModelRef(BaseModel):
 class LaunchCampaignRequest(BaseModel):
     strategy: StrategyType
     tool_framework: ToolFrameworkType | None = None
-    # attacker_model: ModelRef | None = None
-    # target_model: ModelRef | None = None
-    # judge_model: ModelRef | None = None
-    # obfuscation_layer: bool 
-    # obfuscation_intensity: int
-    # multi_turn_layer: bool
-    # multi_turn_count: int
-    # roleplaying_layer: bool
-    # roleplaying_persona: str
+    
+    # custom
+    custom_attack_type: str | None = None
+    custom_harm_type: str | None = None
+    num_samples: int | None = None
+
+    judge_model: str | None = None
+    attacker_model: str | None = None
+    target_model: str | None = None
+
+    judge_type: str | None = None
+    attacker_type: str | None = None
+    target_type: str | None = None
+
+    judge_api_key: str | None = None
+    attacker_api_key: str | None = None
+    target_api_key: str | None = None
+
+    judge_base_url: str | None = None
+    attacker_base_url: str | None = None
+    target_base_url: str | None = None
+
+    obfuscation_protection: bool | None = None
+    roleplay_protection: bool | None = None
+    multi_turn_protection: bool | None = None
+    pii_protection: bool | None = None
+    pii_strategy: str | None = None
 
 
 class LaunchCampaignResponse(BaseModel):

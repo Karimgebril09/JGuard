@@ -1,12 +1,15 @@
 import pandas as pd
 import os
+import logging
 from dotenv import load_dotenv
-from utils import generate_attack
+from data_generation.custom.utils import generate_attack
 from system.single_llm.llm import LLM
 from evaluation.evaluator import Evaluator
 from langchain.messages import SystemMessage
 import json
 load_dotenv("./.env")
+
+LOGGER = logging.getLogger(__name__)
 
 
 class CustomGenerator:
@@ -37,7 +40,7 @@ class CustomGenerator:
                             ,temperature=0.7, api_key=api_key_target,obfuscation_protection=activate_obfuscation_defense,
                             roleplay_protection=activate_role_playing_defense,\
                             pii_protection=activate_pii,multi_turn_protection=activate_multi_turn,
-                            pii_strategy=pii_masking_strategy,use_history=use_history,
+                            pii_strategy=pii_masking_strategy or "",use_history=use_history,
                             system_prompt=target_system_message)
         
         with open(f"./data_generation/custom/prompts/system_prompts/{attack_type}.txt", "r", encoding="utf-8") as f:
@@ -55,7 +58,7 @@ class CustomGenerator:
         harm_prompt=harm_prompt.format(harms=harm_shots)
         system_prompt=system_prompt.format(EXAMPLES=attack_shots,HARM=harm_prompt)
         self.attacker_system_prompt = {"role": "system", "content": system_prompt}
-        print("finished initializing generator")
+        LOGGER.info("Finished initializing custom generator")
 
     def _save_metrics(self):
         total_samples=0
@@ -67,7 +70,7 @@ class CustomGenerator:
             successful_attacks=len(df[df["result"]==1])
             attack_success_rate=successful_attacks/total_samples if total_samples>0 else 0
         except FileNotFoundError:
-            print("No dataset found to compute metrics.")
+            LOGGER.warning("No dataset found to compute metrics.")
                 
         metrics={"ASR": attack_success_rate, 
                 "successful_attacks": successful_attacks,
@@ -90,7 +93,7 @@ class CustomGenerator:
 
 
     def generate_dataset(self, num_samples):
-        print("start generating dataset...")
+        LOGGER.info("Start generating dataset with num_samples=%s", num_samples)
         attacker_system_prompt=self.attacker_system_prompt
 
         dataset = []
@@ -131,7 +134,7 @@ class CustomGenerator:
         self._save_metrics()
 
 if __name__ == "__main__":
-    os.environ["NGROK_SYSTEM_ENDPOINT"] = os.getenv("NGROK_SYSTEM_ENDPOINT")
+    os.environ["NGROK_SYSTEM_ENDPOINT"] = os.getenv("NGROK_SYSTEM_ENDPOINT") or ""
 
     model_name = "qwen2.5:3b-instruct"
     base_url = os.getenv("NGROK_SYSTEM_ENDPOINT")
