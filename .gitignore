@@ -2,7 +2,10 @@
 settings.json
 .vscode/
 
-/__pycache__/
+credentials.json
+token.pickle
+
+__pycache__/
 *.pyc
 
 *.pth
@@ -14,3 +17,31 @@ mlruns
 paper*
 *.pkl
 *.egg-info
+*.bin
+*joblib.venv/
+
+*.joblib
+
+# Obfuscation stage-8 training artifacts (large/generated)
+defenders/obfuscation/stage8_custom_classifier/artifacts/
+defenders/obfuscation/stage8_custom_classifier/artifacts_balanced/
+defenders/obfuscation/stage8_custom_classifier/artifacts_binary_balanced/
+defenders/obfuscation/stage8_custom_classifier/distilbert_artifacts/
+defenders/obfuscation/stage8_custom_classifier/distilbert_artifacts_*/
+defenders/obfuscation/stage8_custom_classifier/**/checkpoint-*/
+defenders/obfuscation/stage8_custom_classifier/**/binary_run/
+defenders/obfuscation/stage8_custom_classifier/**/category_run/
+defenders/obfuscation/stage8_custom_classifier/**/wandb/
+defenders/obfuscation/stage8_custom_classifier/**/runs/
+defenders/obfuscation/stage8_custom_classifier/.ipynb_checkpoints/
+
+# Model weight formats produced by fine-tuning
+defenders/obfuscation/stage8_custom_classifier/**/*.safetensors
+defenders/obfuscation/stage8_custom_classifier/**/*.bin
+defenders/obfuscation/stage8_custom_classifier/**/*.pt
+defenders/obfuscation/stage8_custom_classifier/**/*.pth
+defenders/obfuscation/stage8_custom_classifier/**/*.pkl
+
+.venv/
+*.json*
+*.html

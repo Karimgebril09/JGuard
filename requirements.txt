@@ -1,3 +1,21 @@
+wordfreq
+langgraph>=0.2.56
+langchain>=0.3.0
+langchain-ollama>=0.2.0
+langchain-google-genai>=2.0.0
+langchain-openai>=0.2.0
+langchain-tavily>=0.1.0
+python-dotenv>=1.0.1
+pypdf>=5.0.0
+fpdf2>=2.8.0
+google-api-python-client>=2.149.0
+google-auth-oauthlib>=1.2.1
+fastapi>=0.116.0,<1.0.0
+uvicorn[standard]>=0.35.0,<1.0.0
+pydantic>=2.11.0,<3.0.0
+ollama>=0.3.0,<1.0.0
+google-genai>=0.7.0,<1.0.0
+openai>=1.52.0,<2.0.0
 numpy>=1.26
 pandas>=2.0
 scipy>=1.11
@@ -14,3 +32,12 @@ seaborn>=0.13
 pydantic>=2.0
 
 torch
+
+pytorch-crf>=0.7.2
+fasttext-wheel
+
+sentence-transformers
+
+nltk
+textblob
+garak
