@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from utils import generate_attack
 from system.single_llm.llm import LLM
-from evaluation.harm_detection.llm_judge import SentinelJudge
+from evaluation.evaluator import Evaluator
 from langchain.messages import SystemMessage
 load_dotenv("./.env")
 
@@ -11,19 +11,25 @@ load_dotenv("./.env")
 class CustomGenerator:
     def __init__(self, attack_type,harm_type,judge,attacker,target,type_judge,type_attacker,type_target,
                  api_key_judge=None,api_key_attacker=None,api_key_target=None,base_url_judge=None,
-                 base_url_attacker=None,base_url_target=None):
+                 base_url_attacker=None,base_url_target=None,
+                activate_role_playing_defense=False, activate_obfuscation_defense=False,
+                activate_pii=False,activate_multi_turn=False,pii_masking_strategy=None):
         self.attack_type = attack_type
         self.harm_type = harm_type
         self.judge = judge
         self.attacker = attacker
         self.target = target
 
-        self.judge = SentinelJudge(model_type=type_judge,model_name=judge,harm_type=harm_type,\
-                                   base_url=base_url_judge, api_key=api_key_judge)
+        self.evaluator = Evaluator(type_judge=type_judge, judge=judge, base_url_judge=base_url_judge, api_key_judge=api_key_judge)
         self.attacker = LLM(model_name=attacker,model_type=type_attacker,base_url=base_url_attacker\
                             ,temperature=0.7, api_key=api_key_attacker).get_model()
+        
+        
         self.target = LLM(model_name=target,model_type=type_target,base_url=base_url_target\
-                            ,temperature=0.7, api_key=api_key_target).get_model()
+                            ,temperature=0.7, api_key=api_key_target,obfuscation_protection=activate_obfuscation_defense,
+                            role_playing_protection=activate_role_playing_defense,\
+                            pii_protection=activate_pii,multi_turn_protection=activate_multi_turn,
+                            pii_masking_strategy=pii_masking_strategy)
         
         with open(f"./data_generation/custom/prompts/system_prompts/{attack_type}.txt", "r", encoding="utf-8") as f:
             system_prompt = f.read()
@@ -51,14 +57,15 @@ class CustomGenerator:
 
         dataset = []
         for i in range(num_samples):
-            result = generate_attack(target=self.target,judge=self.judge,\
+            result = generate_attack(target=self.target,judge=self.evaluator,\
                                     attacker=self.attacker,target_system_message=target_system_message,\
                                     attacker_system_prompt=attacker_system_prompt)
             if result:
                 dataset.append(result)
 
             if (i + 1) % 2 == 0:
-                current_dataset = pd.DataFrame(dataset, columns=["attack", "target_response", "judge_reason", "remaining", "result"])
+                current_dataset = pd.DataFrame(dataset, columns=["attack", "target_response", 
+                                                                "judge_reason", "remaining", "result"])
 
                 try:
                     df = pd.read_csv("jailbreak_dataset.csv")
@@ -66,12 +73,14 @@ class CustomGenerator:
                 except (FileNotFoundError, pd.errors.EmptyDataError):
                     pass
 
-                current_dataset.to_csv("jailbreak_dataset.csv",columns=["attack", "target_response", "judge_reason", "remaining", "result"], index=False)
+                current_dataset.to_csv("jailbreak_dataset.csv",columns=["attack", "target_response", 
+                                                                        "judge_reason", "remaining", "result"], index=False)
                 dataset = []
 
         # save remaining samples
         if dataset:
-            current_dataset = pd.DataFrame(dataset, columns=["attack", "target_response", "judge_reason", "remaining", "result"])
+            current_dataset = pd.DataFrame(dataset, columns=["attack", "target_response", "judge_reason", 
+                                                            "remaining", "result"])
             try:
                 df = pd.read_csv("jailbreak_dataset.csv")
                 current_dataset = pd.concat([df, current_dataset], ignore_index=True)

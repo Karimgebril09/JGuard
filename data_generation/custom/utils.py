@@ -3,8 +3,7 @@ from collections import deque
 from langchain.messages import SystemMessage, HumanMessage, AIMessage
 
 
-
-def generate_attack(judge,attacker,target,target_system_message,attacker_system_prompt):
+def generate_attack(evaluator,attacker,target,target_system_message,attacker_system_prompt):
     print("start generating an attack...")
     system_message = attacker_system_prompt
     max_convo_len=10
@@ -21,19 +20,19 @@ def generate_attack(judge,attacker,target,target_system_message,attacker_system_
             attack=attacker.invoke(messages+[HumanMessage(content=user_message_content)])
             attack=attack.content.strip()
 
-            target_response = target.invoke([target_system_message,HumanMessage(content=attack)])
+            target_response = target.chat_secure([target_system_message,HumanMessage(content=attack)])
 
             history.append(HumanMessage(content=attack))
             history.append(AIMessage(content=target_response.content))
 
-            judge_output = judge.run(user_prompt=attack, llm_response=target_response.content, max_trials=3, default_val=0)
-            feed_back_message = judge_output["reason"]
+            evaluation_result, judge_output = evaluator.evaluate_response_with_feedback(target_response.content)
 
-            data={"attack":attack,
+            data={
+                "attack":attack,
                 "target_response": target_response.content,
                 "judge_reason": judge_output["reason"],                
-                 "remaining":max_convo_len,
-                  "result":judge_output["result"]
+                "remaining":max_convo_len,
+                "result":evaluation_result
                }
             convo_list.append(data)
             if judge_output["result"]==1:

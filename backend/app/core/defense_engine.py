@@ -114,7 +114,7 @@ def run_session_chat(session: SessionState, prompt: str, runtime: RuntimeResourc
             runtime=runtime,
         )
 
-    result = session.llm.run_session_chat(
+    result = session.llm.chat_secure(
         prompt=prompt,
         history=session.history,
         reply_fn=reply_fn,

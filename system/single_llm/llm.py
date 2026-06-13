@@ -186,7 +186,7 @@ class LLM:
             return text
         return "Model returned an empty response."
 
-    def run_session_chat(
+    def chat_secure(
         self,
         prompt: str,
         history: list[dict[str, str]],
