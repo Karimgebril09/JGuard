@@ -9,10 +9,10 @@ import pandas as pd
 import xgboost as xgb
 from sentence_transformers import SentenceTransformer
 
-import pipeline
+import evaluation.refusal.ML_refusal_model.pipeline as pipeline
 
 
-class RefusalClassifierInterface:
+class MLRefusalClassifierInterface:
     def __init__(
         self,
         model_path: str | Path = "../models/xgb_refusal_model.json",
@@ -155,13 +155,13 @@ class RefusalClassifierInterface:
         }
 
 
-_INTERFACE: RefusalClassifierInterface | None = None
+_INTERFACE: MLRefusalClassifierInterface | None = None
 
 
-def _get_interface() -> RefusalClassifierInterface:
+def _get_interface() -> MLRefusalClassifierInterface:
     global _INTERFACE
     if _INTERFACE is None:
-        _INTERFACE = RefusalClassifierInterface()
+        _INTERFACE = MLRefusalClassifierInterface()
     return _INTERFACE
 
 
