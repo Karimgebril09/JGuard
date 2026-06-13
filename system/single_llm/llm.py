@@ -92,9 +92,20 @@ class LLM:
 
     def get_model(self):
         return self.model
+
+    def _prepend_system_prompt(self, messages: Any) -> Any:
+        system_prompt = self.system_prompt.strip()
+        if not system_prompt:
+            return messages
+
+        system_message = {"role": "system", "content": system_prompt}
+        if isinstance(messages, list):
+            return [system_message, *messages]
+        return [system_message, {"role": "user", "content": str(messages)}]
     
     def generate_response(self, prompt):
-        response = self.model.invoke([self.system_prompt] + [prompt])
+        messages = self._prepend_system_prompt([{"role": "user", "content": str(prompt)}])
+        response = self.model.invoke(messages)
         return response
     
     def generate_response_buffered(self, prompt):
@@ -102,7 +113,9 @@ class LLM:
             return self.generate_response(prompt)
 
         self.buffer.append(prompt)
-        response = self.model.invoke([self.system_prompt] + list(self.buffer))
+        buffered_messages = [{"role": "user", "content": str(item)} for item in self.buffer]
+        messages = self._prepend_system_prompt(buffered_messages)
+        response = self.model.invoke(messages)
         return response
 
     def _apply_obfuscation(self, prompt: str) -> tuple[str, str | None, str | None, bool]:
@@ -156,7 +169,7 @@ class LLM:
 
     def _messages_with_history(self, history: list[dict[str, str]], prompt_text: str):
         if not self.use_history:
-            return prompt_text
+            return self._prepend_system_prompt(prompt_text)
 
         prior_messages = history[:-1]
         messages = [
@@ -167,7 +180,7 @@ class LLM:
             for message in prior_messages
         ]
         messages.append({"role": "user", "content": prompt_text})
-        return messages
+        return self._prepend_system_prompt(messages)
 
     def _extract_text(self, response: Any) -> str:
         if response is None:
