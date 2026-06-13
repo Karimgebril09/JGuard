@@ -17,6 +17,8 @@ load_dotenv("./.env")
 
 
 def _resolve_pii_strategy(strategy_name: str) -> PIIStrategy:
+    if strategy_name is None:
+        return MaskStrategy()
     normalized = strategy_name.strip().lower()
     if normalized == "encrypt":
         return EncryptStrategy()
@@ -94,9 +96,9 @@ class LLM:
         return self.model
 
     def _prepend_system_prompt(self, messages: Any) -> Any:
-        system_prompt = self.system_prompt.strip()
-        if not system_prompt:
+        if self.system_prompt==None or self.system_prompt.strip() == "":
             return messages
+        system_prompt = self.system_prompt.strip()
 
         system_message = {"role": "system", "content": system_prompt}
         if isinstance(messages, list):
@@ -265,10 +267,13 @@ class LLM:
                 "harm_label": None,
             }
 
+        print("before generation")
         if reply_fn is not None:
             reply = reply_fn(pii_prompt)
         else:
             reply = self._call_foundational_model(history=history, prompt_text=pii_prompt)
+
+        print("after generation")
 
         self.last_response = reply
         self.multi_turn_state["last_response"] = reply
