@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="JGuard.Pages.HomePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:JGuard.Pages"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    RequestedTheme="Dark">
+
+    <Page.Resources>
+        <!-- Chat message template selector resources -->
+        <DataTemplate x:Key="UserMessageTemplate" x:DataType="local:ChatMessageDisplay">
+            <Grid HorizontalAlignment="Right" Margin="40,4,8,4">
+                <Border Background="#05D9E8" CornerRadius="12,12,0,12" Padding="12,8">
+                    <StackPanel>
+                        <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap" Foreground="#020617" FontSize="14" FontWeight="Normal"/>
+                        <TextBlock Text="{x:Bind FormattedTime}" FontSize="10" Foreground="#55020617" HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ModelMessageTemplate" x:DataType="local:ChatMessageDisplay">
+            <Grid HorizontalAlignment="Left" Margin="8,4,40,4">
+                <Border Background="#1E293B" BorderBrush="#00f0ff" BorderThickness="0.5" CornerRadius="12,12,12,0" Padding="12,8">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{x:Bind BlockedStatus}" Foreground="#FF4444" FontWeight="Bold" Visibility="{x:Bind BlockedVisibility}"/>
+                        <TextBlock Text="{x:Bind TriggeredDefenseStatus}" Foreground="#FFB000" FontSize="12" Visibility="{x:Bind DefenseVisibility}"/>
+                        <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap" Foreground="#F5F5F5" FontSize="14"/>
+                        <TextBlock Text="{x:Bind FormattedTime}" FontSize="10" Foreground="#94A3B8" HorizontalAlignment="Left" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <local:ChatMessageTemplateSelector x:Key="MessageTemplateSelector"
+            UserMessageTemplate="{StaticResource UserMessageTemplate}"
+            AssistantMessageTemplate="{StaticResource ModelMessageTemplate}"/>
+    </Page.Resources>
+
+    <Grid Background="#020617" Padding="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,24" Spacing="4">
+            <TextBlock Text="System Interface" Style="{StaticResource HeaderTextBlockStyle}" Foreground="#05D9E8" FontWeight="Bold"/>
+            <TextBlock Text="Configure active model architectures, manage defensive controls, and manually validate system safety." Style="{StaticResource BodyTextBlockStyle}" Foreground="#94A3B8"/>
+        </StackPanel>
+
+        <!-- Main Content (2 Columns: Controls on Left, Chat on Right) -->
+        <Grid Grid.Row="1" ColumnSpacing="24">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="380" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Left column: Configuration Panel -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="20">
+                    <!-- Model Selection Card -->
+                    <Border Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <StackPanel Spacing="12">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE770;" Foreground="#05D9E8" FontSize="18"/>
+                                <TextBlock Text="Model Architecture" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="Select target system architecture to evaluate:" FontSize="12" Foreground="#94A3B8"/>
+                            <StackPanel Spacing="8" Margin="0,4,0,0">
+                                <RadioButton x:Name="RadioLLM" Content="Foundational LLM" IsChecked="True" Checked="Architecture_Changed"/>
+                                <RadioButton x:Name="RadioAgent" Content="Agent-Based System" Checked="Architecture_Changed"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- LLM Source Type Card (Only for Foundational LLM) -->
+                    <Border x:Name="LLMSourceCard" Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Visibility="Visible">
+                        <StackPanel Spacing="12">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE946;" Foreground="#05D9E8" FontSize="18"/>
+                                <TextBlock Text="LLM Source Type" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="Select whether the LLM is open source or closed source:" FontSize="12" Foreground="#94A3B8"/>
+                            <StackPanel Spacing="8" Margin="0,4,0,0">
+                                <RadioButton x:Name="RadioOpenSource" Content="Open Source (e.g., Llama, Mistral)" IsChecked="True" Checked="LLMSourceType_Changed"/>
+                                <RadioButton x:Name="RadioClosedSource" Content="Closed Source (e.g., GPT-4, Claude)" Checked="LLMSourceType_Changed"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- LLM Configuration Card (For both Open and Closed Source) -->
+                    <Border x:Name="LLMConfigCard" Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Visibility="Visible">
+                        <StackPanel Spacing="12">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE9F5;" Foreground="#05D9E8" FontSize="18"/>
+                                <TextBlock Text="LLM Configuration" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="Configure your LLM details:" FontSize="12" Foreground="#94A3B8"/>
+                            
+                            <!-- LLM Type Field -->
+                            <StackPanel Spacing="4" Margin="0,8,0,0">
+                                <TextBlock x:Name="LLMTypeLabel" Text="Model Name" FontSize="12" FontWeight="Medium" Foreground="#F5F5F5"/>
+                                <TextBox x:Name="LLMTypeBox" Background="#1E293B" BorderBrush="#19FFFFFF" CornerRadius="4" Padding="12,8" PlaceholderText="e.g., Llama 2 70B, Mistral 7B"/>
+                            </StackPanel>
+
+                            <!-- API Key Field (Only for Closed Source) -->
+                            <StackPanel x:Name="APIKeyStackPanel" Spacing="4" Margin="0,8,0,0" Visibility="Collapsed">
+                                <TextBlock Text="API Key" FontSize="12" FontWeight="Medium" Foreground="#F5F5F5"/>
+                                <PasswordBox x:Name="APIKeyBox" Background="#1E293B" BorderBrush="#19FFFFFF" CornerRadius="4" Padding="12,8"/>
+                            </StackPanel>
+
+                            <!-- Base API URL Field -->
+                            <StackPanel Spacing="4" Margin="0,8,0,0">
+                                <TextBlock Text="Base API URL" FontSize="12" FontWeight="Medium" Foreground="#F5F5F5"/>
+                                <TextBox x:Name="BaseUrlBox" Background="#1E293B" BorderBrush="#19FFFFFF" CornerRadius="4" Padding="12,8" PlaceholderText="http://127.0.0.1:8000"/>
+                            </StackPanel>
+
+                            <!-- Save Configuration Button -->
+                            <Button x:Name="SaveConfigButton" Content="Save Configuration" Click="SaveConfig_Click" Style="{StaticResource AccentButtonStyle}" Background="#05D9E8" Foreground="#020617" CornerRadius="4" Margin="0,12,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Defense Controls Card -->
+                    <Border Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <StackPanel Spacing="16">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE814;" Foreground="#22FF88" FontSize="18"/>
+                                <TextBlock Text="Dynamic Defense Controls" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="Enable individual security guardrails to observe target resistance in real time." FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                            
+                            <MenuFlyoutSeparator Background="#19FFFFFF"/>
+
+                            <!-- Obfuscation Protection -->
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Obfuscation Protection" FontWeight="Medium"/>
+                                    <TextBlock Text="Masks sensitive keywords and input indicators." FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" x:Name="ToggleObfuscation" Toggled="Defense_Toggled" OnContent="" OffContent="" VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- Multi-Turn Logic -->
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Multi-Turn Logic Protection" FontWeight="Medium"/>
+                                    <TextBlock Text="Tracks conversational context across dialog turns." FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" x:Name="ToggleMultiTurn" Toggled="Defense_Toggled" OnContent="" OffContent="" VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- Roleplay protections -->
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="Roleplay Protections" FontWeight="Medium"/>
+                                    <TextBlock Text="Detects persona bypass and simulation attempts." FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" x:Name="ToggleRoleplay" Toggled="Defense_Toggled" OnContent="" OffContent="" VerticalAlignment="Center"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- System Status Card -->
+                    <Border Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="System Shield Status" FontSize="14" FontWeight="SemiBold" Foreground="#94A3B8"/>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <FontIcon x:Name="StatusShieldIcon" Glyph="&#xE814;" Foreground="#FF2D55" FontSize="24" VerticalAlignment="Center"/>
+                                <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center" Margin="8,0,0,0">
+                                    <TextBlock x:Name="StatusHeader" Text="Unprotected Mode" FontSize="14" FontWeight="Bold" Foreground="#FF2D55"/>
+                                    <TextBlock x:Name="StatusSub" Text="Zero security layers enabled. Highly vulnerable." FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Right column: Chat Environment -->
+            <Border Grid.Column="1" Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="12">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Chat Header -->
+                    <Border Grid.Row="0" Background="#1E293B" Padding="16,12" CornerRadius="12,12,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="Live Safety Sandbox" FontWeight="Bold" FontSize="16" Foreground="#05D9E8"/>
+                                <TextBlock x:Name="ChatStatusSub" Text="Evaluating: Foundational LLM" FontSize="12" Foreground="#94A3B8"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="Clear Chat" Click="ClearChat_Click" Style="{StaticResource AccentButtonStyle}" Background="#FF2D55" BorderThickness="0" CornerRadius="4" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Chat Message Area -->
+                    <ListView Grid.Row="1" x:Name="ChatListView" Padding="16" SelectionMode="None"
+                              ItemTemplateSelector="{StaticResource MessageTemplateSelector}">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0,0,0,8"/>
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                    </ListView>
+
+                    <!-- Bouncing Typing Indicator (Simulated) -->
+                    <Border Grid.Row="2" x:Name="TypingIndicator" Margin="16,0,16,8" Padding="12,8" HorizontalAlignment="Left" Background="#1E293B" CornerRadius="12,12,12,0" Visibility="Collapsed">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="Model analyzing prompt" FontSize="12" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                            <ProgressRing IsActive="True" Width="16" Height="16" Foreground="#05D9E8" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Chat Input Area -->
+                    <Border Grid.Row="3" Background="#1E293B" Padding="16" CornerRadius="0,0,12,12">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="InputTextBox" PlaceholderText="Type a prompt to test model defenses... (e.g. bypass, ignore instructions, roleplay)" 
+                                     KeyDown="InputTextBox_KeyDown" CornerRadius="6" Background="#111827" BorderBrush="#19FFFFFF"/>
+                            <Button Grid.Column="1" Content="Send" Click="Send_Click" Width="80" Style="{StaticResource AccentButtonStyle}" Background="#05D9E8" Foreground="#020617" CornerRadius="6"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>

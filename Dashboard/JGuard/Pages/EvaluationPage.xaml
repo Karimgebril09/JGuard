@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="JGuard.Pages.EvaluationPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:JGuard.Pages"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:lvc="using:LiveChartsCore.SkiaSharpView.WinUI"
+    mc:Ignorable="d"
+    RequestedTheme="Dark">
+
+    <Page.Resources>
+        <!-- DataTemplate for Run History Table Row -->
+        <DataTemplate x:Key="RunRowTemplate" x:DataType="local:AttackRunDisplay">
+            <Grid Padding="12,10" BorderBrush="#0DFFFFFF" BorderThickness="0,0,0,1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="90"/>
+                    <ColumnDefinition Width="130"/>
+                    <ColumnDefinition Width="140"/>
+                    <ColumnDefinition Width="100"/>
+                    <ColumnDefinition Width="150"/>
+                    <ColumnDefinition Width="100"/>
+                    <ColumnDefinition Width="100"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{x:Bind Id}" Foreground="#05D9E8" FontWeight="SemiBold"/>
+                <TextBlock Grid.Column="1" Text="{x:Bind FormattedTime}" Foreground="#94A3B8"/>
+                <TextBlock Grid.Column="2" Text="{x:Bind TargetModel}"/>
+                <TextBlock Grid.Column="3" Text="{x:Bind AttackStrategy}"/>
+                <TextBlock Grid.Column="4" Text="{x:Bind DefenseConfig}"/>
+                <TextBlock Grid.Column="5" Text="{x:Bind FormattedSuccess}" Foreground="{x:Bind SuccessColor}" FontWeight="Bold"/>
+                <TextBlock Grid.Column="6" Text="{x:Bind TotalVulnerabilities}" Foreground="#FF2D55"/>
+                <TextBlock Grid.Column="7" Text="{x:Bind Duration}" Foreground="#94A3B8"/>
+            </Grid>
+        </DataTemplate>
+    </Page.Resources>
+
+    <Grid Background="#020617" Padding="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Grid Grid.Row="0" Margin="0,0,0,20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Spacing="4">
+                <TextBlock Text="Evaluation Dashboard" Style="{StaticResource HeaderTextBlockStyle}" Foreground="#05D9E8" FontWeight="Bold"/>
+                <TextBlock Text="Analyze AI system vulnerability trends, measure defensive effectiveness, and compare historical test runs." Style="{StaticResource BodyTextBlockStyle}" Foreground="#94A3B8"/>
+            </StackPanel>
+            <!-- Export buttons -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <Button Content="Export CSV" Click="ExportCSV_Click" Style="{StaticResource AccentButtonStyle}" Background="#1E293B" BorderBrush="#19FFFFFF" BorderThickness="1" CornerRadius="4"/>
+                <Button Content="Export JSON" Click="ExportJSON_Click" Style="{StaticResource AccentButtonStyle}" Background="#1E293B" BorderBrush="#19FFFFFF" BorderThickness="1" CornerRadius="4"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Main Workspace -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="24">
+                
+                <!-- Stat Cards KPI Grid -->
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Card 1: Total Runs -->
+                    <Border Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="TOTAL CAMPAIGNS" FontSize="11" Foreground="#94A3B8" FontWeight="Bold"/>
+                            <TextBlock x:Name="TxtTotalCampaigns" Text="10" FontSize="28" FontWeight="Bold" Foreground="#F5F5F5"/>
+                            <TextBlock Text="Adversarial scenarios executed" FontSize="11" Foreground="#22FF88"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Card 2: Average Success Rate -->
+                    <Border Grid.Column="1" Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="AVG JAILBREAK SUCCESS" FontSize="11" Foreground="#94A3B8" FontWeight="Bold"/>
+                            <TextBlock x:Name="TxtAvgSuccess" Text="46.1%" FontSize="28" FontWeight="Bold" Foreground="#FF2D55"/>
+                            <TextBlock Text="Lower is better (target resilience)" FontSize="11" Foreground="#94A3B8"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Card 3: Vulnerabilities Found -->
+                    <Border Grid.Column="2" Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="CRITICAL ISSUES FOUND" FontSize="11" Foreground="#94A3B8" FontWeight="Bold"/>
+                            <TextBlock x:Name="TxtTotalVulnerabilities" Text="16" FontSize="28" FontWeight="Bold" Foreground="#FF2D55"/>
+                            <TextBlock Text="Across all model evaluation sweeps" FontSize="11" Foreground="#FFB800"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Card 4: Shield Efficiency -->
+                    <Border Grid.Column="3" Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="DEFENSE BLOCKED SWEEPS" FontSize="11" Foreground="#94A3B8" FontWeight="Bold"/>
+                            <TextBlock x:Name="TxtShieldEfficiency" Text="53.9%" FontSize="28" FontWeight="Bold" Foreground="#22FF88"/>
+                            <TextBlock Text="Percentage of mitigated payloads" FontSize="11" Foreground="#22FF88"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- Visualization Charts (Donut + Area Charts) -->
+                <Grid ColumnSpacing="24">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Chart 1: Donut (Vulnerability distribution by severity) -->
+                    <Border Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <StackPanel Spacing="16">
+                            <TextBlock Text="Vulnerability Severity Breakdown" FontSize="15" FontWeight="SemiBold"/>
+                            <Grid Height="220" HorizontalAlignment="Stretch">
+                                <lvc:PieChart x:Name="SeverityPieChart" LegendPosition="Right" Width="320" Height="220"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Chart 2: Area (Historical success rates trend over runs) -->
+                    <Border Grid.Column="1" Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <StackPanel Spacing="16">
+                            <TextBlock Text="Attack Success Rate Trends (Historical)" FontSize="15" FontWeight="SemiBold"/>
+                            <Grid Height="220">
+                                <lvc:CartesianChart x:Name="TrendsChart" Height="220"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- Comparison Engine Card -->
+                <Border Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+                    <StackPanel Spacing="16">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE7F6;" Foreground="#05D9E8" FontSize="18"/>
+                            <TextBlock Text="Run Comparison Engine" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        
+                        <Grid ColumnSpacing="12" RowSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Compare Run 1 (Baseline)" FontSize="11" Foreground="#94A3B8"/>
+                                <ComboBox x:Name="ComboCompareRun1" HorizontalAlignment="Stretch" PlaceholderText="Select base run"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Spacing="4">
+                                <TextBlock Text="Compare Run 2 (Evaluating)" FontSize="11" Foreground="#94A3B8"/>
+                                <ComboBox x:Name="ComboCompareRun2" HorizontalAlignment="Stretch" PlaceholderText="Select run to compare"/>
+                            </StackPanel>
+
+                            <Button Grid.Column="2" Content="Analyze Delta" Click="BtnCompare_Click" Style="{StaticResource AccentButtonStyle}" Background="#05D9E8" Foreground="#020617" CornerRadius="4" VerticalAlignment="Bottom" Height="36" Padding="16,0"/>
+                        </Grid>
+
+                        <!-- Comparison Result Table -->
+                        <Border x:Name="ComparisonResultBox" Background="#0A0F1D" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="6" Padding="16" Visibility="Collapsed">
+                            <Grid ColumnSpacing="20">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="METRIC" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                                    <TextBlock Text="Jailbreak Success Rate" FontWeight="Medium"/>
+                                    <TextBlock Text="Critical Vulnerabilities" FontWeight="Medium"/>
+                                    <TextBlock Text="Total Vulnerabilities" FontWeight="Medium"/>
+                                    <TextBlock Text="Assessment Duration" FontWeight="Medium"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Spacing="10">
+                                    <TextBlock x:Name="TxtRun1Header" Text="RUN-001 (Base)" FontSize="11" FontWeight="Bold" Foreground="#05D9E8"/>
+                                    <TextBlock x:Name="TxtRun1Success" Text="84.5%"/>
+                                    <TextBlock x:Name="TxtRun1Crit" Text="4"/>
+                                    <TextBlock x:Name="TxtRun1Total" Text="29"/>
+                                    <TextBlock x:Name="TxtRun1Duration" Text="3m 45s"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" Spacing="10">
+                                    <TextBlock x:Name="TxtRun2Header" Text="RUN-002 (Target)" FontSize="11" FontWeight="Bold" Foreground="#22FF88"/>
+                                    <TextBlock x:Name="TxtRun2Success" Text="56.0% (↓ 28.5%)" Foreground="#22FF88" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="TxtRun2Crit" Text="2 (↓ 2)" Foreground="#22FF88" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="TxtRun2Total" Text="24 (↓ 5)" Foreground="#22FF88" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="TxtRun2Duration" Text="5m 12s"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- History Run Management Table -->
+                <Border Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="Run History Log" FontSize="15" FontWeight="SemiBold"/>
+                        
+                        <!-- Table Header -->
+                        <Border Background="#1E293B" Padding="12,8" CornerRadius="4">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="140"/>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="150"/>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="RUN ID" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                                <TextBlock Grid.Column="1" Text="TIMESTAMP" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                                <TextBlock Grid.Column="2" Text="TARGET MODEL" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                                <TextBlock Grid.Column="3" Text="STRATEGY" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                                <TextBlock Grid.Column="4" Text="DEFENSES ACTIVE" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                                <TextBlock Grid.Column="5" Text="SUCCESS RATE" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                                <TextBlock Grid.Column="6" Text="VULNERABILITIES" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                                <TextBlock Grid.Column="7" Text="DURATION" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Table Rows -->
+                        <ListView x:Name="RunHistoryListView" SelectionMode="None" ItemTemplate="{StaticResource RunRowTemplate}" Margin="0,-8,0,0">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    <Setter Property="Padding" Value="0"/>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                        </ListView>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="JGuard.Pages.ChatPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:JGuard.Pages"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    RequestedTheme="Dark">
+
+    <Page.Resources>
+        <!-- Chat Message Templates -->
+        <DataTemplate x:Key="UserMessageTemplate" x:DataType="local:ChatMessageDisplay">
+            <Grid HorizontalAlignment="Right" MaxWidth="600" Margin="0,8,0,0">
+                <Border Background="#05D9E8" CornerRadius="12,12,0,12" Padding="12,8">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{x:Bind Content}" Foreground="#020617" TextWrapping="Wrap"/>
+                        <TextBlock Text="{x:Bind FormattedTime}" FontSize="10" Foreground="#0A3F3F" HorizontalAlignment="Right"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </DataTemplate>
+
+        <DataTemplate x:Key="AssistantMessageTemplate" x:DataType="local:ChatMessageDisplay">
+            <Grid HorizontalAlignment="Left" MaxWidth="600" Margin="0,8,0,0">
+                <Border Background="#1E293B" BorderBrush="#374151" BorderThickness="1" CornerRadius="12,12,12,0" Padding="12,8">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="{x:Bind BlockedStatus}" Foreground="#FF4444" FontWeight="Bold" Visibility="{x:Bind BlockedVisibility}"/>
+                        <TextBlock Text="{x:Bind TriggeredDefenseStatus}" Foreground="#FFB000" FontSize="12" Visibility="{x:Bind DefenseVisibility}"/>
+                        <TextBlock Text="{x:Bind Content}" Foreground="#F5F5F5" TextWrapping="Wrap"/>
+                        <TextBlock Text="{x:Bind FormattedTime}" FontSize="10" Foreground="#64748B"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </DataTemplate>
+    </Page.Resources>
+
+    <Grid Background="#020617" Padding="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Spacing="4" Margin="0,0,0,16">
+            <TextBlock Text="Foundational LLM Chat Interface" FontSize="28" FontWeight="Bold" Foreground="#05D9E8"/>
+            <TextBlock Text="Test the LLM with active defenses and analyze attack patterns." FontSize="13" Foreground="#94A3B8"/>
+        </StackPanel>
+
+        <!-- Chat Messages Area -->
+        <Border Grid.Row="1" Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+            <ScrollViewer x:Name="ChatScrollViewer" VerticalScrollBarVisibility="Auto">
+                <ListBox x:Name="ChatMessagesControl" ItemsSource="{x:Bind ChatMessages, Mode=OneWay}" Background="Transparent">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="Margin" Value="0"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplateSelector>
+                        <local:ChatMessageTemplateSelector 
+                            UserMessageTemplate="{StaticResource UserMessageTemplate}"
+                            AssistantMessageTemplate="{StaticResource AssistantMessageTemplate}"/>
+                    </ListBox.ItemTemplateSelector>
+                </ListBox>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Defense Configuration Section -->
+        <Border Grid.Row="2" Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,16,0,0">
+            <StackPanel Spacing="12">
+                <TextBlock Text="Active Defenses" FontSize="14" FontWeight="SemiBold" Foreground="#05D9E8"/>
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="LLM Source" FontSize="11" Foreground="#94A3B8"/>
+                        <ComboBox x:Name="LLMSourceCombo" SelectionChanged="LLMSourceCombo_SelectionChanged">
+                            <ComboBoxItem>Local (Ollama)</ComboBoxItem>
+                            <ComboBoxItem>Closed Source API</ComboBoxItem>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Spacing="8">
+                        <TextBlock Text="LLM Model" FontSize="11" Foreground="#94A3B8"/>
+                        <TextBox x:Name="LLMTypeTextBox" PlaceholderText="e.g., qwen2.5:3b-instruct"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Spacing="8">
+                        <TextBlock Text="API Key (if needed)" FontSize="11" Foreground="#94A3B8"/>
+                        <PasswordBox x:Name="ApiKeyPasswordBox" PlaceholderText="Enter API key"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="3" Spacing="8">
+                        <TextBlock Text="Base API URL" FontSize="11" Foreground="#94A3B8"/>
+                        <TextBox x:Name="BaseUrlTextBox" PlaceholderText="http://127.0.0.1:8000"/>
+                    </StackPanel>
+                </Grid>
+
+                <Grid ColumnSpacing="16" RowSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <CheckBox x:Name="ObfuscationCheckBox" Content="Obfuscation Protection"/>
+                    <CheckBox Grid.Column="1" x:Name="MultiTurnCheckBox" Content="Multi-Turn Protection"/>
+                    <CheckBox Grid.Column="2" x:Name="RoleplayCheckBox" Content="Roleplay Protection"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Input Area -->
+        <Grid Grid.Row="3" ColumnSpacing="8" Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBox x:Name="PromptTextBox" 
+                     PlaceholderText="Enter your prompt and press Send or Shift+Enter..." 
+                     AcceptsReturn="True" 
+                     MaxHeight="100"
+                     KeyDown="PromptTextBox_KeyDown"/>
+
+            <Button Grid.Column="1" 
+                    x:Name="SendButton"
+                    Content="Send" 
+                    Click="SendButton_Click"
+                    Background="#05D9E8" 
+                    Foreground="#020617"
+                    CornerRadius="4"
+                    Padding="24,0"
+                    VerticalAlignment="Bottom"
+                    Height="36"/>
+        </Grid>
+    </Grid>
+</Page>
