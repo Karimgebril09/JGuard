@@ -23,7 +23,7 @@ DEFAULT_LLAMA_GUARD_MODEL_ID = os.getenv(
 )
 DEFAULT_USE_DISTILBERT = _env_flag("JGUARD_STAGE8_USE_DISTILBERT", True)
 _DEFAULT_DISTILBERT_ARTIFACTS_DIR = (
-    Path(__file__).resolve().parent / "stage8_custom_classifier" / "distilbert_artifacts_e4"
+    Path(__file__).resolve().parent / "stage8_custom_classifier" / "models"
 )
 DEFAULT_DISTILBERT_ARTIFACTS_DIR = os.getenv(
     "JGUARD_STAGE8_DISTILBERT_ARTIFACTS_DIR", str(_DEFAULT_DISTILBERT_ARTIFACTS_DIR)
