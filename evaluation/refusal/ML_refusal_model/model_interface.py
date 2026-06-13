@@ -15,8 +15,8 @@ import pipeline
 class RefusalClassifierInterface:
     def __init__(
         self,
-        model_path: str | Path = "models/xgb_refusal_model.json",
-        bundle_path: str | Path = "models/xgb_refusal_bundle.pkl",
+        model_path: str | Path = "../models/xgb_refusal_model.json",
+        bundle_path: str | Path = "../models/xgb_refusal_bundle.pkl",
     ) -> None:
         base_dir = Path(__file__).resolve().parent
         self.model_path = (base_dir / model_path).resolve()
