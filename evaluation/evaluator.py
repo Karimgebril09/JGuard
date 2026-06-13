@@ -14,7 +14,8 @@ class Evaluator:
         return refusal_prediction or fine_tuned_judge_pred
     
     def evaluate_response_with_feedback(self,user_prompt, llm_response):
+        print(f"evaluating response: {llm_response}")
+        print(f"user prompt: {user_prompt}")
         refusal_prediction = self.refusal_predictor.predict(llm_response)
         judge_result = self.judge.run(user_prompt, llm_response)
-        self.feedback = judge_result["feedback"]
-        return refusal_prediction or judge_result["output"], self.feedback
+        return refusal_prediction or judge_result["result"], judge_result
