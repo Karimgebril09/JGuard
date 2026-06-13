@@ -44,3 +44,4 @@ defenders/obfuscation/stage8_custom_classifier/**/*.pkl
 
 .venv/
 *.json*
+*.html
