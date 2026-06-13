@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,6 +7,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.app.api.router import api_router
 from backend.app.core.config import get_settings
 from backend.app.core.defense_engine import SessionStore, initialize_runtime_resources, shutdown_runtime_resources
+
+
+def _configure_logging() -> None:
+    root_logger = logging.getLogger()
+    if root_logger.handlers:
+        return
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    )
 
 
 @asynccontextmanager
@@ -20,6 +32,7 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
+    _configure_logging()
     settings = get_settings()
 
     app = FastAPI(
