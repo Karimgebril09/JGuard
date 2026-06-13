@@ -39,6 +39,7 @@ class LLM:
         multi_turn_protection: bool = False,
         pii_protection: bool = False,
         pii_strategy: str = "mask",
+        use_history: bool = True,
     ):
         self.model_name = model_name
         self.model: Any = None
@@ -47,6 +48,7 @@ class LLM:
         self.system_prompt = system_prompt or ""
         self.model_type = model_type
         self.api_key = api_key
+        self.use_history = use_history
         self.buffer = deque(maxlen=history_length)
 
         self.obfuscation_protection = obfuscation_protection
@@ -96,6 +98,9 @@ class LLM:
         return response
     
     def generate_response_buffered(self, prompt):
+        if not self.use_history:
+            return self.generate_response(prompt)
+
         self.buffer.append(prompt)
         response = self.model.invoke([self.system_prompt] + list(self.buffer))
         return response
@@ -149,7 +154,10 @@ class LLM:
             return pii_result, True
         return pii_result, False
 
-    def _messages_with_history(self, history: list[dict[str, str]], prompt_text: str) -> list[dict[str, str]]:
+    def _messages_with_history(self, history: list[dict[str, str]], prompt_text: str):
+        if not self.use_history:
+            return prompt_text
+
         prior_messages = history[:-1]
         messages = [
             {
