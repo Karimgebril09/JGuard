@@ -6,13 +6,13 @@ using JGuard.Models;
 
 namespace JGuard.Services;
 
-public class ChatApiService
+public class JGuardApiService
 {
     private readonly HttpClient _httpClient;
     private readonly string _baseUrl;
     private string? _activeSessionId;
 
-    public ChatApiService(string baseUrl)
+    public JGuardApiService(string baseUrl)
     {
         _baseUrl = baseUrl.TrimEnd('/');
         _httpClient = new HttpClient();
@@ -184,6 +184,48 @@ public class ChatApiService
                 Reply = $"Connection Error: {ex.Message}",
                 Blocked = true 
             };
+        }
+    }
+
+    /// <summary>
+    /// Executes a Red Team campaign
+    /// </summary>
+    public async Task<object?> ExecuteRedTeamCampaignAsync(object campaignConfig)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/api/redteam", campaignConfig);
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<object>();
+            }
+            return null;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error executing redteam campaign: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Gets evaluation history
+    /// </summary>
+    public async Task<object?> GetEvaluationHistoryAsync()
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"{_baseUrl}/api/eval");
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<object>();
+            }
+            return null;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error fetching evaluation history: {ex.Message}");
+            return null;
         }
     }
 }

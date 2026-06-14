@@ -45,11 +45,25 @@ public sealed partial class EvaluationPage : Page
         InitializeComponent();
         RunHistoryListView.ItemsSource = _runDisplays;
         
-        RefreshData();
+        this.Loaded += EvaluationPage_Loaded;
     }
 
-    private void RefreshData()
+    private async void EvaluationPage_Loaded(object sender, RoutedEventArgs e)
     {
+        await RefreshDataAsync();
+    }
+
+    private async Task RefreshDataAsync()
+    {
+        // Try to fetch from backend first
+        var backendRuns = await AppState.Instance.ApiService.GetEvaluationHistoryAsync();
+        if (backendRuns != null)
+        {
+            // If we had a specific DTO we would parse it here.
+            // For now, we continue using AppState or update it if possible.
+            System.Diagnostics.Debug.WriteLine("Successfully fetched evaluation history from backend.");
+        }
+
         var runs = AppState.Instance.AttackRuns;
 
         // 1. Update KPI Counters

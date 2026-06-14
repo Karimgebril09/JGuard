@@ -44,19 +44,21 @@ public class AppState
     public bool IsObfuscationEnabled { get; set; } = false;
     public bool IsMultiTurnEnabled { get; set; } = false;
     public bool IsRoleplayingEnabled { get; set; } = false;
+    public bool IsPiiProtectionEnabled { get; set; } = false;
 
     // LLM Configuration
     public string LLMSourceType { get; set; } = "OpenSource"; // OpenSource or ClosedSource
     public string LLMType { get; set; } = "qwen2.5:3b-instruct";
     public string LLMApiKey { get; set; } = string.Empty;
+    public bool IsConfigurationLocked { get; set; } = false;
 
     // API Configuration
     public string ApiBaseUrl { get; set; } = "http://127.0.0.1:8000"; // Default API endpoint
-    public ChatApiService ChatApiService { get; private set; }
+    public JGuardApiService ApiService { get; private set; }
 
     private AppState()
     {
-        ChatApiService = new ChatApiService(ApiBaseUrl);
+        ApiService = new JGuardApiService(ApiBaseUrl);
         LoadMockData();
     }
 

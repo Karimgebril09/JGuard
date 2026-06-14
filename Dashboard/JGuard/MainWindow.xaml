@@ -40,7 +40,7 @@
             <NavigationView.MenuItems>
                 <NavigationViewItem
                     Content="Home (System Interface)"
-                    IsSelected="True"
+                    IsSelected="False"
                     Tag="home">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE80F;" />

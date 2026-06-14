@@ -13,12 +13,12 @@ namespace JGuard.Pages;
 public sealed partial class ChatPage : Page
 {
     public ObservableCollection<ChatMessageDisplay> ChatMessages { get; } = new();
-    private ChatApiService _chatService;
+    private JGuardApiService _chatService;
 
     public ChatPage()
     {
         this.InitializeComponent();
-        _chatService = AppState.Instance.ChatApiService;
+        _chatService = AppState.Instance.ApiService;
         
         // Initialize UI from AppState
         LLMSourceCombo.SelectedIndex = AppState.Instance.LLMSourceType == "OpenSource" ? 0 : 1;
@@ -29,6 +29,44 @@ public sealed partial class ChatPage : Page
         ObfuscationCheckBox.IsChecked = AppState.Instance.IsObfuscationEnabled;
         MultiTurnCheckBox.IsChecked = AppState.Instance.IsMultiTurnEnabled;
         RoleplayCheckBox.IsChecked = AppState.Instance.IsRoleplayingEnabled;
+
+        // Load history if session is active
+        this.Loaded += ChatPage_Loaded;
+    }
+
+    private async void ChatPage_Loaded(object sender, RoutedEventArgs e)
+    {
+        string? sessionId = _chatService.GetActiveSessionId;
+        if (!string.IsNullOrEmpty(sessionId))
+        {
+            await LoadChatHistoryAsync(sessionId);
+        }
+    }
+
+    private async Task LoadChatHistoryAsync(string sessionId)
+    {
+        try
+        {
+            var history = await _chatService.GetSessionHistoryAsync(sessionId);
+            if (history != null && history.History.Any())
+            {
+                ChatMessages.Clear();
+                foreach (var msg in history.History)
+                {
+                    ChatMessages.Add(new ChatMessageDisplay
+                    {
+                        Content = msg.Content,
+                        Role = msg.Role,
+                        Timestamp = DateTime.Now // API doesn't seem to provide per-message timestamp in history yet
+                    });
+                }
+                ScrollToBottom();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error loading history: {ex.Message}");
+        }
     }
 
     private async void SendButton_Click(object sender, RoutedEventArgs e)
@@ -65,40 +103,52 @@ public sealed partial class ChatPage : Page
         PromptTextBox.Text = string.Empty;
         
         // Update BaseUrl if changed in UI
-        if (BaseUrlTextBox.Text != AppState.Instance.ApiBaseUrl)
+        if (BaseUrlTextBox.Text != AppState.Instance.ApiBaseUrl && !string.IsNullOrWhiteSpace(BaseUrlTextBox.Text))
         {
             AppState.Instance.ApiBaseUrl = BaseUrlTextBox.Text;
-            _chatService = new ChatApiService(AppState.Instance.ApiBaseUrl);
+            var currentSessionId = _chatService.GetActiveSessionId;
+            _chatService = new JGuardApiService(AppState.Instance.ApiBaseUrl);
+            if (!string.IsNullOrEmpty(currentSessionId))
+            {
+                _chatService.SetActiveSessionId(currentSessionId);
+            }
         }
-
-        // Prepare request
-        var request = new ChatRequest
-        {
-            Prompt = prompt,
-            LocalLlm = LLMSourceCombo.SelectedIndex == 0,
-            LlmApiKey = ApiKeyPasswordBox.Password,
-            LlmType = LLMTypeTextBox.Text,
-            ObfuscationProtection = ObfuscationCheckBox.IsChecked ?? false,
-            MultiTurnProtection = MultiTurnCheckBox.IsChecked ?? false,
-            RoleplayProtection = RoleplayCheckBox.IsChecked ?? false,
-            History = ChatMessages
-                .Take(ChatMessages.Count - 1) // Exclude the message we just added
-                .Select(m => new ChatMessage 
-                { 
-                    Role = m.Role, 
-                    Content = m.Content 
-                }).ToList()
-        };
 
         // Scroll to bottom
         ScrollToBottom();
 
-        // Call API
+        // Call API using session-based endpoint
         SendButton.IsEnabled = false;
         try
         {
-            var response = await _chatService.SendFoundationalChatAsync(request);
+            string? sessionId = _chatService.GetActiveSessionId;
+            if (string.IsNullOrEmpty(sessionId))
+            {
+                ChatMessages.Add(new ChatMessageDisplay
+                {
+                    Content = "Error: No active session. Please select or create a session.",
+                    Role = "assistant",
+                    Timestamp = DateTime.Now,
+                    Blocked = true
+                });
+                return;
+            }
+
+            // Call the session-based chat endpoint
+            var response = await _chatService.SendChatAsync(sessionId, prompt);
             
+            if (response == null)
+            {
+                ChatMessages.Add(new ChatMessageDisplay
+                {
+                    Content = "Error: Failed to get response from API. Check your connection and configuration.",
+                    Role = "assistant",
+                    Timestamp = DateTime.Now,
+                    Blocked = true
+                });
+                return;
+            }
+
             // Parse timestamp securely
             DateTime ts;
             if (!DateTime.TryParse(response.Timestamp, out ts))
@@ -106,14 +156,15 @@ public sealed partial class ChatPage : Page
                 ts = DateTime.Now;
             }
 
-            // Add assistant response to UI
             var assistantMsg = new ChatMessageDisplay
             {
                 Content = response.Reply,
                 Role = "assistant",
                 Timestamp = ts,
                 Blocked = response.Blocked,
-                TriggeredDefense = response.TriggeredDefense
+                TriggeredDefense = response.TriggeredDefense,
+                Decision = response.Decision,
+                HarmLabel = response.HarmLabel
             };
             ChatMessages.Add(assistantMsg);
         }

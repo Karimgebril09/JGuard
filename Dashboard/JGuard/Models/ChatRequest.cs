@@ -35,6 +35,9 @@ public class ChatRequest
     [JsonPropertyName("roleplay_protection")]
     public bool RoleplayProtection { get; set; }
     
+    [JsonPropertyName("pii_protection")]
+    public bool PiiProtection { get; set; }
+    
     [JsonPropertyName("history")]
     public List<ChatMessage> History { get; set; } = new();
 }

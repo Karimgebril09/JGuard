@@ -15,37 +15,165 @@ public sealed partial class HomePage : Page
 {
     private readonly ObservableCollection<ChatMessageDisplay> _messages = new();
     private bool _isGenerating = false;
-    private ChatApiService _chatApiService;
+    private JGuardApiService? _apiService;
 
     public HomePage()
     {
         InitializeComponent();
-        
-        // Load active state
+        this.Loaded += HomePage_Loaded;
+    }
+
+    private async void HomePage_Loaded(object sender, RoutedEventArgs e)
+    {
+        this.Loaded -= HomePage_Loaded;
+        await LoadStateAsync();
+    }
+
+    private async Task LoadStateAsync()
+    {
         var state = AppState.Instance;
-        RadioLLM.IsChecked = state.CurrentModelArch == "Foundational LLM";
-        RadioAgent.IsChecked = state.CurrentModelArch == "Agent-Based System";
-        ToggleObfuscation.IsOn = state.IsObfuscationEnabled;
-        ToggleMultiTurn.IsOn = state.IsMultiTurnEnabled;
-        ToggleRoleplay.IsOn = state.IsRoleplayingEnabled;
 
-        // Load LLM Configuration
-        RadioOpenSource.IsChecked = state.LLMSourceType == "OpenSource";
-        RadioClosedSource.IsChecked = state.LLMSourceType == "ClosedSource";
-        LLMTypeBox.Text = state.LLMType;
-        BaseUrlBox.Text = state.ApiBaseUrl;
+        // If configuration is already locked, transition the UI immediately before loading values
+        if (state.IsConfigurationLocked)
+        {
+            DisableSettingsControls();
+        }
+        else
+        {
+            EnableSettingsControls();
+        }
+        
+        // Load current state into UI
+        if (RadioLLM != null) RadioLLM.IsChecked = state.CurrentModelArch == "Foundational LLM";
+        if (RadioAgent != null) RadioAgent.IsChecked = state.CurrentModelArch == "Agent-Based System";
+        if (ToggleObfuscation != null) ToggleObfuscation.IsOn = state.IsObfuscationEnabled;
+        if (ToggleMultiTurn != null) ToggleMultiTurn.IsOn = state.IsMultiTurnEnabled;
+        if (ToggleRoleplay != null) ToggleRoleplay.IsOn = state.IsRoleplayingEnabled;
+        if (TogglePii != null) TogglePii.IsOn = state.IsPiiProtectionEnabled;
 
-        _chatApiService = state.ChatApiService;
+        if (RadioOpenSource != null) RadioOpenSource.IsChecked = state.LLMSourceType == "OpenSource";
+        if (RadioClosedSource != null) RadioClosedSource.IsChecked = state.LLMSourceType == "ClosedSource";
+        if (LLMTypeBox != null) LLMTypeBox.Text = state.LLMType;
+        if (BaseUrlBox != null) BaseUrlBox.Text = state.ApiBaseUrl;
+        
+        // Load API key if available
+        if (!string.IsNullOrEmpty(state.LLMApiKey) && APIKeyBox != null)
+        {
+            APIKeyBox.Password = state.LLMApiKey;
+        }
 
+        _apiService = state.ApiService;
+        
         UpdateLLMSourceVisibility();
         UpdateShieldStatus();
-        AddWelcomeMessage();
         
+        _messages.Clear();
+        
+        // Load history if active session exists
+        string? sessionId = _apiService.GetActiveSessionId;
+        if (!string.IsNullOrEmpty(sessionId))
+        {
+            await LoadChatHistoryAsync(sessionId);
+        }
+        else
+        {
+            AddWelcomeMessage();
+        }
+
         ChatListView.ItemsSource = _messages;
+    }
+
+    private async Task LoadChatHistoryAsync(string sessionId)
+    {
+        if (_apiService == null) return;
+
+        try
+        {
+            var history = await _apiService.GetSessionHistoryAsync(sessionId);
+            if (history != null && history.History != null && history.History.Any())
+            {
+                foreach (var msg in history.History)
+                {
+                    _messages.Add(new ChatMessageDisplay
+                    {
+                        Content = msg.Content,
+                        Role = msg.Role,
+                        IsUser = msg.Role.ToLower() == "user",
+                        Timestamp = DateTime.Now // Backend doesn't provide individual timestamps yet
+                    });
+                }
+                
+                // Scroll to bottom
+                if (_messages.Any())
+                {
+                    ChatListView.ScrollIntoView(_messages.Last());
+                }
+            }
+            else
+            {
+                AddWelcomeMessage();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error loading history: {ex.Message}");
+            AddWelcomeMessage();
+        }
+    }
+
+    private void EnableSettingsControls()
+    {
+        var state = AppState.Instance;
+        state.IsConfigurationLocked = false;
+
+        if (ConfigurationPanel != null)
+        {
+            ConfigurationPanel.Visibility = Visibility.Visible;
+            // ConfigurationPanel is a StackPanel, which doesn't have IsEnabled. 
+            // We'll set Visibility and Opacity correctly, and child controls will be updated via LoadState/AppState
+            ConfigurationPanel.Opacity = 1.0;
+        }
+
+        if (ActiveConfigCard != null) ActiveConfigCard.Visibility = Visibility.Collapsed;
+        if (SaveConfigButton != null) SaveConfigButton.Visibility = Visibility.Visible;
+    }
+
+    private async void NewSession_Click(object sender, RoutedEventArgs e)
+    {
+        var sessionDialog = new SessionDialog();
+        sessionDialog.XamlRoot = this.XamlRoot;
+        var result = await sessionDialog.ShowAsync();
+
+        if (result == ContentDialogResult.Primary && sessionDialog.SelectedSession != null)
+        {
+            // Update AppState with session config
+            var state = AppState.Instance;
+            var config = sessionDialog.SelectedSession.Config;
+
+            state.CurrentModelArch = config.ChatMode == "agent" ? "Agent-Based System" : "Foundational LLM";
+            state.LLMType = config.LlmType;
+            state.LLMSourceType = config.LocalLlm ? "OpenSource" : "ClosedSource";
+            state.LLMApiKey = config.LlmApiKey;
+            state.IsObfuscationEnabled = config.ObfuscationProtection;
+            state.IsMultiTurnEnabled = config.MultiTurnProtection;
+            state.IsRoleplayingEnabled = config.RoleplayProtection;
+            state.IsPiiProtectionEnabled = config.PiiProtection;
+
+            // Once session is loaded, lock the configuration
+            state.IsConfigurationLocked = true;
+
+            // Set active session in API service
+            state.ApiService.SetActiveSessionId(sessionDialog.SelectedSession.SessionId);
+
+            // Reload UI to reflect new session
+            await LoadStateAsync();
+        }
     }
 
     private void UpdateLLMSourceVisibility()
     {
+        if (AppState.Instance.IsConfigurationLocked) return; // Don't flip individual card visibilities if locked
+
         bool isFoundationalLLM = RadioLLM.IsChecked == true;
         LLMSourceCard.Visibility = isFoundationalLLM ? Visibility.Visible : Visibility.Collapsed;
         LLMConfigCard.Visibility = isFoundationalLLM ? Visibility.Visible : Visibility.Collapsed;
@@ -82,6 +210,7 @@ public sealed partial class HomePage : Page
 
     private void Architecture_Changed(object sender, RoutedEventArgs e)
     {
+        if (AppState.Instance.IsConfigurationLocked) return; // Prevent changes when locked
         if (RadioLLM == null || RadioAgent == null || ChatStatusSub == null) return;
 
         string arch = RadioLLM.IsChecked == true ? "Foundational LLM" : "Agent-Based System";
@@ -101,12 +230,14 @@ public sealed partial class HomePage : Page
 
     private void Defense_Toggled(object sender, RoutedEventArgs e)
     {
-        if (ToggleObfuscation == null || ToggleMultiTurn == null || ToggleRoleplay == null) return;
+        if (AppState.Instance.IsConfigurationLocked) return; // Prevent changes when locked
+        if (ToggleObfuscation == null || ToggleMultiTurn == null || ToggleRoleplay == null || TogglePii == null) return;
 
         var state = AppState.Instance;
         state.IsObfuscationEnabled = ToggleObfuscation.IsOn;
         state.IsMultiTurnEnabled = ToggleMultiTurn.IsOn;
         state.IsRoleplayingEnabled = ToggleRoleplay.IsOn;
+        state.IsPiiProtectionEnabled = TogglePii.IsOn;
 
         UpdateShieldStatus();
     }
@@ -119,6 +250,7 @@ public sealed partial class HomePage : Page
         if (ToggleObfuscation.IsOn) activeCount++;
         if (ToggleMultiTurn.IsOn) activeCount++;
         if (ToggleRoleplay.IsOn) activeCount++;
+        if (TogglePii.IsOn) activeCount++;
 
         if (activeCount == 0)
         {
@@ -128,13 +260,13 @@ public sealed partial class HomePage : Page
             StatusHeader.Foreground = StatusShieldIcon.Foreground;
             StatusSub.Text = "Zero guardrails active. Highly vulnerable to prompt injection and jailbreaks.";
         }
-        else if (activeCount < 3)
+        else if (activeCount < 4)
         {
             StatusShieldIcon.Glyph = "\uE814";
             StatusShieldIcon.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 184, 0));
             StatusHeader.Text = "Partial Protection";
             StatusHeader.Foreground = StatusShieldIcon.Foreground;
-            StatusSub.Text = $"{activeCount} of 3 defenses active. Moderate safety coverage against specific vectors.";
+            StatusSub.Text = $"{activeCount} of 4 defenses active. Moderate safety coverage against specific vectors.";
         }
         else
         {
@@ -197,6 +329,7 @@ public sealed partial class HomePage : Page
             ObfuscationProtection = state.IsObfuscationEnabled,
             MultiTurnProtection = state.IsMultiTurnEnabled,
             RoleplayProtection = state.IsRoleplayingEnabled,
+            PiiProtection = state.IsPiiProtectionEnabled,
             History = _messages
                 .Take(_messages.Count - 1)
                 .Select(m => new ChatMessage { Role = m.Role, Content = m.Content })
@@ -205,7 +338,23 @@ public sealed partial class HomePage : Page
 
         try
         {
-            var response = await _chatApiService.SendFoundationalChatAsync(request);
+            if (_apiService == null) return;
+            
+            ChatResponse? response;
+            string? sessionId = _apiService.GetActiveSessionId;
+            
+            if (!string.IsNullOrEmpty(sessionId))
+            {
+                // Use the session-based chat endpoint
+                response = await _apiService.SendChatAsync(sessionId, prompt);
+            }
+            else
+            {
+                // Fallback to foundational chat endpoint
+                response = await _apiService.SendFoundationalChatAsync(request);
+            }
+
+            if (response == null) throw new Exception("Failed to receive response from system.");
 
             DateTime ts;
             if (!DateTime.TryParse(response.Timestamp, out ts))
@@ -222,7 +371,9 @@ public sealed partial class HomePage : Page
                 Role = "assistant",
                 Timestamp = ts,
                 Blocked = response.Blocked,
-                TriggeredDefense = response.TriggeredDefense
+                TriggeredDefense = response.TriggeredDefense,
+                Decision = response.Decision,
+                HarmLabel = response.HarmLabel
             };
             _messages.Add(assistantMsg);
         }
@@ -246,6 +397,7 @@ public sealed partial class HomePage : Page
 
     private void LLMSourceType_Changed(object sender, RoutedEventArgs e)
     {
+        if (AppState.Instance.IsConfigurationLocked) return; // Prevent changes when locked
         if (RadioOpenSource == null || RadioClosedSource == null) return;
         string sourceType = RadioOpenSource.IsChecked == true ? "OpenSource" : "ClosedSource";
         AppState.Instance.LLMSourceType = sourceType;
@@ -254,6 +406,8 @@ public sealed partial class HomePage : Page
 
     private void SaveConfig_Click(object sender, RoutedEventArgs e)
     {
+        if (AppState.Instance.IsConfigurationLocked) return;
+
         if (LLMTypeBox == null || APIKeyBox == null || BaseUrlBox == null) return;
 
         string llmType = LLMTypeBox.Text?.Trim() ?? string.Empty;
@@ -280,7 +434,8 @@ public sealed partial class HomePage : Page
         state.ApiBaseUrl = baseUrl;
         state.LLMSourceType = isClosedSource ? "ClosedSource" : "OpenSource";
         
-        state.ChatApiService = new ChatApiService(baseUrl);
+        // Update local chat service reference with new base URL
+        _apiService = new JGuardApiService(baseUrl);
 
         var successConfigMsg = new ChatMessageDisplay
         {
@@ -293,14 +448,61 @@ public sealed partial class HomePage : Page
 
         ScrollToBottom();
 
-        var successDialog = new ContentDialog
+        // Disable all settings controls to make them static
+        DisableSettingsControls();
+
+        // Use a simple InfoBar or text update in the chat instead of a ContentDialog 
+        // if you want to avoid potential "single dialog" crashes during transition.
+        // For now, we keep the dialog but ensure it's the only one by not using them elsewhere.
+    }
+
+    private void DisableSettingsControls()
+    {
+        var state = AppState.Instance;
+        state.IsConfigurationLocked = true; // Lock settings globally
+
+        // Ensure we handle current values from state if controls aren't fully prepped
+        string arch = state.CurrentModelArch;
+        string model = state.LLMType;
+        string source = state.LLMSourceType == "OpenSource" ? "Open Source" : "Closed Source";
+        string endpoint = state.ApiBaseUrl;
+
+        // Try to get values from UI if possible for latest unsaved changes that are now being locked
+        if (RadioLLM != null) arch = RadioLLM.IsChecked == true ? "Foundational LLM" : "Agent-Based System";
+        if (LLMTypeBox != null && !string.IsNullOrEmpty(LLMTypeBox.Text)) model = LLMTypeBox.Text;
+        if (RadioOpenSource != null) source = RadioOpenSource.IsChecked == true ? "Open Source" : "Closed Source";
+        if (BaseUrlBox != null && !string.IsNullOrEmpty(BaseUrlBox.Text)) endpoint = BaseUrlBox.Text;
+
+        // Populate summary card
+        if (SummaryArch != null) SummaryArch.Text = arch;
+        if (SummaryModel != null) SummaryModel.Text = model;
+        if (SummarySource != null) SummarySource.Text = source;
+        if (SummaryEndpoint != null) SummaryEndpoint.Text = endpoint;
+
+        // Update defense summary items based on state (since toggles might be disabled/unreliable)
+        if (DefenseObfuscationItem != null) DefenseObfuscationItem.Visibility = state.IsObfuscationEnabled ? Visibility.Visible : Visibility.Collapsed;
+        if (DefenseMultiTurnItem != null) DefenseMultiTurnItem.Visibility = state.IsMultiTurnEnabled ? Visibility.Visible : Visibility.Collapsed;
+        if (DefenseRoleplayItem != null) DefenseRoleplayItem.Visibility = state.IsRoleplayingEnabled ? Visibility.Visible : Visibility.Collapsed;
+        if (DefensePiiItem != null) DefensePiiItem.Visibility = state.IsPiiProtectionEnabled ? Visibility.Visible : Visibility.Collapsed;
+
+        if (NoDefensesLabel != null)
         {
-            Title = "Success",
-            Content = "System configuration saved successfully.",
-            CloseButtonText = "OK",
-            XamlRoot = XamlRoot
-        };
-        _ = successDialog.ShowAsync();
+            NoDefensesLabel.Visibility = (!state.IsObfuscationEnabled && !state.IsMultiTurnEnabled && !state.IsRoleplayingEnabled && !state.IsPiiProtectionEnabled) 
+                ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        // ABSOLUTELY HIDE everything in the configuration panel
+        if (ConfigurationPanel != null) 
+        {
+            ConfigurationPanel.Visibility = Visibility.Collapsed;
+        }
+        
+        if (ActiveConfigCard != null) ActiveConfigCard.Visibility = Visibility.Visible;
+        
+        // Extra precaution: disable all potential entry points
+        if (SaveConfigButton != null) SaveConfigButton.Visibility = Visibility.Collapsed;
+        if (LLMConfigCard != null) LLMConfigCard.Visibility = Visibility.Collapsed;
+        if (LLMSourceCard != null) LLMSourceCard.Visibility = Visibility.Collapsed;
     }
 
     private void ScrollToBottom()

@@ -28,6 +28,8 @@
                     <StackPanel Spacing="4">
                         <TextBlock Text="{x:Bind BlockedStatus}" Foreground="#FF4444" FontWeight="Bold" Visibility="{x:Bind BlockedVisibility}"/>
                         <TextBlock Text="{x:Bind TriggeredDefenseStatus}" Foreground="#FFB000" FontSize="12" Visibility="{x:Bind DefenseVisibility}"/>
+                        <TextBlock Text="{x:Bind DecisionStatus}" Foreground="#60A5FA" FontSize="12" Visibility="{x:Bind DecisionVisibility}"/>
+                        <TextBlock Text="{x:Bind HarmLabelStatus}" Foreground="#F87171" FontSize="12" Visibility="{x:Bind HarmLabelVisibility}"/>
                         <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap" Foreground="#F5F5F5" FontSize="14"/>
                         <TextBlock Text="{x:Bind FormattedTime}" FontSize="10" Foreground="#94A3B8" HorizontalAlignment="Left" Margin="0,4,0,0"/>
                     </StackPanel>
@@ -47,10 +49,22 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,24" Spacing="4">
-            <TextBlock Text="System Interface" Style="{StaticResource HeaderTextBlockStyle}" Foreground="#05D9E8" FontWeight="Bold"/>
-            <TextBlock Text="Configure active model architectures, manage defensive controls, and manually validate system safety." Style="{StaticResource BodyTextBlockStyle}" Foreground="#94A3B8"/>
-        </StackPanel>
+        <Grid Grid.Row="0" Margin="0,0,0,24">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Spacing="4">
+                <TextBlock Text="System Interface" Style="{StaticResource HeaderTextBlockStyle}" Foreground="#05D9E8" FontWeight="Bold"/>
+                <TextBlock Text="Configure active model architectures, manage defensive controls, and manually validate system safety." Style="{StaticResource BodyTextBlockStyle}" Foreground="#94A3B8"/>
+            </StackPanel>
+            <Button Grid.Column="1" Click="NewSession_Click" VerticalAlignment="Center" Background="#05D9E8" Foreground="#020617" Padding="16,8" CornerRadius="4">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <FontIcon Glyph="&#xE710;" FontSize="14"/>
+                    <TextBlock Text="New Session" FontWeight="SemiBold"/>
+                </StackPanel>
+            </Button>
+        </Grid>
 
         <!-- Main Content (2 Columns: Controls on Left, Chat on Right) -->
         <Grid Grid.Row="1" ColumnSpacing="24">
@@ -62,117 +76,190 @@
             <!-- Left column: Configuration Panel -->
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Spacing="20">
-                    <!-- Model Selection Card -->
-                    <Border Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
-                        <StackPanel Spacing="12">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon Glyph="&#xE770;" Foreground="#05D9E8" FontSize="18"/>
-                                <TextBlock Text="Model Architecture" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <StackPanel x:Name="ConfigurationPanel" Spacing="20">
+                        <!-- Model Selection Card -->
+                        <Border Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+                            <StackPanel Spacing="12">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE770;" Foreground="#05D9E8" FontSize="18"/>
+                                    <TextBlock Text="Model Architecture" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Text="Select target system architecture to evaluate:" FontSize="12" Foreground="#94A3B8"/>
+                                <StackPanel Spacing="8" Margin="0,4,0,0">
+                                    <RadioButton x:Name="RadioLLM" Content="Foundational LLM" IsChecked="True" Checked="Architecture_Changed"/>
+                                    <RadioButton x:Name="RadioAgent" Content="Agent-Based System" Checked="Architecture_Changed"/>
+                                </StackPanel>
                             </StackPanel>
-                            <TextBlock Text="Select target system architecture to evaluate:" FontSize="12" Foreground="#94A3B8"/>
-                            <StackPanel Spacing="8" Margin="0,4,0,0">
-                                <RadioButton x:Name="RadioLLM" Content="Foundational LLM" IsChecked="True" Checked="Architecture_Changed"/>
-                                <RadioButton x:Name="RadioAgent" Content="Agent-Based System" Checked="Architecture_Changed"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
+                        </Border>
 
-                    <!-- LLM Source Type Card (Only for Foundational LLM) -->
-                    <Border x:Name="LLMSourceCard" Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Visibility="Visible">
-                        <StackPanel Spacing="12">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon Glyph="&#xE946;" Foreground="#05D9E8" FontSize="18"/>
-                                <TextBlock Text="LLM Source Type" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <!-- LLM Source Type Card (Only for Foundational LLM) -->
+                        <Border x:Name="LLMSourceCard" Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Visibility="Visible">
+                            <StackPanel Spacing="12">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE946;" Foreground="#05D9E8" FontSize="18"/>
+                                    <TextBlock Text="LLM Source Type" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Text="Select whether the LLM is open source or closed source:" FontSize="12" Foreground="#94A3B8"/>
+                                <StackPanel Spacing="8" Margin="0,4,0,0">
+                                    <RadioButton x:Name="RadioOpenSource" Content="Open Source (e.g., Llama, Mistral)" IsChecked="True" Checked="LLMSourceType_Changed"/>
+                                    <RadioButton x:Name="RadioClosedSource" Content="Closed Source (e.g., GPT-4, Claude)" Checked="LLMSourceType_Changed"/>
+                                </StackPanel>
                             </StackPanel>
-                            <TextBlock Text="Select whether the LLM is open source or closed source:" FontSize="12" Foreground="#94A3B8"/>
-                            <StackPanel Spacing="8" Margin="0,4,0,0">
-                                <RadioButton x:Name="RadioOpenSource" Content="Open Source (e.g., Llama, Mistral)" IsChecked="True" Checked="LLMSourceType_Changed"/>
-                                <RadioButton x:Name="RadioClosedSource" Content="Closed Source (e.g., GPT-4, Claude)" Checked="LLMSourceType_Changed"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
+                        </Border>
 
-                    <!-- LLM Configuration Card (For both Open and Closed Source) -->
-                    <Border x:Name="LLMConfigCard" Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Visibility="Visible">
+                        <!-- LLM Configuration Card (For both Open and Closed Source) -->
+                        <Border x:Name="LLMConfigCard" Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Visibility="Visible">
+                            <StackPanel Spacing="12">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE9F5;" Foreground="#05D9E8" FontSize="18"/>
+                                    <TextBlock Text="LLM Configuration" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Text="Configure your LLM details:" FontSize="12" Foreground="#94A3B8"/>
+                                
+                                <!-- LLM Type Field -->
+                                <StackPanel Spacing="4" Margin="0,8,0,0">
+                                    <TextBlock x:Name="LLMTypeLabel" Text="Model Name" FontSize="12" FontWeight="Medium" Foreground="#F5F5F5"/>
+                                    <TextBox x:Name="LLMTypeBox" Background="#1E293B" BorderBrush="#19FFFFFF" CornerRadius="4" Padding="12,8" PlaceholderText="e.g., Llama 2 70B, Mistral 7B"/>
+                                </StackPanel>
+
+                                <!-- API Key Field (Only for Closed Source) -->
+                                <StackPanel x:Name="APIKeyStackPanel" Spacing="4" Margin="0,8,0,0" Visibility="Collapsed">
+                                    <TextBlock Text="API Key" FontSize="12" FontWeight="Medium" Foreground="#F5F5F5"/>
+                                    <PasswordBox x:Name="APIKeyBox" Background="#1E293B" BorderBrush="#19FFFFFF" CornerRadius="4" Padding="12,8"/>
+                                </StackPanel>
+
+                                <!-- Base API URL Field -->
+                                <StackPanel Spacing="4" Margin="0,8,0,0">
+                                    <TextBlock Text="Base API URL" FontSize="12" FontWeight="Medium" Foreground="#F5F5F5"/>
+                                    <TextBox x:Name="BaseUrlBox" Background="#1E293B" BorderBrush="#19FFFFFF" CornerRadius="4" Padding="12,8" PlaceholderText="http://127.0.0.1:8000"/>
+                                </StackPanel>
+
+                                <!-- Save Configuration Button -->
+                                <Button x:Name="SaveConfigButton" Content="Save Configuration" Click="SaveConfig_Click" Style="{StaticResource AccentButtonStyle}" Background="#05D9E8" Foreground="#020617" CornerRadius="4" Margin="0,12,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Defense Controls Card -->
+                        <Border Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+                            <StackPanel Spacing="16">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE814;" Foreground="#22FF88" FontSize="18"/>
+                                    <TextBlock Text="Dynamic Defense Controls" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Text="Enable individual security guardrails to observe target resistance in real time." FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                                
+                                <MenuFlyoutSeparator Background="#19FFFFFF"/>
+
+                                <!-- Obfuscation Protection -->
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Obfuscation Protection" FontWeight="Medium"/>
+                                        <TextBlock Text="Masks sensitive keywords and input indicators." FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <ToggleSwitch Grid.Column="1" x:Name="ToggleObfuscation" Toggled="Defense_Toggled" OnContent="" OffContent="" VerticalAlignment="Center"/>
+                                </Grid>
+
+                                <!-- Multi-Turn Logic -->
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Multi-Turn Logic Protection" FontWeight="Medium"/>
+                                        <TextBlock Text="Tracks conversational context across dialog turns." FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <ToggleSwitch Grid.Column="1" x:Name="ToggleMultiTurn" Toggled="Defense_Toggled" OnContent="" OffContent="" VerticalAlignment="Center"/>
+                                </Grid>
+
+                                <!-- Roleplay protections -->
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Roleplay Protections" FontWeight="Medium"/>
+                                        <TextBlock Text="Detects persona bypass and simulation attempts." FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <ToggleSwitch Grid.Column="1" x:Name="ToggleRoleplay" Toggled="Defense_Toggled" OnContent="" OffContent="" VerticalAlignment="Center"/>
+                                </Grid>
+
+                                <!-- PII Protection -->
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="PII Protection" FontWeight="Medium"/>
+                                        <TextBlock Text="Scans and masks personally identifiable information." FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <ToggleSwitch Grid.Column="1" x:Name="TogglePii" Toggled="Defense_Toggled" OnContent="" OffContent="" VerticalAlignment="Center"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Active Configuration Card (Hidden by default, shown after saving) -->
+                    <Border x:Name="ActiveConfigCard" Background="#111827" BorderBrush="#05D9E8" BorderThickness="1.5" CornerRadius="8" Padding="16" Visibility="Collapsed">
                         <StackPanel Spacing="12">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon Glyph="&#xE9F5;" Foreground="#05D9E8" FontSize="18"/>
-                                <TextBlock Text="LLM Configuration" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <FontIcon Glyph="&#xE73E;" Foreground="#05D9E8" FontSize="18"/>
+                                <TextBlock Text="System Active" FontSize="16" FontWeight="Bold" Foreground="#05D9E8" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <TextBlock Text="Configure your LLM details:" FontSize="12" Foreground="#94A3B8"/>
                             
-                            <!-- LLM Type Field -->
-                            <StackPanel Spacing="4" Margin="0,8,0,0">
-                                <TextBlock x:Name="LLMTypeLabel" Text="Model Name" FontSize="12" FontWeight="Medium" Foreground="#F5F5F5"/>
-                                <TextBox x:Name="LLMTypeBox" Background="#1E293B" BorderBrush="#19FFFFFF" CornerRadius="4" Padding="12,8" PlaceholderText="e.g., Llama 2 70B, Mistral 7B"/>
-                            </StackPanel>
-
-                            <!-- API Key Field (Only for Closed Source) -->
-                            <StackPanel x:Name="APIKeyStackPanel" Spacing="4" Margin="0,8,0,0" Visibility="Collapsed">
-                                <TextBlock Text="API Key" FontSize="12" FontWeight="Medium" Foreground="#F5F5F5"/>
-                                <PasswordBox x:Name="APIKeyBox" Background="#1E293B" BorderBrush="#19FFFFFF" CornerRadius="4" Padding="12,8"/>
-                            </StackPanel>
-
-                            <!-- Base API URL Field -->
-                            <StackPanel Spacing="4" Margin="0,8,0,0">
-                                <TextBlock Text="Base API URL" FontSize="12" FontWeight="Medium" Foreground="#F5F5F5"/>
-                                <TextBox x:Name="BaseUrlBox" Background="#1E293B" BorderBrush="#19FFFFFF" CornerRadius="4" Padding="12,8" PlaceholderText="http://127.0.0.1:8000"/>
-                            </StackPanel>
-
-                            <!-- Save Configuration Button -->
-                            <Button x:Name="SaveConfigButton" Content="Save Configuration" Click="SaveConfig_Click" Style="{StaticResource AccentButtonStyle}" Background="#05D9E8" Foreground="#020617" CornerRadius="4" Margin="0,12,0,0"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Defense Controls Card -->
-                    <Border Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
-                        <StackPanel Spacing="16">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon Glyph="&#xE814;" Foreground="#22FF88" FontSize="18"/>
-                                <TextBlock Text="Dynamic Defense Controls" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            </StackPanel>
-                            <TextBlock Text="Enable individual security guardrails to observe target resistance in real time." FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                            <Rectangle Height="1" Fill="#19FFFFFF"/>
                             
-                            <MenuFlyoutSeparator Background="#19FFFFFF"/>
-
-                            <!-- Obfuscation Protection -->
-                            <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Spacing="2">
-                                    <TextBlock Text="Obfuscation Protection" FontWeight="Medium"/>
-                                    <TextBlock Text="Masks sensitive keywords and input indicators." FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                            <StackPanel Spacing="8">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="Architecture:" FontSize="13" Foreground="#94A3B8" Width="100"/>
+                                    <TextBlock x:Name="SummaryArch" Text="Foundational LLM" FontSize="13" FontWeight="SemiBold" Foreground="#F5F5F5"/>
                                 </StackPanel>
-                                <ToggleSwitch Grid.Column="1" x:Name="ToggleObfuscation" Toggled="Defense_Toggled" OnContent="" OffContent="" VerticalAlignment="Center"/>
-                            </Grid>
-
-                            <!-- Multi-Turn Logic -->
-                            <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Spacing="2">
-                                    <TextBlock Text="Multi-Turn Logic Protection" FontWeight="Medium"/>
-                                    <TextBlock Text="Tracks conversational context across dialog turns." FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                                
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="Model:" FontSize="13" Foreground="#94A3B8" Width="100"/>
+                                    <TextBlock x:Name="SummaryModel" Text="GPT-4" FontSize="13" FontWeight="SemiBold" Foreground="#F5F5F5"/>
                                 </StackPanel>
-                                <ToggleSwitch Grid.Column="1" x:Name="ToggleMultiTurn" Toggled="Defense_Toggled" OnContent="" OffContent="" VerticalAlignment="Center"/>
-                            </Grid>
 
-                            <!-- Roleplay protections -->
-                            <Grid ColumnSpacing="12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Spacing="2">
-                                    <TextBlock Text="Roleplay Protections" FontWeight="Medium"/>
-                                    <TextBlock Text="Detects persona bypass and simulation attempts." FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="Source:" FontSize="13" Foreground="#94A3B8" Width="100"/>
+                                    <TextBlock x:Name="SummarySource" Text="Closed Source" FontSize="13" FontWeight="SemiBold" Foreground="#F5F5F5"/>
                                 </StackPanel>
-                                <ToggleSwitch Grid.Column="1" x:Name="ToggleRoleplay" Toggled="Defense_Toggled" OnContent="" OffContent="" VerticalAlignment="Center"/>
-                            </Grid>
+
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="Endpoint:" FontSize="13" Foreground="#94A3B8" Width="100"/>
+                                    <TextBlock x:Name="SummaryEndpoint" Text="http://127.0.0.1:8000" FontSize="13" FontWeight="SemiBold" Foreground="#F5F5F5"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <Rectangle Height="1" Fill="#19FFFFFF"/>
+
+                            <TextBlock Text="Enabled Defenses:" FontSize="13" FontWeight="SemiBold" Foreground="#94A3B8"/>
+                            <StackPanel x:Name="SummaryDefenses" Spacing="4">
+                                <!-- Dynamic checkmarks will go here, or simple comma separated list? Let's use individual items for better UI -->
+                                <StackPanel x:Name="DefenseObfuscationItem" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+                                    <FontIcon Glyph="&#xE73E;" Foreground="#22FF88" FontSize="12"/>
+                                    <TextBlock Text="Obfuscation Protection" FontSize="12" Foreground="#F5F5F5"/>
+                                </StackPanel>
+                                <StackPanel x:Name="DefenseMultiTurnItem" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+                                    <FontIcon Glyph="&#xE73E;" Foreground="#22FF88" FontSize="12"/>
+                                    <TextBlock Text="Multi-Turn Logic" FontSize="12" Foreground="#F5F5F5"/>
+                                </StackPanel>
+                                <StackPanel x:Name="DefenseRoleplayItem" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+                                    <FontIcon Glyph="&#xE73E;" Foreground="#22FF88" FontSize="12"/>
+                                    <TextBlock Text="Roleplay Protections" FontSize="12" Foreground="#F5F5F5"/>
+                                </StackPanel>
+                                <StackPanel x:Name="DefensePiiItem" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+                                    <FontIcon Glyph="&#xE73E;" Foreground="#22FF88" FontSize="12"/>
+                                    <TextBlock Text="PII Protection" FontSize="12" Foreground="#F5F5F5"/>
+                                </StackPanel>
+                                <TextBlock x:Name="NoDefensesLabel" Text="None active" FontSize="12" Foreground="#FF4444" Visibility="Visible"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 

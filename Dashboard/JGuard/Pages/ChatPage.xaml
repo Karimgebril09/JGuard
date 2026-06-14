@@ -28,6 +28,8 @@
                     <StackPanel Spacing="4">
                         <TextBlock Text="{x:Bind BlockedStatus}" Foreground="#FF4444" FontWeight="Bold" Visibility="{x:Bind BlockedVisibility}"/>
                         <TextBlock Text="{x:Bind TriggeredDefenseStatus}" Foreground="#FFB000" FontSize="12" Visibility="{x:Bind DefenseVisibility}"/>
+                        <TextBlock Text="{x:Bind DecisionStatus}" Foreground="#60A5FA" FontSize="12" Visibility="{x:Bind DecisionVisibility}"/>
+                        <TextBlock Text="{x:Bind HarmLabelStatus}" Foreground="#F87171" FontSize="12" Visibility="{x:Bind HarmLabelVisibility}"/>
                         <TextBlock Text="{x:Bind Content}" Foreground="#F5F5F5" TextWrapping="Wrap"/>
                         <TextBlock Text="{x:Bind FormattedTime}" FontSize="10" Foreground="#64748B"/>
                     </StackPanel>

@@ -64,6 +64,30 @@ public sealed partial class RedTeamPage : Page
         AppendLog($"[CONFIG] Framework Strategy: {targetStrategy}");
         await Task.Delay(500);
 
+        // Call Backend API for Red Team Campaign
+        var campaignConfig = new
+        {
+            target_model = targetModel,
+            strategy = targetStrategy,
+            obfuscation = CheckObfuscationLayer.IsChecked == true,
+            multi_turn = CheckMultiTurnLayer.IsChecked == true,
+            roleplay = CheckRoleplayLayer.IsChecked == true,
+            obfuscation_intensity = SliderObfuscation.Value,
+            multi_turn_steps = NumMultiTurnTurns.Value,
+            persona = (ComboPersona.SelectedItem as ComboBoxItem)?.Content?.ToString()
+        };
+
+        AppendLog("[API] Initializing campaign execution on backend...");
+        var result = await AppState.Instance.ApiService.ExecuteRedTeamCampaignAsync(campaignConfig);
+        if (result != null)
+        {
+            AppendLog("[API] Campaign execution started successfully.");
+        }
+        else
+        {
+            AppendLog("[API] Warning: Backend connection failed. Running in simulation mode.");
+        }
+
         // Print layers
         AppendLog("[LAYERS] Initializing mutations:");
         if (CheckObfuscationLayer.IsChecked == true)

@@ -7,16 +7,24 @@ namespace JGuard.Pages;
 public class ChatMessageDisplay
 {
     public string Content { get; set; } = string.Empty;
-    public string Role { get; set; } = string.Empty; // "user" or "assistant"
+    public string Role { get; set; } = string.Empty;
     public string FormattedTime { get; set; } = string.Empty;
     public bool Blocked { get; set; }
     public string? TriggeredDefense { get; set; }
+    public string? Decision { get; set; }
+    public string? HarmLabel { get; set; }
     
     public string BlockedStatus => Blocked ? "🚫 BLOCKED" : "";
     public Visibility BlockedVisibility => Blocked ? Visibility.Visible : Visibility.Collapsed;
     
     public string TriggeredDefenseStatus => string.IsNullOrEmpty(TriggeredDefense) ? "" : $"⚠️ Defense: {TriggeredDefense}";
     public Visibility DefenseVisibility => !string.IsNullOrEmpty(TriggeredDefense) ? Visibility.Visible : Visibility.Collapsed;
+
+    public string DecisionStatus => string.IsNullOrEmpty(Decision) ? "" : $"⚖️ Decision: {Decision}";
+    public Visibility DecisionVisibility => !string.IsNullOrEmpty(Decision) ? Visibility.Visible : Visibility.Collapsed;
+
+    public string HarmLabelStatus => string.IsNullOrEmpty(HarmLabel) ? "" : $"☣️ Harm: {HarmLabel}";
+    public Visibility HarmLabelVisibility => !string.IsNullOrEmpty(HarmLabel) ? Visibility.Visible : Visibility.Collapsed;
     
     // For backwards compatibility with HomePage
     public bool IsUser { get; set; }
