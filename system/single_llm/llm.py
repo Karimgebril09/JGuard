@@ -10,7 +10,7 @@ from langchain_ollama import ChatOllama
 from defenders.multi_turn.integrated.inference.multi_turn_defender import MultiTurnDefender
 from defenders.obfuscation.pipeline import run_obfuscation
 from defenders.pii_detection.src.pii_engine import PIIEngine
-from defenders.pii_detection.src.strategies import BlockStrategy, EncryptStrategy, MaskStrategy, PIIStrategy
+from defenders.pii_detection.src.strategies import BlockStrategy, HashStrategy, MaskStrategy, PIIStrategy, PartialMasking
 from defenders.role_playing.pipeline import run_role_playing_guard
 
 load_dotenv("./.env")
@@ -20,10 +20,12 @@ def _resolve_pii_strategy(strategy_name: str) -> PIIStrategy:
     if strategy_name is None:
         return MaskStrategy()
     normalized = strategy_name.strip().lower()
-    if normalized == "encrypt":
-        return EncryptStrategy()
+    if normalized == "hash":
+        return HashStrategy()
     if normalized == "block":
         return BlockStrategy()
+    if normalized == "partial":
+        return PartialMasking()
     return MaskStrategy()
 
 class LLM:
