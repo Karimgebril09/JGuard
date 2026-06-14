@@ -133,23 +133,23 @@ class CustomGenerator:
 
         self._save_metrics()
 
-if __name__ == "__main__":
-    os.environ["NGROK_SYSTEM_ENDPOINT"] = os.getenv("NGROK_SYSTEM_ENDPOINT") or ""
+# if __name__ == "__main__":
+#     os.environ["NGROK_SYSTEM_ENDPOINT"] = os.getenv("NGROK_SYSTEM_ENDPOINT") or ""
 
-    model_name = "qwen2.5:3b-instruct"
-    base_url = os.getenv("NGROK_SYSTEM_ENDPOINT")
+#     model_name = "qwen2.5:3b-instruct"
+#     base_url = os.getenv("NGROK_SYSTEM_ENDPOINT")
 
-    generator = CustomGenerator(
-        attack_type="role_playing",   
-        harm_type="hate_speech",      
-        judge=model_name,
-        attacker=model_name,
-        target=model_name,
-        type_judge="ollama",
-        type_attacker="ollama",
-        type_target="ollama",
-        base_url_judge=base_url,
-        base_url_attacker=base_url,
-        base_url_target=base_url,
-    )
-    generator.generate_dataset(num_samples=3)
+#     generator = CustomGenerator(
+#         attack_type="role_playing",   
+#         harm_type="hate_speech",      
+#         judge=model_name,
+#         attacker=model_name,
+#         target=model_name,
+#         type_judge="ollama",
+#         type_attacker="ollama",
+#         type_target="ollama",
+#         base_url_judge=base_url,
+#         base_url_attacker=base_url,
+#         base_url_target=base_url,
+#     )
+#     generator.generate_dataset(num_samples=3)

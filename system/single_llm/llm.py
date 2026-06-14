@@ -215,7 +215,22 @@ class LLM:
         history: list[dict[str, str]],
         reply_fn: Callable[[str], str] | None = None,
     ) -> dict[str, str | bool | None]:
-        clean_prompt, decision, harm_label, blocked = self._apply_obfuscation(prompt)
+        pii_prompt, pii_blocked = self._apply_pii(prompt)
+        if pii_blocked:
+            blocked_reply = "Request blocked by pii model."
+            self.last_response = blocked_reply
+            self.multi_turn_state["last_response"] = blocked_reply
+            return {
+                "reply": blocked_reply,
+                "blocked": True,
+                "triggered_defense": "pii",
+                "decision": "unsafe",
+                "harm_label": None,
+            }
+
+
+
+        clean_prompt, decision, harm_label, blocked = self._apply_obfuscation(pii_prompt)
         if blocked:
             blocked_reply = "Request blocked by harm detector."
             self.last_response = blocked_reply
@@ -254,24 +269,12 @@ class LLM:
                 "harm_label": None,
             }
 
-        pii_prompt, pii_blocked = self._apply_pii(clean_prompt)
-        if pii_blocked:
-            blocked_reply = "Request blocked by pii model."
-            self.last_response = blocked_reply
-            self.multi_turn_state["last_response"] = blocked_reply
-            return {
-                "reply": blocked_reply,
-                "blocked": True,
-                "triggered_defense": "pii",
-                "decision": "unsafe",
-                "harm_label": None,
-            }
 
         print("before generation")
         if reply_fn is not None:
             reply = reply_fn(pii_prompt)
         else:
-            reply = self._call_foundational_model(history=history, prompt_text=pii_prompt)
+            reply = self._call_foundational_model(history=history, prompt_text=clean_prompt)
 
         print("after generation")
 
