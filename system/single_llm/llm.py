@@ -59,7 +59,7 @@ class LLM:
         self.pii_protection = pii_protection
         self.pii_strategy = pii_strategy
 
-        self.pii_engine = PIIEngine(strategy=_resolve_pii_strategy(self.pii_strategy))
+        self.pii_engine = PIIEngine(strategy=_resolve_pii_strategy(self.pii_strategy)) if self.pii_protection else None
         self.pii_lock = Lock()
 
         self.multi_turn_defender = MultiTurnDefender() if self.multi_turn_protection else None
@@ -275,10 +275,23 @@ class LLM:
 
         print("after generation")
 
-        self.last_response = reply
-        self.multi_turn_state["last_response"] = reply
+        pii_reply, output_pii_blocked = self._apply_pii(reply)
+        if output_pii_blocked:
+            blocked_reply = "Response blocked by pii model."
+            self.last_response = blocked_reply
+            self.multi_turn_state["last_response"] = blocked_reply
+            return {
+                "reply": blocked_reply,
+                "blocked": True,
+                "triggered_defense": "pii",
+                "decision": "unsafe",
+                "harm_label": None,
+            }
+
+        self.last_response = pii_reply
+        self.multi_turn_state["last_response"] = pii_reply
         return {
-            "reply": reply,
+            "reply": pii_reply,
             "blocked": False,
             "triggered_defense": None,
             "decision": decision,
