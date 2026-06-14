@@ -89,12 +89,12 @@ class CustomGenerator:
             json.dump(metrics_list, f, indent=4)
 
 
-    def generate_dataset(self, num_samples):
+    def generate_dataset(self, num_trials):
         print("start generating dataset...")
         attacker_system_prompt=self.attacker_system_prompt
 
         dataset = []
-        for i in range(num_samples):
+        for i in range(num_trials):
             result = generate_attack(target=self.target,evaluator=self.evaluator,\
                                     attacker=self.attacker,attacker_system_prompt=attacker_system_prompt)
             if result:
@@ -149,4 +149,4 @@ if __name__ == "__main__":
         base_url_attacker=base_url,
         base_url_target=base_url,
     )
-    generator.generate_dataset(num_samples=3)
+    generator.generate_dataset(num_trials=3)
