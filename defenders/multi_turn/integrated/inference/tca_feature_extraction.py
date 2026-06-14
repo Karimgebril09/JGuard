@@ -66,11 +66,14 @@ class TCAFeatures:
             "pattern_risk": pattern_risk,
             "progressive_risk": progressive_risk,
             "prev_progressive": self._prev_prog,
-            "toxicity_diff": row.get("_toxicity_diff_raw", 0.0),
+            "toxicity_diff": row["toxicity_diff"],
         }
         self.memory.append(raw_row_for_memory)
 
         self._prev_prog = progressive_risk
+
+        if len(self.memory) > 10:
+            self.memory.pop(0)
 
 
 
@@ -107,10 +110,11 @@ class TCAFeatures:
         prev_thr = history_rows[-1].get("threat_score", 0.0) if history_rows else 0.0
         row["toxicity_diff"] = row["toxicity_score"] - prev_tox
         row["threat_diff"] = row["threat_score"] - prev_thr
-        row["_toxicity_diff_raw"] = row["toxicity_diff"]
 
         prev_tox_diff = history_rows[-1].get("toxicity_diff", 0.0) if history_rows else 0.0
         row["toxicity_accel"] = row["toxicity_diff"] - prev_tox_diff
+
+        row["threat_accel"] = row["threat_diff"] - (history_rows[-1].get("threat_diff", 0.0) if history_rows else 0.0)    
 
         recent_ir = [h.get("interaction_risk", 0.0) for h in history_rows[-2:]] + [row["interaction_risk"]]
         ir_diffs = [b - a for a, b in zip(recent_ir, recent_ir[1:])]
