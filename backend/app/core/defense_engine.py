@@ -44,6 +44,7 @@ class SessionStore:
             multi_turn_protection=config.multi_turn_protection,
             pii_protection=config.pii_protection,
             pii_strategy=config.pii_strategy,
+            base_url=config.llm_base_url
         )
 
         session = SessionState(

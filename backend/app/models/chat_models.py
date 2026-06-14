@@ -13,6 +13,7 @@ class SessionConfig(BaseModel):
     local_llm: bool
     llm_api_key: str = ""
     llm_type: str = Field(..., min_length=1)
+    llm_base_url: str | None = None
     obfuscation_protection: bool
     multi_turn_protection: bool
     roleplay_protection: bool
