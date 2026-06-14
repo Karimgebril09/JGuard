@@ -5,7 +5,7 @@ warnings.filterwarnings("ignore")
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
 from defenders.pii_detection.src.pii_inference import PIIDetector
-from defenders.pii_detection.src.strategies import PIIStrategy, MaskStrategy, EncryptStrategy, BlockStrategy
+from defenders.pii_detection.src.strategies import PIIStrategy, MaskStrategy, HashStrategy, BlockStrategy,PartialMasking
 
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _MODELS_DIR = os.path.join(_BASE_DIR, "..", "models")
@@ -33,8 +33,9 @@ if __name__ == "__main__":
     text = "My email is john.doe@example.com"
 
     strategy1 = MaskStrategy()
-    strategy2 = EncryptStrategy()
+    strategy2 = HashStrategy()
     strategy3 = BlockStrategy()
+    strategy4 = PartialMasking()
 
 
     pii_engine = PIIEngine(strategy=strategy1)
@@ -46,5 +47,10 @@ if __name__ == "__main__":
     print(result)
 
     pii_engine.set_strategy(strategy3)
+    result = pii_engine.process(text)
+    print(result)
+
+
+    pii_engine.set_strategy(strategy4)
     result = pii_engine.process(text)
     print(result)

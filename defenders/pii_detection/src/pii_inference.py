@@ -24,17 +24,6 @@ TAG2IDX = {tag: i for i, tag in enumerate(NER_TAGS)}
 IDX2TAG = {i: tag for tag, i in TAG2IDX.items()}
 NUM_TAGS = len(NER_TAGS)
 
-def mask_pii(text, tagged):
-
-    output_words   = []
-    for word, tag in tagged:
-        if tag.startswith("B-") or tag.startswith("I-"):
-            label= tag[2:]
-            output_words.append( f"<{label}>")
-        else:
-            output_words.append(word)
-
-    return " ".join(output_words)
 
 class DistilBERTBiLSTMCRF(nn.Module):
     def __init__(self, num_tags: int = NUM_TAGS, ignore_index: int = -100):
