@@ -41,3 +41,4 @@ sentence-transformers
 nltk
 textblob
 garak
+optuna
