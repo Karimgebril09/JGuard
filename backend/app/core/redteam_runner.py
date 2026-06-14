@@ -261,7 +261,7 @@ def _run_custom_campaign(campaign_id: str, payload: LaunchCampaignRequest) -> No
                 campaign["progress_pct"] = 60
                 _append_log(campaign, f"Generating dataset with num_samples={payload.num_samples}")
 
-        generator.generate_dataset(num_samples=payload.num_samples)
+        generator.generate_dataset(num_trials=payload.num_samples)
 
         eval_record = _build_custom_eval_record(
             run_id=campaign_id,
