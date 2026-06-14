@@ -6,7 +6,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import ChatOllama
 import os
 from langchain_openai import ChatOpenAI
-load_dotenv()
+from system.single_llm.llm import LLM
+load_dotenv("./.env")
 
 
 class JudgeState(BaseModel):
@@ -29,20 +30,21 @@ class SentinelJudge:
         self,
         model_type: str,
         model_name: str,
-        system_prompt_path: str,
+        harm_type: str,
         base_url: str | None = None,
         temperature: float = 0,
+        api_key: str | None = None,
     ):
 
         self.model_type = model_type
         self.model_name = model_name
         self.base_url = base_url
         self.temperature = temperature
+        self.sys_message = self._load_system_prompt(f"./evaluation/harm_detection/prompts/{harm_type}.txt")
 
-        self.sys_message = self._load_system_prompt(system_prompt_path)
-
-        self.llm = self._load_llm()
-
+        self.llm = LLM(model_name=model_name, model_type=model_type, base_url=base_url,\
+                        temperature=temperature, api_key=api_key).get_model()
+        self.llm = self.llm.with_structured_output(RefusalClassification)       
         self.graph = self._build_graph()
         self.judge = self.graph.compile()
 
@@ -52,44 +54,6 @@ class SentinelJudge:
             content = f.read()
         return SystemMessage(content=content)
 
-    # Load LLM dynamically
-    def _load_llm(self):
-
-        if self.model_type == "gemini":
-
-            api_key = os.getenv("GEMINI_API_KEY")
-
-            llm = ChatGoogleGenerativeAI(
-                model=self.model_name,
-                api_key=api_key,
-                temperature=self.temperature,
-            )
-
-        elif self.model_type == "ollama":
-
-            llm = ChatOllama(
-                model=self.model_name,
-                base_url=self.base_url,
-                temperature=self.temperature,
-            )
-        elif self.model_type=="openai":
-
-            
-
-            api_key = os.getenv("OPENAI_API_KEY")
-
-            llm = ChatOpenAI(
-                model=self.model_name,
-                api_key=api_key,
-                temperature=self.temperature,
-            )
-        
-
-
-        else:
-            raise ValueError(f"Unsupported model type: {self.model_type}")
-
-        return llm.with_structured_output(RefusalClassification)
 
     # Prediction Node
     def pred_node(self, state: JudgeState) -> JudgeState:
@@ -147,7 +111,6 @@ class SentinelJudge:
 
     # Run Judge
     def run(self, user_prompt, llm_response, max_trials=3, default_val=0):
-
         state = JudgeState(
             user_prompt=user_prompt,
             llm_response=llm_response,
@@ -157,4 +120,5 @@ class SentinelJudge:
             reason="",
         )
 
-        return self.judge.invoke(state)
+        output=self.judge.invoke(state)
+        return output

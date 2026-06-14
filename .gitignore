@@ -41,6 +41,8 @@ defenders/obfuscation/stage8_custom_classifier/**/*.bin
 defenders/obfuscation/stage8_custom_classifier/**/*.pt
 defenders/obfuscation/stage8_custom_classifier/**/*.pth
 defenders/obfuscation/stage8_custom_classifier/**/*.pkl
+defenders/obfuscation/stage8_custom_classifier/models/
 
 .venv/
 *.json*
+*.html

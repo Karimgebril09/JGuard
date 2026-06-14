@@ -1,0 +1,21 @@
+Primary binary evaluation (safe vs unsafe):
+              precision    recall  f1-score   support
+
+        safe       0.64      0.51      0.57       500
+      unsafe       0.83      0.89      0.86      1340
+
+    accuracy                           0.79      1840
+   macro avg       0.74      0.70      0.72      1840
+weighted avg       0.78      0.79      0.78      1840
+
+Auxiliary unsafe-category evaluation:
+                            precision    recall  f1-score   support
+
+             data_exposure       0.93      0.91      0.92       276
+hallucination_facilitation       0.74      0.81      0.77       185
+           illegal_actions       0.85      0.72      0.78       519
+                  toxicity       0.68      0.81      0.74       360
+
+                  accuracy                           0.80      1340
+                 macro avg       0.80      0.81      0.80      1340
+              weighted avg       0.81      0.80      0.80      1340

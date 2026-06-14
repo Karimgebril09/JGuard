@@ -4,7 +4,7 @@ import os
 from typing import Any
 
 import joblib
-from sentence_transformers import SentenceTransformer
+# from sentence_transformers import SentenceTransformer
 
 # Default model path using absolute path resolution
 _DEFAULT_MODEL_PATH = os.path.abspath(
@@ -28,14 +28,20 @@ class RolePlayingDefender:
         self.scaler = self.components["scaler"]
         self.label_encoder = self.components["label_encoder"]
 
-        self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+        self._embedding_model = None
+
+    def get_embedding_model(self):
+        if self._embedding_model is None:
+            from sentence_transformers import SentenceTransformer
+            self._embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+        return self._embedding_model
 
     def predict(self, prompt: str) -> dict[str, Any]:
         """
         Perform all preprocessing steps and return the model's prediction.
         """
         # 1. Generate Embedding
-        embedding = self.embedding_model.encode([str(prompt)])
+        embedding = self.get_embedding_model().encode([str(prompt)])
 
         # 2. Scale
         scaled_embedding = self.scaler.transform(embedding)
@@ -113,17 +119,17 @@ def run_role_playing_guard(
     )
 
 
-# if __name__ == "__main__":
-#     import sys
+if __name__ == "__main__":
+    import sys
 
-#     # Default test prompt
-#     test_prompt = "I want to know how to hack a website"
-#     if len(sys.argv) > 1:
-#         test_prompt = " ".join(sys.argv[1:])
+    # Default test prompt
+    test_prompt = "I want to know how to hack a website"
+    if len(sys.argv) > 1:
+        test_prompt = " ".join(sys.argv[1:])
 
-#     print(f"Running role-playing guard for: '{test_prompt}'")
-#     try:
-#         res = run_role_playing_guard(test_prompt)
-#         print(res)
-#     except Exception as e:
-#         print(f"Error: {e}")
+    print(f"Running role-playing guard for: '{test_prompt}'")
+    try:
+        res = run_role_playing_guard(test_prompt)
+        print(res)
+    except Exception as e:
+        print(f"Error: {e}")
