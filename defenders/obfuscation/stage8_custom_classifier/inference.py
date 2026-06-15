@@ -171,7 +171,7 @@ class DistilBertStage8Classifier:
         }
 
 
-def load_stage8_custom_classifier(
+def load_stage8_baseline_classifier(
     artifacts_dir: str | Path,
 ) -> Callable[[str], dict[str, Any]]:
     artifacts = Path(artifacts_dir)

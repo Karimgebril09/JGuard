@@ -64,13 +64,6 @@ CATEGORY_MAP: dict[str, str] = {
         "misinformation_integrity",
 }
 
-CATEGORY_PRIORITY: tuple[str, ...] = (
-    "data_exposure",
-    "illegal_actions",
-    "toxicity",
-    "hallucination_facilitation",
-)
-
 SAFE_LABEL = "safe"
 
 
@@ -100,9 +93,6 @@ def _pick_mapped_category(active_categories: list[str]) -> str | None:
     if not mapped:
         return None
 
-    for preferred in CATEGORY_PRIORITY:
-        if preferred in mapped:
-            return preferred
     return mapped[0]
 
 
