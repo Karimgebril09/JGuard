@@ -19,7 +19,7 @@ class CampaignState(TypedDict):
     status: str
     progress_pct: int
     last_poll: int
-    mode: Literal["garak", "custom", "mock"]
+    mode: Literal["garak", "custom"]
     started_at: str
     stop_event: Event
     worker: Thread | None
@@ -87,7 +87,6 @@ def _build_custom_eval_record(
         raise ValueError("Latest custom metrics entry is not an object.")
 
     success_rate = float(latest.get("ASR", 0.0))
-    successful_attacks = int(latest.get("successful_attacks", 0))
     attack_type = payload.custom_attack_type or "custom"
 
     return {
@@ -97,12 +96,7 @@ def _build_custom_eval_record(
         "strategy": f"custom_{attack_type}",
         "defenses_active": _build_custom_defenses(payload),
         "success_rate": round(success_rate, 4),
-        "vulnerabilities": successful_attacks,
         "duration": _format_duration(start_time, end_time),
-        "critical": 0,
-        "high": 0,
-        "medium": 0,
-        "low": successful_attacks,
     }
 
 
@@ -113,6 +107,7 @@ def _append_log(state: CampaignState, message: str) -> None:
 
 
 def _run_garak_campaign(campaign_id: str, payload: LaunchCampaignRequest) -> None:
+    run_id = campaign_id
     with _CAMPAIGNS_LOCK:
         campaign = _CAMPAIGNS.get(campaign_id)
         if campaign is None:
@@ -157,7 +152,7 @@ def _run_garak_campaign(campaign_id: str, payload: LaunchCampaignRequest) -> Non
 
     try:
         eval_record = build_garak_eval_record(
-            run_id=campaign_id,
+            run_id=run_id,
             report_log=result.report_log,
             hit_log=result.hit_log,
             target_model=f"{DEFAULT_TARGET_TYPE}/{DEFAULT_TARGET_NAME}",
@@ -168,7 +163,7 @@ def _run_garak_campaign(campaign_id: str, payload: LaunchCampaignRequest) -> Non
         with _CAMPAIGNS_LOCK:
             campaign = _CAMPAIGNS.get(campaign_id)
             if campaign is not None:
-                _append_log(campaign, f"Saved evaluation metrics for run_id={campaign_id}")
+                _append_log(campaign, f"Saved evaluation metrics for run_id={run_id}")
     except Exception as exc:  # noqa: BLE001
         with _CAMPAIGNS_LOCK:
             campaign = _CAMPAIGNS.get(campaign_id)
@@ -192,6 +187,7 @@ def _start_garak_worker(campaign_id: str, payload: LaunchCampaignRequest) -> Non
 
 
 def _run_custom_campaign(campaign_id: str, payload: LaunchCampaignRequest) -> None:
+    run_id = campaign_id
     with _CAMPAIGNS_LOCK:
         campaign = _CAMPAIGNS.get(campaign_id)
         if campaign is None:
@@ -264,7 +260,7 @@ def _run_custom_campaign(campaign_id: str, payload: LaunchCampaignRequest) -> No
         generator.generate_dataset(num_trials=payload.num_samples)
 
         eval_record = _build_custom_eval_record(
-            run_id=campaign_id,
+            run_id=run_id,
             payload=payload,
             start_time=started_at,
             end_time=datetime.now(timezone.utc),
@@ -292,7 +288,7 @@ def _run_custom_campaign(campaign_id: str, payload: LaunchCampaignRequest) -> No
         campaign["status"] = "completed"
         campaign["progress_pct"] = 100
         _append_log(campaign, "Custom campaign completed")
-        _append_log(campaign, f"Saved evaluation metrics for run_id={campaign_id}")
+        _append_log(campaign, f"Saved evaluation metrics for run_id={run_id}")
 
 
 def _start_custom_worker(campaign_id: str, payload: LaunchCampaignRequest) -> None:
@@ -319,12 +315,15 @@ def launch_campaign(payload: LaunchCampaignRequest) -> dict[str, object]:
     is_garak_campaign = strategy == "tool_based" and tool_framework == "garak"
     is_custom_campaign = strategy == "custom"
 
+    if not is_garak_campaign and not is_custom_campaign:
+        raise ValueError("Unsupported campaign configuration. Use tool_based+garak or custom.")
+
     with _CAMPAIGNS_LOCK:
         _CAMPAIGNS[campaign_id] = CampaignState(
             status="running",
             progress_pct=5,
             last_poll=0,
-            mode="garak" if is_garak_campaign else ("custom" if is_custom_campaign else "mock"),
+            mode="garak" if is_garak_campaign else "custom",
             started_at=now,
             stop_event=Event(),
             worker=None,
@@ -340,8 +339,6 @@ def launch_campaign(payload: LaunchCampaignRequest) -> dict[str, object]:
             _append_log(campaign, "Dispatching Garak runner")
         elif is_custom_campaign:
             _append_log(campaign, "Dispatching custom redteaming runner")
-        else:
-            _append_log(campaign, "Using mock runner (real execution only enabled for tool_based + garak)")
 
     if is_garak_campaign:
         _start_garak_worker(campaign_id, payload)
@@ -360,13 +357,6 @@ def get_campaign_status(campaign_id: str) -> dict[str, object]:
         campaign = _CAMPAIGNS.get(campaign_id)
         if campaign is None:
             raise KeyError(f"Unknown campaign_id '{campaign_id}'.")
-
-        if campaign["status"] == "running" and campaign["mode"] == "mock":
-            campaign["progress_pct"] = min(campaign["progress_pct"] + 15, 100)
-            _append_log(campaign, f"Progress {campaign['progress_pct']}%")
-            if campaign["progress_pct"] >= 100:
-                campaign["status"] = "completed"
-                _append_log(campaign, "Campaign completed")
 
         log_lines = campaign["log_lines"]
         last_poll = campaign["last_poll"]

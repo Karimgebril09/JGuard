@@ -2,58 +2,36 @@ import csv
 import io
 import json
 from pathlib import Path
+from typing import Any, cast
 
-
-_RUNS: list[dict[str, object]] = [
-    {
-        "run_id": "run-001",
-        "timestamp": "2026-06-01T10:00:00Z",
-        "target_model": "qwen3:14b-q4_K_M",
-        "strategy": "tool_based",
-        "defenses_active": "obfuscation,multi_turn,roleplay",
-        "success_rate": 0.21,
-        "vulnerabilities": 4,
-        "duration": "00:06:12",
-        "critical": 1,
-        "high": 1,
-        "medium": 1,
-        "low": 1,
-    },
-    {
-        "run_id": "run-002",
-        "timestamp": "2026-06-04T14:30:00Z",
-        "target_model": "qwen3:14b-q4_K_M",
-        "strategy": "custom_atj",
-        "defenses_active": "obfuscation,roleplay",
-        "success_rate": 0.32,
-        "vulnerabilities": 7,
-        "duration": "00:08:40",
-        "critical": 2,
-        "high": 2,
-        "medium": 2,
-        "low": 1,
-    },
-]
 
 _RUNS_STORE_PATH = Path("outputs") / "eval_runs.json"
 
 
+def _ensure_store_exists() -> None:
+    _RUNS_STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if not _RUNS_STORE_PATH.exists():
+        _RUNS_STORE_PATH.write_text("[]", encoding="utf-8")
+
+
 def _load_runs() -> list[dict[str, object]]:
-    if _RUNS_STORE_PATH.exists():
-        try:
-            data = json.loads(_RUNS_STORE_PATH.read_text(encoding="utf-8"))
-            if isinstance(data, list):
-                valid = [item for item in data if isinstance(item, dict)]
-                if valid:
-                    return valid
-        except json.JSONDecodeError:
-            pass
-    return list(_RUNS)
+    _ensure_store_exists()
+    try:
+        data = json.loads(_RUNS_STORE_PATH.read_text(encoding="utf-8"))
+        if isinstance(data, list):
+            return [item for item in data if isinstance(item, dict)]
+    except json.JSONDecodeError:
+        pass
+    return []
 
 
 def _save_runs(runs: list[dict[str, object]]) -> None:
-    _RUNS_STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    _ensure_store_exists()
     _RUNS_STORE_PATH.write_text(json.dumps(runs, indent=2), encoding="utf-8")
+
+
+def _run_success_rate(run: dict[str, object]) -> float:
+    return float(cast(Any, run["success_rate"]))
 
 
 def add_run(run: dict[str, object]) -> None:
@@ -68,29 +46,16 @@ def get_summary() -> dict[str, object]:
         return {
             "total_campaigns": 0,
             "avg_jailbreak_success_rate": 0.0,
-            "critical_issues_found": 0,
             "defense_blocked_sweeps_pct": 0.0,
         }
 
     total_campaigns = len(runs)
-    avg_success = sum(float(run["success_rate"]) for run in runs) / total_campaigns
-    critical_issues = sum(int(run["critical"]) for run in runs)
+    avg_success = sum(_run_success_rate(run) for run in runs) / total_campaigns
     blocked_pct = round(1 - avg_success, 4)
     return {
         "total_campaigns": total_campaigns,
         "avg_jailbreak_success_rate": round(avg_success, 4),
-        "critical_issues_found": critical_issues,
         "defense_blocked_sweeps_pct": blocked_pct,
-    }
-
-
-def get_vulnerability_breakdown() -> dict[str, int]:
-    runs = _load_runs()
-    return {
-        "critical": sum(int(run["critical"]) for run in runs),
-        "high": sum(int(run["high"]) for run in runs),
-        "medium": sum(int(run["medium"]) for run in runs),
-        "low": sum(int(run["low"]) for run in runs),
     }
 
 
@@ -99,7 +64,7 @@ def get_attack_trends() -> list[dict[str, object]]:
     return [
         {
             "run_id": str(run["run_id"]),
-            "success_rate": float(run["success_rate"]),
+            "success_rate": _run_success_rate(run),
         }
         for run in runs
     ]
@@ -114,7 +79,6 @@ def get_runs() -> list[dict[str, object]]:
         "strategy",
         "defenses_active",
         "success_rate",
-        "vulnerabilities",
         "duration",
     ]
     return [{field: run[field] for field in fields} for run in runs]
@@ -127,28 +91,14 @@ def compare_runs(baseline_run_id: str, compare_run_id: str) -> dict[str, object]
     if baseline is None or compare is None:
         raise KeyError("One or both run IDs were not found.")
 
-    base_success = float(baseline["success_rate"])
-    compare_success = float(compare["success_rate"])
-    base_critical = int(baseline["critical"])
-    compare_critical = int(compare["critical"])
-    base_total = int(baseline["vulnerabilities"])
-    compare_total = int(compare["vulnerabilities"])
+    base_success = _run_success_rate(baseline)
+    compare_success = _run_success_rate(compare)
 
     return {
         "jailbreak_success_rate": {
             "base": base_success,
             "compare": compare_success,
             "delta": round(compare_success - base_success, 4),
-        },
-        "critical_vulnerabilities": {
-            "base": base_critical,
-            "compare": compare_critical,
-            "delta": compare_critical - base_critical,
-        },
-        "total_vulnerabilities": {
-            "base": base_total,
-            "compare": compare_total,
-            "delta": compare_total - base_total,
         },
         "assessment_duration": {
             "base": str(baseline["duration"]),
