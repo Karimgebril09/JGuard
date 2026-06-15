@@ -7,7 +7,7 @@ import os
 class Settings:
     app_name: str = "JGuard Backend"
     app_version: str = "0.1.0"
-    app_description: str = "FastAPI backend scaffold for the JGuard WinUI dashboard."
+    app_description: str = "FastAPI backend for JGuard"
     environment: str = "development"
     api_prefix: str = "/api"
     allowed_origins: list[str] | None = None

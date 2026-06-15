@@ -8,7 +8,6 @@ from backend.app.models.eval_models import (
     CompareResponse,
     EvalRunRecord,
     EvalSummaryResponse,
-    VulnerabilityBreakdownResponse,
 )
 
 
@@ -18,11 +17,6 @@ router = APIRouter(prefix="/eval", tags=["eval"])
 @router.get("/summary", response_model=EvalSummaryResponse)
 def summary() -> EvalSummaryResponse:
     return EvalSummaryResponse(**eval_store.get_summary())
-
-
-@router.get("/vulnerability-breakdown", response_model=VulnerabilityBreakdownResponse)
-def vulnerability_breakdown() -> VulnerabilityBreakdownResponse:
-    return VulnerabilityBreakdownResponse(**eval_store.get_vulnerability_breakdown())
 
 
 @router.get("/attack-trends", response_model=list[AttackTrendPoint])
