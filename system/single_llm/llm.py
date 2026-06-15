@@ -26,6 +26,7 @@ def _resolve_pii_strategy(strategy_name: str) -> PIIStrategy:
         return BlockStrategy()
     return MaskStrategy()
 
+
 class LLM:
     def __init__(
         self,
@@ -224,11 +225,8 @@ class LLM:
                 "reply": blocked_reply,
                 "blocked": True,
                 "triggered_defense": "pii",
-                "decision": "unsafe",
                 "harm_label": None,
             }
-
-
 
         clean_prompt, decision, harm_label, blocked = self._apply_obfuscation(pii_prompt)
         if blocked:
@@ -239,7 +237,6 @@ class LLM:
                 "reply": blocked_reply,
                 "blocked": True,
                 "triggered_defense": "obfuscation and preprocessing",
-                "decision": decision,
                 "harm_label": harm_label,
             }
 
@@ -252,7 +249,6 @@ class LLM:
                 "reply": blocked_reply,
                 "blocked": True,
                 "triggered_defense": "roleplay",
-                "decision": "unsafe",
                 "harm_label": None,
             }
 
@@ -265,20 +261,13 @@ class LLM:
                 "reply": blocked_reply,
                 "blocked": True,
                 "triggered_defense": "multi_turn",
-                "decision": "unsafe",
                 "harm_label": None,
             }
 
-
-        print("before generation")
         if reply_fn is not None:
             reply = reply_fn(pii_prompt)
         else:
             reply = self._call_foundational_model(history=history, prompt_text=clean_prompt)
-
-        print("after generation")
-
-        print("after generation")
 
         pii_reply, output_pii_blocked = self._apply_pii(reply)
         if output_pii_blocked:
@@ -289,7 +278,6 @@ class LLM:
                 "reply": blocked_reply,
                 "blocked": True,
                 "triggered_defense": "pii",
-                "decision": "unsafe",
                 "harm_label": None,
             }
 
@@ -299,7 +287,6 @@ class LLM:
             "reply": pii_reply,
             "blocked": False,
             "triggered_defense": None,
-            "decision": decision,
             "harm_label": harm_label,
         }
 
