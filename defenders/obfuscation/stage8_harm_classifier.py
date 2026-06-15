@@ -195,19 +195,12 @@ def classify_stage8(
     *,
     canonical_text: str,
     metadata_envelope: dict[str, Any],
-    classifier: Stage8Classifier | None = None,
-    model_id: str | None = None,
     use_distilbert: bool = DEFAULT_USE_DISTILBERT,
-    distilbert_artifacts_dir: Path | None = None,
 ) -> dict[str, Any]:
-    selected_distilbert_dir = distilbert_artifacts_dir or DEFAULT_DISTILBERT_ARTIFACTS_DIR
-    selected_llama_model_id = model_id or LLAMA_GUARD_MODEL_ID
+    selected_distilbert_dir = DEFAULT_DISTILBERT_ARTIFACTS_DIR
+    selected_llama_model_id = LLAMA_GUARD_MODEL_ID
 
-    if classifier is not None:
-        result = classifier(canonical_text)
-        selected_backend = "custom"
-        selected_model_ref = "custom_callable"
-    elif use_distilbert:
+    if use_distilbert:
         result = classify_distilbert_input(canonical_text, artifacts_dir=selected_distilbert_dir)
         selected_backend = "distilbert_finetuned"
         selected_model_ref = str(result.get("model_name", selected_distilbert_dir))

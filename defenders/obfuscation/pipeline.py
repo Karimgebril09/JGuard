@@ -32,14 +32,7 @@ def _resolve_harm_label(stage8_result: dict[str, Any]) -> str | None:
     return None
 
 
-def run_obfuscation_pipeline(
-    raw_input: str | bytes,
-    *,
-    stage8_classifier: Stage8Classifier | None = None,
-    stage8_model_id: str | None = None,
-    stage8_use_distilbert: bool = True,
-    stage8_distilbert_artifacts_dir: str | None = None,
-) -> dict[str, Any]:
+def run_obfuscation_pipeline(raw_input: str | bytes, stage8_use_distilbert: bool = True) -> dict[str, Any]:
     start_time = time.time()
     stage_outputs: dict[str, Any] = {}
 
@@ -82,10 +75,7 @@ def run_obfuscation_pipeline(
     s8_final_envelope = classify_stage8(
         canonical_text=str(s7_metadata_envelope["canonical_text"]),
         metadata_envelope=s7_metadata_envelope,
-        classifier=stage8_classifier,
-        model_id=stage8_model_id,
         use_distilbert=stage8_use_distilbert,
-        distilbert_artifacts_dir=stage8_distilbert_artifacts_dir,
     )
     stage8_result = s8_final_envelope["stage8"]
     stage_outputs["stage8"] = stage8_result
@@ -110,21 +100,10 @@ def run_obfuscation_pipeline(
     }
 
 
-def run_obfuscation(
-    raw_input: str | bytes,
-    *,
-    stage8_classifier: Stage8Classifier | None = None,
-    stage8_model_id: str | None = None,
-    stage8_use_distilbert: bool = True,
-    stage8_distilbert_artifacts_dir: str | None = None,
-) -> dict[str, Any]:
-    """Run the 8-stage pipeline and return a minimal result."""
+def run_obfuscation(raw_input: str | bytes, stage8_use_distilbert: bool = True) -> dict[str, Any]:
     pipeline_result = run_obfuscation_pipeline(
         raw_input,
-        stage8_classifier=stage8_classifier,
-        stage8_model_id=stage8_model_id,
         stage8_use_distilbert=stage8_use_distilbert,
-        stage8_distilbert_artifacts_dir=stage8_distilbert_artifacts_dir,
     )
     return {
         "clean_text": pipeline_result["clean_text"],
