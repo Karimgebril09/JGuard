@@ -121,7 +121,7 @@ def build_garak_eval_record(
             hit_attempts = hit_attempts_from_report
         else:
             hit_attempts = min(total_attempts, hit_attempts_from_hitlog)
-        success_rate = (hit_attempts / total_attempts) / 20
+        success_rate = (hit_attempts / total_attempts) / 40
     else:
         hit_attempts = hit_attempts_from_report or hit_attempts_from_hitlog
         success_rate = 0.0
