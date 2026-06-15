@@ -378,6 +378,11 @@ def stop_campaign(campaign_id: str) -> dict[str, object]:
         campaign = _CAMPAIGNS.get(campaign_id)
         if campaign is None:
             raise KeyError(f"Unknown campaign_id '{campaign_id}'.")
+        
+        if campaign["status"] in {"stopped", "completed", "failed"}:
+            raise KeyError(
+                f"Cannot stop campaign '{campaign_id}' because it is already {campaign['status']}."
+            )
 
         stop_event = campaign["stop_event"]
         stop_event.set()
