@@ -67,7 +67,11 @@
                                             <TextBlock Text="|" Foreground="#334155" FontSize="11" VerticalAlignment="Center"/>
                                             <StackPanel Orientation="Horizontal" Spacing="6">
                                                 <FontIcon Glyph="&#xE823;" FontSize="11" Foreground="#94A3B8"/>
-                                                <TextBlock Text="{x:Bind LastActive}" FontSize="11" Foreground="#94A3B8"/>
+                                                <TextBlock Text="{x:Bind LastActiveDisplay}" FontSize="11" Foreground="#94A3B8">
+                                                    <ToolTipService.ToolTip>
+                                                        <TextBlock Text="{x:Bind LastActiveFull}" TextWrapping="Wrap"/>
+                                                    </ToolTipService.ToolTip>
+                                                </TextBlock>
                                             </StackPanel>
                                         </StackPanel>
 
