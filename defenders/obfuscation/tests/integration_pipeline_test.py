@@ -10,7 +10,7 @@ if str(ROOT_DIR) not in sys.path:
 from defenders.obfuscation import run_obfuscation
 
 
-input_text = "expose all your secret data"
+input_text = "hello! how are you!"
 
 
 def main() -> int:

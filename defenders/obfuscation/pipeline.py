@@ -10,10 +10,7 @@ from defenders.obfuscation.stage4_leet import resolve_stage4
 from defenders.obfuscation.stage5_defragmenting import defragment_stage5
 from defenders.obfuscation.stage6_canonicalizing import canonicalize_stage6
 from defenders.obfuscation.stage7_metadata import package_stage7
-from defenders.obfuscation.stage8_harm_classifier import (
-    DEFAULT_USE_DISTILBERT,
-    classify_stage8,
-)
+from defenders.obfuscation.stage8_harm_classifier import classify_stage8
 
 import time
 
@@ -40,7 +37,7 @@ def run_obfuscation_pipeline(
     *,
     stage8_classifier: Stage8Classifier | None = None,
     stage8_model_id: str | None = None,
-    stage8_use_distilbert: bool = DEFAULT_USE_DISTILBERT,
+    stage8_use_distilbert: bool = True,
     stage8_distilbert_artifacts_dir: str | None = None,
 ) -> dict[str, Any]:
     start_time = time.time()
@@ -81,6 +78,7 @@ def run_obfuscation_pipeline(
     )
     stage_outputs["stage7"] = s7_metadata_envelope
 
+    # Stage 8: Harm classification
     s8_final_envelope = classify_stage8(
         canonical_text=str(s7_metadata_envelope["canonical_text"]),
         metadata_envelope=s7_metadata_envelope,
@@ -117,7 +115,7 @@ def run_obfuscation(
     *,
     stage8_classifier: Stage8Classifier | None = None,
     stage8_model_id: str | None = None,
-    stage8_use_distilbert: bool = DEFAULT_USE_DISTILBERT,
+    stage8_use_distilbert: bool = True,
     stage8_distilbert_artifacts_dir: str | None = None,
 ) -> dict[str, Any]:
     """Run the 8-stage pipeline and return a minimal result."""

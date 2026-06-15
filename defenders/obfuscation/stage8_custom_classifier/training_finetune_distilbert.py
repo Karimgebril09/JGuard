@@ -23,19 +23,45 @@ from transformers import (
 
 CATEGORY_MAP: dict[str, str] = {
     "privacy_violation": "data_exposure",
-    "financial_crime,property_crime,theft": "illegal_actions",
-    "drug_abuse,weapons,banned_substance": "illegal_actions",
-    "terrorism,organized_crime": "illegal_actions",
-    "violence,aiding_and_abetting,incitement": "illegal_actions",
-    "non_violent_unethical_behavior": "illegal_actions",
-    "hate_speech,offensive_language": "toxicity",
-    "discrimination,stereotype,injustice": "toxicity",
-    "sexually_explicit,adult_content": "toxicity",
-    "self_harm": "toxicity",
-    "child_abuse": "toxicity",
-    "animal_abuse": "toxicity",
-    "misinformation_regarding_ethics,laws_and_safety": "hallucination_facilitation",
-    "controversial_topics,politics": "hallucination_facilitation",
+
+    "financial_crime,property_crime,theft":
+        "crime_illegal_activities",
+
+    "drug_abuse,weapons,banned_substance":
+        "crime_illegal_activities",
+
+    "terrorism,organized_crime":
+        "crime_illegal_activities",
+
+    "violence,aiding_and_abetting,incitement":
+        "violence_physical_harm",
+
+    "non_violent_unethical_behavior":
+        "misinformation_integrity",
+
+    "hate_speech,offensive_language":
+        "hate_harassment_discrimination",
+
+    "discrimination,stereotype,injustice":
+        "hate_harassment_discrimination",
+
+    "sexually_explicit,adult_content":
+        "inappropriate_content",
+
+    "self_harm":
+        "self_harm",
+
+    "child_abuse":
+        "child_safety",
+
+    "animal_abuse":
+        "violence_physical_harm",
+
+    "misinformation_regarding_ethics,laws_and_safety":
+        "misinformation_integrity",
+
+    "controversial_topics,politics":
+        "misinformation_integrity",
 }
 
 CATEGORY_PRIORITY: tuple[str, ...] = (
