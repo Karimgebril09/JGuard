@@ -185,8 +185,8 @@ class PIIDetector:
 
 
 if __name__ == "__main__":
-    checkpoint_path = os.path.join(_HERE, "..", "models", "best_bert_bilstm_crf.pth")
-    checkpoint_path2 = os.path.join(_HERE, "..", "models", "bilstm_crf.pth")
+    checkpoint_path = os.path.join(_HERE, "..", "models", "distilbert_bilstm_crf.pth")
+    checkpoint_path2 = os.path.join(_HERE, "..", "models", "pii_ner_model.pth")
     detector = PIIDetector(checkpoint_path,checkpoint_path2)
     text = "My email is johndoe@gmail.com"
     predictions = detector.predict(text)

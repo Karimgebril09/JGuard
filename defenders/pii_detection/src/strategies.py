@@ -4,7 +4,6 @@ class PIIStrategy:
     def apply(self, word_tags_pairs):
         raise NotImplementedError
 
-
 class MaskStrategy(PIIStrategy):
     def apply(self, word_tags_pairs):
         
@@ -21,7 +20,8 @@ class MaskStrategy(PIIStrategy):
 
 class HashStrategy(PIIStrategy):
     def _enc(self, x):
-        return hashlib.sha256(x.encode()).hexdigest()[:10]
+        hashed_value = hashlib.sha256(x.encode()).hexdigest()
+        return hashed_value[:10]
 
     def apply(self, word_tags_pairs):
         final_words = []
