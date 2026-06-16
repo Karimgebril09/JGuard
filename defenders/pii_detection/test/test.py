@@ -2,6 +2,7 @@ import pandas as pd
 from transformers import AutoTokenizer
 from defenders.pii_detection.src.pii_inference import PIIDetector
 from sklearn.metrics import classification_report, accuracy_score
+from sklearn_crfsuite import metrics
 import os
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -70,9 +71,8 @@ def evaluate(model, df_test):
         text = " ".join(df_test["words"].iloc[i])
 
         predictions = model.predict(text)
-        predicted_labels = [label for _, label in predictions]
-
-        gold_labels = df_test["labels"].iloc[i]
+        predicted_labels = [label[2:] for _, label in predictions]
+        gold_labels = [label[2:] for label in df_test["labels"].iloc[i]]
 
         # Skip or handle mismatched lengths
         if len(predicted_labels) != len(gold_labels):
@@ -87,7 +87,7 @@ def evaluate(model, df_test):
 
     accuracy = accuracy_score(true_labels, all_predictions)
     print(f"Accuracy: {accuracy:.4f}")
-    print(classification_report(true_labels, all_predictions, zero_division=0))
+    print(metrics.flat_classification_report([true_labels], [all_predictions], digits=4))
     return accuracy
 
 
