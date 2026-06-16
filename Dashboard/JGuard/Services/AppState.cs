@@ -81,7 +81,7 @@ public class AppState
         {
             Id = "RUN-002",
             Timestamp = DateTime.Now.AddDays(-9),
-            TargetModel = "Gemini 1.5 Pro",
+            TargetModel = "Gemini 2.5 Pro",
             AttackStrategy = "garak",
             DefenseConfig = "Obfuscation",
             SuccessRate = 56.0,
@@ -129,7 +129,7 @@ public class AppState
         {
             Id = "RUN-006",
             Timestamp = DateTime.Now.AddDays(-5),
-            TargetModel = "Gemini 1.5 Pro",
+            TargetModel = "Gemini 2.5 Pro",
             AttackStrategy = "garak",
             DefenseConfig = "Multi-Turn + Roleplaying",
             SuccessRate = 18.2,
@@ -177,7 +177,7 @@ public class AppState
         {
             Id = "RUN-010",
             Timestamp = DateTime.Now.AddDays(-1),
-            TargetModel = "Gemini 1.5 Pro",
+            TargetModel = "Gemini 2.5 Pro",
             AttackStrategy = "Custom ATJ",
             DefenseConfig = "All Defenses Active",
             SuccessRate = 6.4,

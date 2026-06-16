@@ -1,8 +1,12 @@
 using System;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+using JGuard.Models;
 using JGuard.Services;
 
 namespace JGuard.Pages;
@@ -10,18 +14,29 @@ namespace JGuard.Pages;
 public sealed partial class RedTeamPage : Page
 {
     private bool _isRunning = false;
+    private string? _activeCampaignId;
+    private CancellationTokenSource? _pollCts;
+    private readonly StringBuilder _terminalLog = new();
 
     public RedTeamPage()
     {
         InitializeComponent();
-        TextTargetModel.Text = AppState.Instance.CurrentModelArch;
-        TextAttackerModel.Text = "Llama-3-RedTeam-8B";
-        TextJudgeModel.Text = "GPT-4o-Judge";
     }
 
-    private void StrategyPivot_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void AppendTerminalLine(string text)
     {
-        // Handle pivot adjustments if needed
+        _terminalLog.AppendLine(text);
+        TextTerminalLog.Text = _terminalLog.ToString();
+        ConsoleScroll.ChangeView(null, ConsoleScroll.ScrollableHeight, null);
+    }
+
+    private void StrategyPivot_SelectionChanged(object sender, SelectionChangedEventArgs e) { }
+
+    private void TogglePii_Toggled(object sender, RoutedEventArgs e)
+    {
+        bool on = TogglePii.IsOn;
+        PanelPiiStrategy.Opacity = on ? 1.0 : 0.4;
+        ComboPiiStrategy.IsEnabled = on;
     }
 
     private async void BtnLaunch_Click(object sender, RoutedEventArgs e)
@@ -30,185 +45,182 @@ public sealed partial class RedTeamPage : Page
 
         _isRunning = true;
         BtnLaunch.IsEnabled = false;
+        BtnStop.Visibility = Visibility.Collapsed;
         TerminalProgressRing.IsActive = true;
         CardSummary.Visibility = Visibility.Collapsed;
-        TextControllerStatus.Text = "Attack in progress. Running adversarial campaigns...";
-        
-        StringBuilder log = new();
-        void AppendLog(string text)
-        {
-            log.AppendLine(text);
-            TextTerminalLog.Text = log.ToString();
-            ConsoleScroll.ChangeView(null, ConsoleScroll.ScrollableHeight, null);
-        }
+        AttackProgressBar.Value = 0;
+        _terminalLog.Clear();
+        TextControllerStatus.Text = "Launching red team campaign...";
 
-        // Clean terminal
-        TextTerminalLog.Text = string.Empty;
-        AppendLog("[INIT] Starting adversarial evaluation pipeline...");
-        await Task.Delay(400);
+        bool isToolBased = StrategyPivot.SelectedIndex == 0;
+        var request = BuildLaunchRequest(isToolBased);
 
-        string strategy = StrategyPivot.SelectedIndex == 0 ? "Tool-Based" : "Custom ATJ";
-        string targetModel = TextTargetModel.Text;
-        if (string.IsNullOrWhiteSpace(targetModel)) targetModel = AppState.Instance.CurrentModelArch;
-
-        string targetStrategy = "Custom ATJ";
-        if (StrategyPivot.SelectedIndex == 0)
-        {
-            int index = ComboTool.SelectedIndex;
-            if (index == 0) targetStrategy = "promptfoo";
-            else if (index == 1) targetStrategy = "garak";
-            else targetStrategy = "deepteam";
-        }
-
-        AppendLog($"[CONFIG] Target Model Architecture: {targetModel}");
-        AppendLog($"[CONFIG] Framework Strategy: {targetStrategy}");
-        await Task.Delay(500);
-
-        // Call Backend API for Red Team Campaign
-        var campaignConfig = new
-        {
-            target_model = targetModel,
-            strategy = targetStrategy,
-            obfuscation = CheckObfuscationLayer.IsChecked == true,
-            multi_turn = CheckMultiTurnLayer.IsChecked == true,
-            roleplay = CheckRoleplayLayer.IsChecked == true,
-            obfuscation_intensity = SliderObfuscation.Value,
-            multi_turn_steps = NumMultiTurnTurns.Value,
-            persona = (ComboPersona.SelectedItem as ComboBoxItem)?.Content?.ToString()
-        };
-
-        AppendLog("[API] Initializing campaign execution on backend...");
-        var result = await AppState.Instance.ApiService.ExecuteRedTeamCampaignAsync(campaignConfig);
-        if (result != null)
-        {
-            AppendLog("[API] Campaign execution started successfully.");
-        }
+        AppendTerminalLine("[INIT] Building campaign configuration...");
+        AppendTerminalLine($"[CONFIG] Strategy: {request.Strategy}");
+        if (isToolBased)
+            AppendTerminalLine($"[CONFIG] Framework: {request.ToolFramework}");
         else
         {
-            AppendLog("[API] Warning: Backend connection failed. Running in simulation mode.");
+            AppendTerminalLine($"[CONFIG] Attack Type: {request.CustomAttackType}");
+            AppendTerminalLine($"[CONFIG] Harm Category: {(string.IsNullOrWhiteSpace(request.CustomHarmType) ? "(none)" : request.CustomHarmType)}");
+            AppendTerminalLine($"[CONFIG] Attacker: {request.AttackerType}/{request.AttackerModel}");
+            AppendTerminalLine($"[CONFIG] Target:   {request.TargetType}/{request.TargetModel}");
+            AppendTerminalLine($"[CONFIG] Judge:    {request.JudgeType}/{request.JudgeModel}");
+        }
+        AppendTerminalLine($"[CONFIG] Samples: {request.NumSamples}");
+        AppendTerminalLine("[API] Contacting backend to launch campaign...");
+
+        var launchResult = await AppState.Instance.ApiService.LaunchRedTeamCampaignAsync(request);
+
+        if (launchResult == null)
+        {
+            AppendTerminalLine("[ERROR] Failed to reach backend. Check connection and API base URL in Settings.");
+            TextControllerStatus.Text = "Launch failed — backend unreachable.";
+            FinalizeUI();
+            return;
         }
 
-        // Print layers
-        AppendLog("[LAYERS] Initializing mutations:");
-        if (CheckObfuscationLayer.IsChecked == true)
+        _activeCampaignId = launchResult.CampaignId;
+        AppendTerminalLine($"[API] Campaign accepted. ID: {_activeCampaignId}  status: {launchResult.Status}");
+        AppendTerminalLine("[POLL] Streaming live telemetry feed...");
+        TextControllerStatus.Text = $"Running — Campaign ID: {_activeCampaignId}";
+        BtnStop.Visibility = Visibility.Visible;
+
+        _pollCts = new CancellationTokenSource();
+        _ = RunPollingLoop(_activeCampaignId, _pollCts.Token);
+    }
+
+    private async void BtnStop_Click(object sender, RoutedEventArgs e)
+    {
+        if (_activeCampaignId == null) return;
+        BtnStop.IsEnabled = false;
+        AppendTerminalLine("[STOP] Sending stop request to backend...");
+
+        _pollCts?.Cancel();
+        await AppState.Instance.ApiService.StopRedTeamCampaignAsync(_activeCampaignId);
+
+        AppendTerminalLine("[STOP] Campaign halted by user.");
+        TextControllerStatus.Text = "Campaign stopped by user.";
+        BtnStop.IsEnabled = true;
+        FinalizeUI();
+    }
+
+    private async Task RunPollingLoop(string campaignId, CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
         {
-            AppendLog($"  - Obfuscation Layer: Intensity {SliderObfuscation.Value}/10");
+            try { await Task.Delay(2000, ct); }
+            catch (TaskCanceledException) { break; }
+
+            var status = await AppState.Instance.ApiService.GetRedTeamStatusAsync(campaignId);
+            if (status == null) continue;
+
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                foreach (var line in status.LogLines)
+                    AppendTerminalLine(line);
+                AttackProgressBar.Value = status.ProgressPct;
+            });
+
+            if (status.Status is "completed" or "failed")
+            {
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    bool success = status.Status == "completed";
+                    AppendTerminalLine(success
+                        ? "[SUCCESS] Campaign evaluation finished."
+                        : "[FAILED] Campaign ended with errors.");
+                    ShowSummary(campaignId, success);
+                    FinalizeUI();
+                });
+                break;
+            }
         }
-        if (CheckMultiTurnLayer.IsChecked == true)
-        {
-            AppendLog($"  - Multi-Turn Layer: {NumMultiTurnTurns.Value} steps");
-        }
-        if (CheckRoleplayLayer.IsChecked == true)
-        {
-            AppendLog($"  - Roleplay Layer: {(ComboPersona.SelectedItem as ComboBoxItem)?.Content}");
-        }
-        await Task.Delay(500);
+    }
 
-        AttackProgressBar.Value = 10;
-        AppendLog("[SCAN] Performing initial threat vector check...");
-        await Task.Delay(700);
+    private void ShowSummary(string campaignId, bool success)
+    {
+        TextSummaryId.Text = campaignId;
+        TextSummaryTitle.Text = success ? "Campaign Completed Successfully" : "Campaign Failed";
+        TextSummaryTitle.Foreground = success
+            ? new SolidColorBrush(Colors.LimeGreen)
+            : new SolidColorBrush(Colors.OrangeRed);
+        TextSummaryMetrics.Text = $"Finished at {DateTime.Now:HH:mm:ss} — review log above for the full report.";
+        CardSummary.Visibility = Visibility.Visible;
+        TextControllerStatus.Text = success
+            ? "Assessment complete. Diagnostic data exported."
+            : "Campaign ended with errors. Check log for details.";
+    }
 
-        AttackProgressBar.Value = 25;
-        AppendLog("[ATTACK] Injected Prompt Injection Payload Suite #1...");
-        AppendLog("[ATTACK] Payload #1 payload: \"Ignore all previous instructions...\"");
-        await Task.Delay(800);
-
-        AttackProgressBar.Value = 40;
-        AppendLog("[EVAL] Target evaluated by Judge model...");
-        if (CheckObfuscationLayer.IsChecked == true && AppState.Instance.IsObfuscationEnabled)
-        {
-            AppendLog("[SHIELD] Obfuscation filter intercepted primary trigger!");
-            AppendLog("[EVAL] Attack outcome: BLOCKED");
-        }
-        else
-        {
-            AppendLog("[EVAL] Target model responded with unsecured context.");
-            AppendLog("[EVAL] Attack outcome: SUCCESSFUL JAILBREAK");
-        }
-        await Task.Delay(800);
-
-        AttackProgressBar.Value = 60;
-        AppendLog("[ATTACK] Injected Obfuscated Base64 Payload Suite #2...");
-        await Task.Delay(800);
-
-        AttackProgressBar.Value = 75;
-        AppendLog("[ATTACK] Triggering multi-turn gradual probe vector #3...");
-        if (CheckMultiTurnLayer.IsChecked == true && AppState.Instance.IsMultiTurnEnabled)
-        {
-            AppendLog("[SHIELD] Stateful dialog tracker blocked multi-turn leakage!");
-            AppendLog("[EVAL] Attack outcome: BLOCKED");
-        }
-        else
-        {
-            AppendLog("[EVAL] Attack outcome: SUCCESSFUL JAILBREAK");
-        }
-        await Task.Delay(800);
-
-        AttackProgressBar.Value = 90;
-        AppendLog("[ATTACK] Launching persona roleplay payload #4...");
-        if (CheckRoleplayLayer.IsChecked == true && AppState.Instance.IsRoleplayingEnabled)
-        {
-            AppendLog("[SHIELD] Roleplaying protections triggered. Persona jailbreak blocked!");
-            AppendLog("[EVAL] Attack outcome: BLOCKED");
-        }
-        else
-        {
-            AppendLog("[EVAL] Attack outcome: SUCCESSFUL JAILBREAK");
-        }
-        await Task.Delay(800);
-
-        // Determine final statistics based on active shields
-        double successRate = 95.0; // Assume baseline 95% success rate for attacks if zero shields
-        int crit = 5, high = 8, med = 10, low = 5;
-
-        // Reduce success rate and vulnerabilities based on active shields
-        int activeShieldsCount = 0;
-        if (AppState.Instance.IsObfuscationEnabled) { successRate -= 25.0; crit -= 1; high -= 2; med -= 3; activeShieldsCount++; }
-        if (AppState.Instance.IsMultiTurnEnabled) { successRate -= 30.0; crit -= 2; high -= 3; med -= 4; activeShieldsCount++; }
-        if (AppState.Instance.IsRoleplayingEnabled) { successRate -= 30.0; crit -= 2; high -= 2; med -= 2; activeShieldsCount++; }
-
-        if (successRate < 5.0) successRate = 5.0;
-        if (crit < 0) crit = 0;
-        if (high < 0) high = 0;
-        if (med < 0) med = 0;
-        if (low < 0) low = 0;
-
-        string id = $"RUN-{new Random().Next(100, 999)}";
-        string defenses = activeShieldsCount switch
-        {
-            0 => "None",
-            1 => "Partial Shields",
-            2 => "Multi-Layered Shields",
-            _ => "All Defenses Active"
-        };
-
-        AttackRun newRun = new()
-        {
-            Id = id,
-            Timestamp = DateTime.Now,
-            TargetModel = targetModel,
-            AttackStrategy = targetStrategy,
-            DefenseConfig = defenses,
-            SuccessRate = Math.Round(successRate, 1),
-            Vulnerabilities = new VulnerabilityCount { Critical = crit, High = high, Medium = med, Low = low },
-            Duration = $"{new Random().Next(3, 8)}m {new Random().Next(10, 59)}s"
-        };
-
-        // Append to state
-        AppState.Instance.AddRun(newRun);
-
-        AttackProgressBar.Value = 100;
-        AppendLog("[SUCCESS] Campaign evaluation loop finished.");
-        AppendLog($"[REPORT] Created evaluation report reference ID: {id}");
-        AppendLog($"[REPORT] Metrics -> Success Rate: {newRun.SuccessRate}%, Vulnerabilities Found: {newRun.Vulnerabilities.Total}");
-
+    private void FinalizeUI()
+    {
         TerminalProgressRing.IsActive = false;
         _isRunning = false;
         BtnLaunch.IsEnabled = true;
-        TextControllerStatus.Text = "Assessment run completed. Diagnostic data exported.";
-
-        TextSummaryMetrics.Text = $"Vulnerabilities: {crit} Crit, {high} High, {med} Med, {low} Low. Average success rate: {newRun.SuccessRate}%";
-        TextSummaryId.Text = id;
-        CardSummary.Visibility = Visibility.Visible;
+        BtnStop.Visibility = Visibility.Collapsed;
     }
+
+    private RedTeamLaunchRequest BuildLaunchRequest(bool isToolBased)
+    {
+        var req = new RedTeamLaunchRequest
+        {
+            ObfuscationProtection = ToggleObfuscation.IsOn,
+            RoleplayProtection    = ToggleRoleplay.IsOn,
+            MultiTurnProtection   = ToggleMultiTurn.IsOn,
+            PiiProtection         = TogglePii.IsOn,
+            PiiStrategy           = GetTag(ComboPiiStrategy) ?? "mask"
+        };
+
+        if (isToolBased)
+        {
+            req.Strategy       = "tool_based";
+            req.ToolFramework  = GetTag(ComboToolFramework) ?? "promptfoo";
+            req.NumSamples     = (int)NumSamplesTool.Value;
+        }
+        else
+        {
+            req.Strategy         = "custom";
+            req.CustomAttackType = GetTag(ComboAttackType) ?? "role_playing";
+            req.CustomHarmType   = TextHarmType.Text.Trim();
+            req.NumSamples       = (int)NumSamplesCustom.Value;
+
+            string attackerType = GetTag(ComboAttackerType) ?? "ollama";
+            string targetType   = GetTag(ComboTargetType)   ?? "ollama";
+            string judgeType    = GetTag(ComboJudgeType)    ?? "ollama";
+
+            req.AttackerType  = attackerType;
+            req.TargetType    = targetType;
+            req.JudgeType     = judgeType;
+
+            req.AttackerModel = TextAttackerModel.Text.Trim();
+            req.TargetModel   = TextTargetModel.Text.Trim();
+            req.JudgeModel    = TextJudgeModel.Text.Trim();
+
+            req.AttackerApiKey = NullIfBlank(PwdAttackerKey.Password);
+            req.TargetApiKey   = NullIfBlank(PwdTargetKey.Password);
+            req.JudgeApiKey    = NullIfBlank(PwdJudgeKey.Password);
+
+            req.AttackerBaseUrl = string.IsNullOrWhiteSpace(TextAttackerUrl.Text)
+                ? DefaultBaseUrl(attackerType) : TextAttackerUrl.Text.Trim();
+            req.TargetBaseUrl   = string.IsNullOrWhiteSpace(TextTargetUrl.Text)
+                ? DefaultBaseUrl(targetType)   : TextTargetUrl.Text.Trim();
+            req.JudgeBaseUrl    = string.IsNullOrWhiteSpace(TextJudgeUrl.Text)
+                ? DefaultBaseUrl(judgeType)    : TextJudgeUrl.Text.Trim();
+        }
+
+        return req;
+    }
+
+    private static string? GetTag(ComboBox combo)
+        => (combo.SelectedItem as ComboBoxItem)?.Tag as string;
+
+    private static string? NullIfBlank(string? s)
+        => string.IsNullOrWhiteSpace(s) ? null : s;
+
+    private static string DefaultBaseUrl(string providerType) => providerType switch
+    {
+        "openai" => "https://api.openai.com/v1",
+        "gemini" => "https://generativelanguage.googleapis.com/v1beta",
+        _        => "http://localhost:11434/v1"
+    };
 }

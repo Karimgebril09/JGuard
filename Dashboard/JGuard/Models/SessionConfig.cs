@@ -16,7 +16,10 @@ public class SessionConfig
     
     [JsonPropertyName("llm_type")]
     public string LlmType { get; set; } = string.Empty; // model name or provider model id
-    
+
+    [JsonPropertyName("llm_base_url")]
+    public string LlmBaseUrl { get; set; } = string.Empty;
+
     [JsonPropertyName("obfuscation_protection")]
     public bool ObfuscationProtection { get; set; }
     

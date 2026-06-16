@@ -187,24 +187,50 @@ public class JGuardApiService
         }
     }
 
-    /// <summary>
-    /// Executes a Red Team campaign
-    /// </summary>
-    public async Task<object?> ExecuteRedTeamCampaignAsync(object campaignConfig)
+    public async Task<RedTeamLaunchResponse?> LaunchRedTeamCampaignAsync(RedTeamLaunchRequest request)
     {
         try
         {
-            var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/api/redteam", campaignConfig);
+            var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/api/redteam/launch", request);
             if (response.IsSuccessStatusCode)
-            {
-                return await response.Content.ReadFromJsonAsync<object>();
-            }
+                return await response.Content.ReadFromJsonAsync<RedTeamLaunchResponse>();
+            System.Diagnostics.Debug.WriteLine($"RedTeam launch error: {response.StatusCode}");
             return null;
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Error executing redteam campaign: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Error launching redteam campaign: {ex.Message}");
             return null;
+        }
+    }
+
+    public async Task<RedTeamStatusResponse?> GetRedTeamStatusAsync(string campaignId)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"{_baseUrl}/api/redteam/status/{campaignId}");
+            if (response.IsSuccessStatusCode)
+                return await response.Content.ReadFromJsonAsync<RedTeamStatusResponse>();
+            return null;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error polling redteam status: {ex.Message}");
+            return null;
+        }
+    }
+
+    public async Task<bool> StopRedTeamCampaignAsync(string campaignId)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsync($"{_baseUrl}/api/redteam/stop/{campaignId}", null);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error stopping redteam campaign: {ex.Message}");
+            return false;
         }
     }
 

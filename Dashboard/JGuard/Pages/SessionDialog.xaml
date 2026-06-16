@@ -132,18 +132,33 @@
                     <StackPanel Spacing="4">
                         <TextBlock Text="LLM Source" FontSize="11" Foreground="#94A3B8"/>
                         <StackPanel Orientation="Horizontal" Spacing="12">
-                            <RadioButton x:Name="RadioOpenSource" Content="Local (Ollama)" Foreground="#F5F5F5"/>
-                            <RadioButton x:Name="RadioClosedSource" Content="Closed Source API" Foreground="#F5F5F5"/>
+                            <RadioButton x:Name="RadioOpenSource" Content="Open Source" Foreground="#F5F5F5"/>
+                            <RadioButton x:Name="RadioClosedSource" Content="Closed Source" Foreground="#F5F5F5"/>
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- LLM Type -->
+                    <!-- LLM Model (shared) -->
                     <StackPanel Spacing="4">
                         <TextBlock Text="LLM Model" FontSize="11" Foreground="#94A3B8"/>
                         <TextBox x:Name="LLMTypeBox" PlaceholderText="e.g., qwen2.5:3b-instruct"/>
                     </StackPanel>
 
-                    <!-- API Key (shown only for closed source) -->
+                    <!-- Closed source provider note -->
+                    <TextBlock x:Name="ClosedSourceNote"
+                               Text="Supported providers: OpenAI and Gemini"
+                               FontSize="11" Foreground="#F59E0B" FontStyle="Italic"
+                               Visibility="Collapsed"/>
+
+                    <!-- Open Source extras: optional custom base URL -->
+                    <StackPanel x:Name="OpenSourceExtrasPanel" Spacing="8">
+                        <CheckBox x:Name="UseBaseUrlCheck" Content="Use custom LLM base URL" Foreground="#F5F5F5"/>
+                        <StackPanel x:Name="LLMBaseUrlPanel" Spacing="4" Visibility="Collapsed">
+                            <TextBlock Text="LLM Base URL" FontSize="11" Foreground="#94A3B8"/>
+                            <TextBox x:Name="LLMBaseUrlBox" PlaceholderText="e.g., http://localhost:11434"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Closed Source extras: API key -->
                     <StackPanel x:Name="ApiKeyPanel" Spacing="4" Visibility="Collapsed">
                         <TextBlock Text="API Key" FontSize="11" Foreground="#94A3B8"/>
                         <PasswordBox x:Name="ApiKeyBox" PlaceholderText="Enter your API key"/>

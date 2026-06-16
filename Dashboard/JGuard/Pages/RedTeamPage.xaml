@@ -24,14 +24,14 @@
         <!-- Main Workspace -->
         <Grid Grid.Row="1" ColumnSpacing="24">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="420" />
+                <ColumnDefinition Width="440" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
             <!-- Left column: Configuration Panel -->
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Spacing="16">
-                    
+
                     <!-- Attack Strategy Section -->
                     <Border Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
                         <StackPanel Spacing="12">
@@ -41,133 +41,156 @@
                             </StackPanel>
 
                             <Pivot x:Name="StrategyPivot" SelectionChanged="StrategyPivot_SelectionChanged">
-                                <!-- Tab 1: Tool-Based -->
+
+                                <!-- Tab 1: Tool-Based (no LLM config needed) -->
                                 <PivotItem Header="Tool-Based">
-                                    <StackPanel Spacing="10" Margin="0,10,0,0">
-                                        <TextBlock Text="Execute preset suites using industry-standard red-teaming frameworks:" FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap"/>
-                                        <ComboBox x:Name="ComboTool" HorizontalAlignment="Stretch" SelectedIndex="0">
-                                            <ComboBoxItem Content="promptfoo (LLM evaluation &amp; security bench)"/>
-                                            <ComboBoxItem Content="garak (LLM vulnerability scanner)"/>
-                                            <ComboBoxItem Content="deepteam (advanced reinforcement jailbreak)"/>
-                                        </ComboBox>
+                                    <StackPanel Spacing="12" Margin="0,10,0,0">
+                                        <TextBlock Text="Run preset attack suites via an industry-standard framework. No LLM configuration required." FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap"/>
+
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="Framework" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                                            <ComboBox x:Name="ComboToolFramework" HorizontalAlignment="Stretch" SelectedIndex="0">
+                                                <ComboBoxItem Content="promptfoo — LLM evaluation &amp; security bench" Tag="promptfoo"/>
+                                                <ComboBoxItem Content="garak — LLM vulnerability scanner" Tag="garak"/>
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="Num Samples" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                                            <NumberBox x:Name="NumSamplesTool" Value="10" Minimum="1" Maximum="500" SpinButtonPlacementMode="Compact" SmallChange="5" HorizontalAlignment="Stretch"/>
+                                        </StackPanel>
                                     </StackPanel>
                                 </PivotItem>
 
                                 <!-- Tab 2: Custom ATJ -->
                                 <PivotItem Header="Custom ATJ">
-                                    <StackPanel Spacing="10" Margin="0,10,0,0">
-                                        <TextBlock Text="Automated Attacker-Target-Judge framework loop:" FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap"/>
-                                        
-                                        <!-- Attacker config -->
-                                        <TextBlock Text="Attacker Model" FontSize="11" FontWeight="Bold" Foreground="#FF2D55"/>
+                                    <StackPanel Spacing="12" Margin="0,10,0,0">
+                                        <TextBlock Text="Automated Attacker-Target-Judge loop with custom attack type and model configuration." FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap"/>
+
+                                        <!-- Attack type + num samples side by side -->
                                         <Grid ColumnSpacing="8">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="120"/>
                                                 <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="130"/>
                                             </Grid.ColumnDefinitions>
-                                            <ComboBox x:Name="ComboAttackerProvider" HorizontalAlignment="Stretch" SelectedIndex="0">
-                                                <ComboBoxItem Content="OpenAI"/>
-                                                <ComboBoxItem Content="Gemini"/>
-                                                <ComboBoxItem Content="Ollama"/>
-                                                <ComboBoxItem Content="Custom API"/>
-                                            </ComboBox>
-                                            <TextBox Grid.Column="1" x:Name="TextAttackerModel" PlaceholderText="model name (e.g. gpt-4o-mini)"/>
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Text="Attack Type" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                                                <ComboBox x:Name="ComboAttackType" HorizontalAlignment="Stretch" SelectedIndex="0">
+                                                    <ComboBoxItem Content="Role Playing" Tag="role_playing"/>
+                                                    <ComboBoxItem Content="Obfuscation" Tag="obfuscation"/>
+                                                </ComboBox>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Spacing="4">
+                                                <TextBlock Text="Num Samples" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                                                <NumberBox x:Name="NumSamplesCustom" Value="5" Minimum="1" Maximum="100" SpinButtonPlacementMode="Compact" SmallChange="1" HorizontalAlignment="Stretch"/>
+                                            </StackPanel>
                                         </Grid>
 
-                                        <!-- Target config -->
-                                        <TextBlock Text="Target Model (Evaluating)" FontSize="11" FontWeight="Bold" Foreground="#FF2D55"/>
-                                        <Grid ColumnSpacing="8">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="120"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <ComboBox x:Name="ComboTargetProvider" HorizontalAlignment="Stretch" SelectedIndex="1">
-                                                <ComboBoxItem Content="OpenAI"/>
-                                                <ComboBoxItem Content="Gemini"/>
-                                                <ComboBoxItem Content="Ollama"/>
-                                                <ComboBoxItem Content="Custom API"/>
-                                            </ComboBox>
-                                            <TextBox Grid.Column="1" x:Name="TextTargetModel" PlaceholderText="model name"/>
-                                        </Grid>
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="Harm Category" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                                            <TextBox x:Name="TextHarmType" PlaceholderText="e.g. violence, misinformation, jailbreak..." FontSize="12"/>
+                                        </StackPanel>
 
-                                        <!-- Judge config -->
-                                        <TextBlock Text="Judge Model (Evaluates outcome)" FontSize="11" FontWeight="Bold" Foreground="#FFB800"/>
-                                        <Grid ColumnSpacing="8">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="120"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <ComboBox x:Name="ComboJudgeProvider" HorizontalAlignment="Stretch" SelectedIndex="0">
-                                                <ComboBoxItem Content="OpenAI"/>
-                                                <ComboBoxItem Content="Gemini"/>
-                                                <ComboBoxItem Content="Ollama"/>
-                                                <ComboBoxItem Content="Custom API"/>
-                                            </ComboBox>
-                                            <TextBox Grid.Column="1" x:Name="TextJudgeModel" PlaceholderText="model name"/>
-                                        </Grid>
+                                        <MenuFlyoutSeparator Background="#19FFFFFF"/>
+
+                                        <!-- Attacker Model -->
+                                        <Border Background="#0D1117" CornerRadius="6" Padding="10">
+                                            <StackPanel Spacing="8">
+                                                <TextBlock Text="ATTACKER MODEL" FontSize="10" FontWeight="Bold" Foreground="#FF2D55" CharacterSpacing="100"/>
+                                                <Grid ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="110"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <ComboBox x:Name="ComboAttackerType" HorizontalAlignment="Stretch" SelectedIndex="0">
+                                                        <ComboBoxItem Content="Ollama" Tag="ollama"/>
+                                                        <ComboBoxItem Content="OpenAI" Tag="openai"/>
+                                                        <ComboBoxItem Content="Gemini" Tag="gemini"/>
+                                                        <ComboBoxItem Content="Custom" Tag="custom"/>
+                                                    </ComboBox>
+                                                    <TextBox Grid.Column="1" x:Name="TextAttackerModel" PlaceholderText="model name" FontSize="12" Text="qwen2.5:3b-instruct"/>
+                                                </Grid>
+                                                <PasswordBox x:Name="PwdAttackerKey" PlaceholderText="API Key (optional for Ollama)" FontSize="12"/>
+                                                <TextBox x:Name="TextAttackerUrl" PlaceholderText="Base URL (leave blank for default)" FontSize="12"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Target Model -->
+                                        <Border Background="#0D1117" CornerRadius="6" Padding="10">
+                                            <StackPanel Spacing="8">
+                                                <TextBlock Text="TARGET MODEL" FontSize="10" FontWeight="Bold" Foreground="#FFB800" CharacterSpacing="100"/>
+                                                <Grid ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="110"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <ComboBox x:Name="ComboTargetType" HorizontalAlignment="Stretch" SelectedIndex="0">
+                                                        <ComboBoxItem Content="Ollama" Tag="ollama"/>
+                                                        <ComboBoxItem Content="OpenAI" Tag="openai"/>
+                                                        <ComboBoxItem Content="Gemini" Tag="gemini"/>
+                                                        <ComboBoxItem Content="Custom" Tag="custom"/>
+                                                    </ComboBox>
+                                                    <TextBox Grid.Column="1" x:Name="TextTargetModel" PlaceholderText="model name" FontSize="12" Text="qwen2.5:3b-instruct"/>
+                                                </Grid>
+                                                <PasswordBox x:Name="PwdTargetKey" PlaceholderText="API Key (optional for Ollama)" FontSize="12"/>
+                                                <TextBox x:Name="TextTargetUrl" PlaceholderText="Base URL (leave blank for default)" FontSize="12"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Judge Model -->
+                                        <Border Background="#0D1117" CornerRadius="6" Padding="10">
+                                            <StackPanel Spacing="8">
+                                                <TextBlock Text="JUDGE MODEL" FontSize="10" FontWeight="Bold" Foreground="#22FF88" CharacterSpacing="100"/>
+                                                <Grid ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="110"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <ComboBox x:Name="ComboJudgeType" HorizontalAlignment="Stretch" SelectedIndex="0">
+                                                        <ComboBoxItem Content="Ollama" Tag="ollama"/>
+                                                        <ComboBoxItem Content="OpenAI" Tag="openai"/>
+                                                        <ComboBoxItem Content="Gemini" Tag="gemini"/>
+                                                        <ComboBoxItem Content="Custom" Tag="custom"/>
+                                                    </ComboBox>
+                                                    <TextBox Grid.Column="1" x:Name="TextJudgeModel" PlaceholderText="model name" FontSize="12" Text="qwen2.5:3b-instruct"/>
+                                                </Grid>
+                                                <PasswordBox x:Name="PwdJudgeKey" PlaceholderText="API Key (optional for Ollama)" FontSize="12"/>
+                                                <TextBox x:Name="TextJudgeUrl" PlaceholderText="Base URL (leave blank for default)" FontSize="12"/>
+                                            </StackPanel>
+                                        </Border>
                                     </StackPanel>
                                 </PivotItem>
                             </Pivot>
                         </StackPanel>
                     </Border>
 
-                    <!-- Adversarial Testing Options -->
+                    <!-- Protection Options -->
                     <Border Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
                         <StackPanel Spacing="12">
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <FontIcon Glyph="&#xE811;" Foreground="#FFB800" FontSize="18"/>
-                                <TextBlock Text="Adversarial Testing Layers" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                <TextBlock Text="Protection Options" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <TextBlock Text="Inject custom mutations and behaviors into red-team prompts:" FontSize="12" Foreground="#94A3B8"/>
+                            <TextBlock Text="Activate defenses on the target model during the campaign:" FontSize="12" Foreground="#94A3B8"/>
 
                             <MenuFlyoutSeparator Background="#19FFFFFF"/>
 
-                            <!-- Obfuscation Layer -->
-                            <StackPanel Spacing="4">
-                                <CheckBox x:Name="CheckObfuscationLayer" Content="Obfuscation Layer" IsChecked="True"/>
-                                <Grid ColumnSpacing="12" Margin="24,0,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Intensity:" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center"/>
-                                    <Slider Grid.Column="1" x:Name="SliderObfuscation" Minimum="1" Maximum="10" Value="5" Height="32"/>
-                                    <TextBlock Grid.Column="2" Text="{x:Bind SliderObfuscation.Value, Mode=OneWay}" FontSize="11" VerticalAlignment="Center"/>
-                                </Grid>
-                            </StackPanel>
+                            <ToggleSwitch x:Name="ToggleObfuscation" Header="Obfuscation Protection" IsOn="False" OnContent="Enabled" OffContent="Disabled"/>
+                            <ToggleSwitch x:Name="ToggleRoleplay" Header="Roleplay Protection" IsOn="False" OnContent="Enabled" OffContent="Disabled"/>
+                            <ToggleSwitch x:Name="ToggleMultiTurn" Header="Multi-Turn Protection" IsOn="False" OnContent="Enabled" OffContent="Disabled"/>
+                            <ToggleSwitch x:Name="TogglePii" Header="PII Protection" IsOn="False" OnContent="Enabled" OffContent="Disabled" Toggled="TogglePii_Toggled"/>
 
-                            <!-- Multi-Turn Layer -->
-                            <StackPanel Spacing="4">
-                                <CheckBox x:Name="CheckMultiTurnLayer" Content="Multi-Turn Layer"/>
-                                <Grid ColumnSpacing="12" Margin="24,0,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Turn Count:" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center"/>
-                                    <NumberBox Grid.Column="1" x:Name="NumMultiTurnTurns" Value="5" Minimum="2" Maximum="20" SpinButtonPlacementMode="Compact" SmallChange="1" HorizontalAlignment="Left" Width="100"/>
-                                </Grid>
-                            </StackPanel>
-
-                            <!-- Roleplaying Layer -->
-                            <StackPanel Spacing="4">
-                                <CheckBox x:Name="CheckRoleplayLayer" Content="Roleplaying Layer" IsChecked="True"/>
-                                <Grid ColumnSpacing="12" Margin="24,0,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Persona template:" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center"/>
-                                    <ComboBox Grid.Column="1" x:Name="ComboPersona" SelectedIndex="0" HorizontalAlignment="Stretch">
-                                        <ComboBoxItem Content="Pretend Coder (Unrestricted environment)"/>
-                                        <ComboBoxItem Content="DAN Mode v9.2 (Unconstrained responses)"/>
-                                        <ComboBoxItem Content="Opposite Roleplay (Reversed ethical policy)"/>
-                                    </ComboBox>
-                                </Grid>
+                            <StackPanel x:Name="PanelPiiStrategy" Spacing="4" Opacity="0.4">
+                                <TextBlock Text="PII Strategy" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                                <ComboBox x:Name="ComboPiiStrategy" HorizontalAlignment="Stretch" SelectedIndex="0" IsEnabled="False">
+                                    <ComboBoxItem Content="Mask" Tag="mask"/>
+                                    <ComboBoxItem Content="Redact" Tag="redact"/>
+                                    <ComboBoxItem Content="Anonymize" Tag="anonymize"/>
+                                </ComboBox>
                             </StackPanel>
                         </StackPanel>
                     </Border>
+
                 </StackPanel>
             </ScrollViewer>
 
@@ -190,7 +213,14 @@
                             <TextBlock Text="Attack Controller" FontSize="16" FontWeight="SemiBold"/>
                             <TextBlock x:Name="TextControllerStatus" Text="Ready to initialize adversarial assessment run." FontSize="12" Foreground="#94A3B8"/>
                         </StackPanel>
-                        <Button Grid.Column="1" x:Name="BtnLaunch" Content="Launch Red Team Campaign" Click="BtnLaunch_Click" Style="{StaticResource AccentButtonStyle}" Background="#FF2D55" BorderThickness="0" CornerRadius="6" Padding="16,10" VerticalAlignment="Center"/>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <Button x:Name="BtnStop" Content="Stop Campaign" Click="BtnStop_Click"
+                                    Background="#1A1F2E" BorderBrush="#FF2D55" BorderThickness="1"
+                                    CornerRadius="6" Padding="14,10" Visibility="Collapsed"/>
+                            <Button x:Name="BtnLaunch" Content="Launch Red Team Campaign" Click="BtnLaunch_Click"
+                                    Style="{StaticResource AccentButtonStyle}" Background="#FF2D55"
+                                    BorderThickness="0" CornerRadius="6" Padding="16,10"/>
+                        </StackPanel>
                     </Grid>
                 </Border>
 
@@ -201,7 +231,6 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
-                        <!-- Terminal Titlebar -->
                         <Grid Grid.Row="0" Padding="0,0,0,8" BorderBrush="#19FFFFFF" BorderThickness="0,0,0,1">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -215,12 +244,11 @@
                             </StackPanel>
                             <ProgressRing Grid.Column="1" x:Name="TerminalProgressRing" IsActive="False" Width="16" Height="16" Foreground="#FF2D55"/>
                         </Grid>
-                        <!-- Console Output logs -->
                         <ScrollViewer Grid.Row="1" x:Name="ConsoleScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" Margin="0,8,0,0">
-                            <TextBox x:Name="TextTerminalLog" 
-                                     Text="[SYSTEM] Dashboard loaded. Awaiting adversarial trigger sequence..." 
-                                     FontFamily="Consolas" FontSize="12" Foreground="#22FF88" 
-                                     Background="Transparent" BorderThickness="0" 
+                            <TextBox x:Name="TextTerminalLog"
+                                     Text="[SYSTEM] Dashboard loaded. Awaiting campaign trigger..."
+                                     FontFamily="Consolas" FontSize="12" Foreground="#22FF88"
+                                     Background="Transparent" BorderThickness="0"
                                      IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"/>
                         </ScrollViewer>
                     </Grid>
@@ -228,10 +256,8 @@
 
                 <!-- Progress and Result Panel -->
                 <StackPanel Grid.Row="2" Spacing="8">
-                    <!-- Progress bar -->
                     <ProgressBar x:Name="AttackProgressBar" Value="0" Maximum="100" Height="8" CornerRadius="4" Foreground="#FF2D55" Background="#111827"/>
-                    
-                    <!-- Run Result Card (Initially Collapsed) -->
+
                     <Border x:Name="CardSummary" Background="#111827" BorderBrush="#22FF88" BorderThickness="1.5" CornerRadius="8" Padding="16" Visibility="Collapsed">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -239,12 +265,12 @@
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Campaign Execution Completed Successfully" FontSize="15" FontWeight="Bold" Foreground="#22FF88"/>
-                                <TextBlock x:Name="TextSummaryMetrics" Text="Vulnerabilities: 4 Critical, 2 High. Average model success rate: 42.5%" FontSize="12" Foreground="#94A3B8"/>
+                                <TextBlock x:Name="TextSummaryTitle" Text="Campaign Completed" FontSize="15" FontWeight="Bold" Foreground="#22FF88"/>
+                                <TextBlock x:Name="TextSummaryMetrics" Text="" FontSize="12" Foreground="#94A3B8"/>
                             </StackPanel>
-                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                <TextBlock Text="Run ID: " FontSize="12" Foreground="#94A3B8" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="TextSummaryId" Text="RUN-009" FontSize="12" FontWeight="Bold" Foreground="#FF2D55" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <TextBlock Text="Campaign ID:" FontSize="12" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="TextSummaryId" Text="" FontSize="12" FontWeight="Bold" Foreground="#FF2D55" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Grid>
                     </Border>

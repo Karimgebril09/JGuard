@@ -47,8 +47,10 @@ public sealed partial class SessionDialog : ContentDialog
 
     private void SetupEventHandlers()
     {
-        RadioOpenSource.Checked += (s, e) => UpdateApiKeyVisibility();
-        RadioClosedSource.Checked += (s, e) => UpdateApiKeyVisibility();
+        RadioOpenSource.Checked += (s, e) => UpdateSourceVisibility();
+        RadioClosedSource.Checked += (s, e) => UpdateSourceVisibility();
+        UseBaseUrlCheck.Checked += (s, e) => LLMBaseUrlPanel.Visibility = Visibility.Visible;
+        UseBaseUrlCheck.Unchecked += (s, e) => LLMBaseUrlPanel.Visibility = Visibility.Collapsed;
         PiiCheck.Checked += (s, e) => PiiStrategyPanel.Visibility = Visibility.Visible;
         PiiCheck.Unchecked += (s, e) => PiiStrategyPanel.Visibility = Visibility.Collapsed;
         
@@ -95,10 +97,20 @@ public sealed partial class SessionDialog : ContentDialog
         }
     }
 
-    private void UpdateApiKeyVisibility()
+    private void UpdateSourceVisibility()
     {
-        bool isClosedSource = RadioClosedSource.IsChecked == true;
-        ApiKeyPanel.Visibility = isClosedSource ? Visibility.Visible : Visibility.Collapsed;
+        bool isOpen = RadioOpenSource.IsChecked == true;
+        OpenSourceExtrasPanel.Visibility = isOpen ? Visibility.Visible : Visibility.Collapsed;
+        ApiKeyPanel.Visibility = isOpen ? Visibility.Collapsed : Visibility.Visible;
+        ClosedSourceNote.Visibility = isOpen ? Visibility.Collapsed : Visibility.Visible;
+        LLMTypeBox.PlaceholderText = isOpen ? "e.g., qwen2.5:3b-instruct" : "e.g., gpt-4o, gemini-3.5-pro";
+
+        // Reset base URL toggle when switching away from open source
+        if (!isOpen)
+        {
+            UseBaseUrlCheck.IsChecked = false;
+            LLMBaseUrlPanel.Visibility = Visibility.Collapsed;
+        }
     }
 
     private async void SessionDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
@@ -141,7 +153,8 @@ public sealed partial class SessionDialog : ContentDialog
                 ChatMode = ChatModeCombo.SelectedIndex == 0 ? "foundational" : "agent",
                 LocalLlm = RadioOpenSource.IsChecked == true,
                 LlmType = llmType,
-                LlmApiKey = ApiKeyBox?.Password ?? string.Empty,
+                LlmApiKey = RadioClosedSource.IsChecked == true ? (ApiKeyBox?.Password ?? string.Empty) : string.Empty,
+                LlmBaseUrl = (RadioOpenSource.IsChecked == true && UseBaseUrlCheck.IsChecked == true) ? (LLMBaseUrlBox.Text?.Trim() ?? string.Empty) : string.Empty,
                 ObfuscationProtection = ObfuscationCheck.IsChecked == true,
                 MultiTurnProtection = MultiTurnCheck.IsChecked == true,
                 RoleplayProtection = RoleplayCheck.IsChecked == true,
