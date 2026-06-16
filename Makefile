@@ -1,9 +1,11 @@
+
 .PHONY: backend dashboard-build dashboard
 
 backend:
 	python -m uvicorn backend.app.main:app --reload
 
 dashboard-build:
+
     dotnet build ./../Dashboard/JGuard/JGuard.csproj -p:Platform=x64
 
 dashboard:
