@@ -14,7 +14,7 @@ _MODELS_DIR = os.path.join(_BASE_DIR, "..", "models")
 class PIIEngine:
     def __init__(self, strategy: PIIStrategy | None = None):
         self.detector = PIIDetector(
-            checkpoint_path=os.path.join(_MODELS_DIR, "best_bert_bilstm_crf.pt"),
+            checkpoint_path=os.path.join(_MODELS_DIR, "distilbert_bilstm_crf.pth"),
             checkpoint_path2=os.path.join(_MODELS_DIR, "pii_ner_model.pth")
         )
         self.strategy = strategy if strategy is not None else MaskStrategy()
