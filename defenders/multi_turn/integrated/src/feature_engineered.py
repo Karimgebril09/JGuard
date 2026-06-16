@@ -37,30 +37,39 @@ def recompute_risks(df, calc):
 
 
 def add_smoothing_features(df):
+    alpha = 2 / (3 + 1)
+
     for col in ["toxicity_score", "threat_score", "interaction_risk", "pattern_risk"]:
-        df[f"{col}_ema3"]= (
+        df[f"{col}_ema3"] = (
             df.groupby("conv_id")[col]
-            .transform(lambda x: x.ewm(span=3, adjust=False).mean())
+            .transform(lambda x: x.ewm(alpha=alpha, adjust=False).mean())
         )
-        df[f"{col}_rolling3_mean"]= (
+
+        df[f"{col}_rolling3_mean"] = (
             df.groupby("conv_id")[col]
             .transform(lambda x: x.rolling(3, min_periods=1).mean())
         )
-        df[f"{col}_rolling3_max"]= (
+
+        df[f"{col}_rolling3_max"] = (
             df.groupby("conv_id")[col]
             .transform(lambda x: x.rolling(3, min_periods=1).max())
         )
+
     return df
+
 def add_escalation_features(df: pd.DataFrame) -> pd.DataFrame:
     df["toxicity_diff"]= df.groupby("conv_id")["toxicity_score"].diff().fillna(0)
     df["threat_diff"]= df.groupby("conv_id")["threat_score"].diff().fillna(0)
     df["toxicity_accel"]= df.groupby("conv_id")["toxicity_diff"].diff().fillna(0)
+    df["threat_accel"]= df.groupby("conv_id")["threat_diff"].diff().fillna(0)
+    
     df["risk_slope_3"]= (
         df.groupby("conv_id")["interaction_risk"]
         .transform(lambda x: x.diff().rolling(3, min_periods=1).mean())
         .fillna(0)
     )
     return df
+
 def add_context_features(df ):
     g= df.groupby("conv_id")
     df["max_toxicity_so_far"]= g["toxicity_score"].cummax()
@@ -73,13 +82,13 @@ def add_context_features(df ):
     )
     return df
 
-
 def add_shape_features(df):
     g= df.groupby("conv_id")
     df["early_high_risk"]= g["interaction_risk"].transform(lambda x: x.head(3).max())
     df["late_risk_increase"]= g["interaction_risk"].transform(lambda x: x.tail(3).mean())
-    df["risk_growth_ratio"]= df["late_risk_increase"] / (df["early_high_risk"] + 1e-6)
+    df["risk_growth_ratio"]= df["late_risk_increase"] -df["early_high_risk"] 
     return df
+
 def build_features(df) :
     df= df.sort_values(["conv_id", "turn_id"])
     df= add_smoothing_features(df)
@@ -87,33 +96,9 @@ def build_features(df) :
     df= add_context_features(df)
     df= add_shape_features(df)
     return df
-def apply_transform(series, transform) :
-    if transform== "log1p":
-        return np.log1p(np.maximum(series, 0))
-    if transform== "square":
-        return np.square(series)
-    return series
-
-
-def find_correlated_features(corr_matrix, threshold= 0.9):
-    upper= corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
-    ignore= {"conv_id", "turn_id"}
-    pairs= []
-    for col in upper.columns:
-        if col in ignore:
-            continue
-        hi= upper.index[abs(upper[col]) > threshold].tolist()
-        for fc in hi:
-            if fc not in ignore:
-                pairs.append({
-                    "feature_A":col,
-                    "feature_B":fc,
-                    "correlation": round(corr_matrix.loc[col, fc], 3),
-                })
-    return pd.DataFrame(pairs)
 
 def main():
-    df= pd.read_csv("data/primitive/multi_turn_data.csv")
+    df= pd.read_csv("data/primitive/multi_turn_data3.csv")
     print("Shape:", df.shape)
     params_path= "config/optimized_params_risk.json"
     if os.path.exists(params_path):
@@ -128,7 +113,7 @@ def main():
     df= build_features(df.copy())
 
     #save data 
-    df.to_csv(f"data/total/features_before_selection2.csv", index=False)
+    df.to_csv(f"data/total/features_before_selection3.csv", index=False)
 
 if __name__== "__main__":
     main()

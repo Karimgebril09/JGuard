@@ -8,6 +8,7 @@ from sklearn.feature_selection import RFECV,VarianceThreshold
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import RobustScaler
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.preprocessing import PowerTransformer
 
 TRANSFORMS = {
     # Strong features
@@ -107,11 +108,23 @@ def save_split(X,meta,y,path):
     out.to_csv(path,index=False)
     print(f"Saved {path}  shape={out.shape}")
 
+
 def transform_feature(series, transform):
     if transform == "log1p":
         return np.log1p(np.maximum(series, 0))
+
     if transform == "square":
         return np.square(series)
+
+    if transform == "binarize":
+        return (series > 0).astype(float)
+
+    if transform == "yeo-johnson":
+        pt = PowerTransformer(method="yeo-johnson", standardize=False)
+        return pt.fit_transform(
+            np.asarray(series).reshape(-1, 1)
+        ).flatten()
+
     return series
 
 def apply_transform(df) :
@@ -154,9 +167,9 @@ def load_splits():
 def main():
     # df = pd.read_csv("data/merged/merged_features.csv")
 
-    train_df= pd.read_csv("data/merged/train_df.csv")
-    val_df= pd.read_csv("data/merged/val_df.csv")
-    test_df= pd.read_csv("data/merged/test_df.csv")
+    train_df= pd.read_csv("data/pca/train.csv")
+    val_df= pd.read_csv("data/pca/val.csv")
+    test_df= pd.read_csv("data/pca/test.csv")
 
 
 
