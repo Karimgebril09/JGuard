@@ -55,6 +55,18 @@ class SessionHistoryResponse(BaseModel):
     meta: dict[str, Any] = Field(default_factory=dict)
 
 
+class SessionSummary(BaseModel):
+    session_id: str
+    created_at: str
+    last_active: str
+    config: SessionConfig
+    meta: dict[str, Any] = Field(default_factory=dict)
+
+
+class SessionListResponse(BaseModel):
+    sessions: list[SessionSummary]
+
+
 class ChatResponse(BaseModel):
     reply: str
     blocked: bool

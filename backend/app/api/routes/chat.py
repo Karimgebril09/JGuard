@@ -9,10 +9,31 @@ from backend.app.models.chat_models import (
     SessionCreateResponse,
     SessionDeleteResponse,
     SessionHistoryResponse,
+    SessionListResponse,
+    SessionSummary,
 )
 
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
+
+
+@router.get("", response_model=SessionListResponse)
+def list_sessions(
+    session_store: defense_engine.SessionStore = Depends(defense_engine.get_session_store),
+) -> SessionListResponse:
+    sessions = session_store.list_sessions()
+    return SessionListResponse(
+        sessions=[
+            SessionSummary(
+                session_id=s.session_id,
+                created_at=s.created_at.isoformat(),
+                last_active=s.last_active.isoformat(),
+                config=s.config,
+                meta=s.meta,
+            )
+            for s in sessions
+        ]
+    )
 
 
 @router.post("", response_model=SessionCreateResponse)
