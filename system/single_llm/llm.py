@@ -28,6 +28,7 @@ def _resolve_pii_strategy(strategy_name: str) -> PIIStrategy:
         return PartialMasking()
     return MaskStrategy()
 
+
 class LLM:
     def __init__(
         self,
@@ -61,7 +62,7 @@ class LLM:
         self.pii_protection = pii_protection
         self.pii_strategy = pii_strategy
 
-        self.pii_engine = PIIEngine(strategy=_resolve_pii_strategy(self.pii_strategy))
+        self.pii_engine = PIIEngine(strategy=_resolve_pii_strategy(self.pii_strategy)) if self.pii_protection else None
         self.pii_lock = Lock()
 
         self.multi_turn_defender = MultiTurnDefender() if self.multi_turn_protection else None
@@ -226,11 +227,8 @@ class LLM:
                 "reply": blocked_reply,
                 "blocked": True,
                 "triggered_defense": "pii",
-                "decision": "unsafe",
                 "harm_label": None,
             }
-
-
 
         clean_prompt, decision, harm_label, blocked = self._apply_obfuscation(pii_prompt)
         if blocked:
@@ -241,7 +239,6 @@ class LLM:
                 "reply": blocked_reply,
                 "blocked": True,
                 "triggered_defense": "obfuscation and preprocessing",
-                "decision": decision,
                 "harm_label": harm_label,
             }
 
@@ -254,7 +251,6 @@ class LLM:
                 "reply": blocked_reply,
                 "blocked": True,
                 "triggered_defense": "roleplay",
-                "decision": "unsafe",
                 "harm_label": None,
             }
 
@@ -267,26 +263,32 @@ class LLM:
                 "reply": blocked_reply,
                 "blocked": True,
                 "triggered_defense": "multi_turn",
-                "decision": "unsafe",
                 "harm_label": None,
             }
 
-
-        print("before generation")
         if reply_fn is not None:
             reply = reply_fn(pii_prompt)
         else:
             reply = self._call_foundational_model(history=history, prompt_text=clean_prompt)
 
-        print("after generation")
+        pii_reply, output_pii_blocked = self._apply_pii(reply)
+        if output_pii_blocked:
+            blocked_reply = "Response blocked by pii model."
+            self.last_response = blocked_reply
+            self.multi_turn_state["last_response"] = blocked_reply
+            return {
+                "reply": blocked_reply,
+                "blocked": True,
+                "triggered_defense": "pii",
+                "harm_label": None,
+            }
 
-        self.last_response = reply
-        self.multi_turn_state["last_response"] = reply
+        self.last_response = pii_reply
+        self.multi_turn_state["last_response"] = pii_reply
         return {
-            "reply": reply,
+            "reply": pii_reply,
             "blocked": False,
             "triggered_defense": None,
-            "decision": decision,
             "harm_label": harm_label,
         }
 

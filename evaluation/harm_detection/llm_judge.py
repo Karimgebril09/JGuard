@@ -1,3 +1,4 @@
+
 from dotenv import load_dotenv
 from langchain.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, START, END
@@ -27,7 +28,7 @@ class RefusalClassification(BaseModel):
 class SentinelJudge:
 
     def __init__(
-        self,
+        self,   
         model_type: str,
         model_name: str,
         harm_type: str,
@@ -35,7 +36,7 @@ class SentinelJudge:
         temperature: float = 0,
         api_key: str | None = None,
     ):
-
+    
         self.model_type = model_type
         self.model_name = model_name
         self.base_url = base_url

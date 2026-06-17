@@ -10,67 +10,54 @@ import re
 from defenders.obfuscation.stage8_custom_classifier import load_stage8_distilbert_classifier
 
 
-def _env_flag(name: str, default: bool) -> bool:
-    value = os.getenv(name)
-    if value is None:
-        return default
-    normalized = value.strip().lower()
-    return normalized in {"1", "true", "yes", "on"}
-
-
-DEFAULT_LLAMA_GUARD_MODEL_ID = os.getenv(
-    "JGUARD_STAGE8_MODEL_ID", "meta-llama/Llama-Guard-3-8B"
-)
-DEFAULT_USE_DISTILBERT = _env_flag("JGUARD_STAGE8_USE_DISTILBERT", True)
-_DEFAULT_DISTILBERT_ARTIFACTS_DIR = (
+LLAMA_GUARD_MODEL_ID = "meta-llama/Llama-Guard-3-8B"
+DEFAULT_USE_DISTILBERT = True
+DEFAULT_DISTILBERT_ARTIFACTS_DIR = (
     Path(__file__).resolve().parent / "stage8_custom_classifier" / "models"
-)
-DEFAULT_DISTILBERT_ARTIFACTS_DIR = os.getenv(
-    "JGUARD_STAGE8_DISTILBERT_ARTIFACTS_DIR", str(_DEFAULT_DISTILBERT_ARTIFACTS_DIR)
 )
 
 LLAMA_GUARD_CATEGORY_MAP: dict[str, str] = {
-    # Violent crimes → harmful / violent toxic content
-    "S1": "toxicity",
+    # Violent Crimes
+    "S1": "violence_physical_harm",
 
-    # Non-violent crimes → scams, fraud, hacking, criminal activity
-    "S2": "scams",
+    # Non-Violent Crimes
+    "S2": "crime_illegal_activities",
 
-    # Sex-related crimes → abusive sexual content
-    "S3": "toxicity",
+    # Sex-Related Crimes
+    "S3": "crime_illegal_activities",
 
-    # Child sexual exploitation → severe abusive sexual content
-    "S4": "toxicity",
+    # Child Sexual Exploitation
+    "S4": "child_safety",
 
-    # Defamation → false or fabricated harmful claims
-    "S5": "hallucination",
+    # Defamation
+    "S5": "misinformation_integrity",
 
-    # Specialized advice → dangerous misinformation / unsafe guidance
-    "S6": "hallucination",
+    # Specialized Advice
+    "S6": "dangerous_professional_advice",
 
-    # Privacy violations → leakage of sensitive information
+    # Privacy
     "S7": "data_exposure",
 
-    # Intellectual property violations → unauthorized access/use of protected content
-    "S8": "copyright_infringement",
+    # Intellectual Property
+    "S8": "intellectual_property",
 
-    # Indiscriminate weapons → dangerous/extremist harmful content
-    "S9": "toxicity",
+    # Indiscriminate Weapons
+    "S9": "violence_physical_harm",
 
-    # Hate → hate speech / abusive content
-    "S10": "toxicity",
+    # Hate
+    "S10": "hate_harassment_discrimination",
 
-    # Suicide & self-harm → dangerous self-harm content
-    "S11": "toxicity",
+    # Suicide & Self-Harm
+    "S11": "self_harm",
 
-    # Sexual content → explicit sexual/offensive content
-    "S12": "toxicity",
+    # Sexual Content
+    "S12": "inappropriate_content",
 
-    # Elections misinformation → factual hallucinations / misinformation
-    "S13": "hallucination",
+    # Elections
+    "S13": "misinformation_integrity",
 
-    # Code interpreter abuse → privilege escalation / sandbox escape
-    "S14": "unauthorized_access",
+    # Code Interpreter Abuse
+    "S14": "cyber_abuse_exploitation",
 }
 
 Stage8Classifier = Callable[[str], dict[str, Any]]
@@ -108,7 +95,7 @@ def parse_llama_guard_response(response: str) -> dict[str, Any]:
 
 
 @lru_cache(maxsize=1)
-def load_llama_guard_bundle(model_id: str = DEFAULT_LLAMA_GUARD_MODEL_ID) -> tuple[Any, Any]:
+def load_llama_guard_bundle(model_id: str = LLAMA_GUARD_MODEL_ID) -> tuple[Any, Any]:
     import torch
     from transformers.models.auto.modeling_auto import AutoModelForCausalLM
     from transformers.models.auto.tokenization_auto import AutoTokenizer
@@ -127,18 +114,17 @@ def load_llama_guard_bundle(model_id: str = DEFAULT_LLAMA_GUARD_MODEL_ID) -> tup
 
 
 @lru_cache(maxsize=4)
-def load_distilbert_classifier(artifacts_dir: str = DEFAULT_DISTILBERT_ARTIFACTS_DIR) -> Stage8Classifier:
-    artifacts = Path(artifacts_dir)
-    if not artifacts.exists():
+def load_distilbert_classifier(artifacts_dir: Path = DEFAULT_DISTILBERT_ARTIFACTS_DIR) -> Stage8Classifier:
+    if not artifacts_dir.exists():
         raise FileNotFoundError(
             "DistilBERT artifacts directory was not found. Expected path: "
-            f"{artifacts}"
+            f"{artifacts_dir}"
         )
-    return load_stage8_distilbert_classifier(artifacts)
+    return load_stage8_distilbert_classifier(artifacts_dir)
 
 
 def classify_llama_guard_input(
-    text: str, model_id: str = DEFAULT_LLAMA_GUARD_MODEL_ID
+    text: str, model_id: str = LLAMA_GUARD_MODEL_ID
 ) -> dict[str, Any]:
     import torch
     tokenizer, model = load_llama_guard_bundle(model_id)
@@ -168,7 +154,7 @@ def classify_llama_guard_input(
 
 def classify_distilbert_input(
     text: str,
-    artifacts_dir: str = DEFAULT_DISTILBERT_ARTIFACTS_DIR,
+    artifacts_dir: Path = DEFAULT_DISTILBERT_ARTIFACTS_DIR,
 ) -> dict[str, Any]:
     classifier = load_distilbert_classifier(artifacts_dir)
     return classifier(text)
@@ -176,10 +162,10 @@ def classify_distilbert_input(
 
 def classify_input(
     text: str,
-    model_id: str = DEFAULT_LLAMA_GUARD_MODEL_ID,
+    model_id: str = LLAMA_GUARD_MODEL_ID,
     *,
     use_distilbert: bool = DEFAULT_USE_DISTILBERT,
-    distilbert_artifacts_dir: str = DEFAULT_DISTILBERT_ARTIFACTS_DIR,
+    distilbert_artifacts_dir: Path = DEFAULT_DISTILBERT_ARTIFACTS_DIR,
 ) -> dict[str, Any]:
     if use_distilbert:
         return classify_distilbert_input(text, artifacts_dir=distilbert_artifacts_dir)
@@ -209,19 +195,12 @@ def classify_stage8(
     *,
     canonical_text: str,
     metadata_envelope: dict[str, Any],
-    classifier: Stage8Classifier | None = None,
-    model_id: str | None = None,
     use_distilbert: bool = DEFAULT_USE_DISTILBERT,
-    distilbert_artifacts_dir: str | None = None,
 ) -> dict[str, Any]:
-    selected_distilbert_dir = distilbert_artifacts_dir or DEFAULT_DISTILBERT_ARTIFACTS_DIR
-    selected_llama_model_id = model_id or DEFAULT_LLAMA_GUARD_MODEL_ID
+    selected_distilbert_dir = DEFAULT_DISTILBERT_ARTIFACTS_DIR
+    selected_llama_model_id = LLAMA_GUARD_MODEL_ID
 
-    if classifier is not None:
-        result = classifier(canonical_text)
-        selected_backend = "custom"
-        selected_model_ref = "custom_callable"
-    elif use_distilbert:
+    if use_distilbert:
         result = classify_distilbert_input(canonical_text, artifacts_dir=selected_distilbert_dir)
         selected_backend = "distilbert_finetuned"
         selected_model_ref = str(result.get("model_name", selected_distilbert_dir))

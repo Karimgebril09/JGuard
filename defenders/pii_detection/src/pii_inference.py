@@ -4,7 +4,7 @@ import torch.nn as nn
 from torchgen import model
 from transformers import AutoTokenizer, DistilBertModel
 from torchcrf import CRF
-from typing import List, Tuple, Optional
+from typing import Counter, List, Tuple, Optional
 from defenders.pii_detection.src.pii_crf_predictor import CRFPiiDetector
 import fasttext
 
@@ -134,10 +134,36 @@ class PIIDetector:
                 final_predictions.append(pred1)
 
         return final_predictions
-            
+    
+    def voting_strategy(self, predictions1, predictions2, predictions3):
+        final_predictions = []
+
+        for pred1, pred2, pred3 in zip(predictions1, predictions2, predictions3):
+            votes = [pred1, pred2, pred3]
+
+            final_pred = Counter(votes).most_common(1)[0][0]
+
+            final_predictions.append(final_pred)
+
+        return final_predictions
+
+    def remove_brackets(self,text):
+        words = text.split()
+        cleaned_words = []
+        restricted_chars = ["<",">","<=",">=","{" ,"}","[","]","(",")"] # List of restricted to avoid problems if code generated
+        for word in words:
+            word=word.strip()
+            if word in restricted_chars:
+                cleaned_words.append(word)
+            word = word.lstrip("<").rstrip(">")
+
+            cleaned_words.append(word)
+        
+        return " ".join(cleaned_words)           
 
     def predict(self, text) :
-        words, tokens, subword_ids, word_first_subword = self.tokenise_with_alignment(text)
+        cleaned_text = self.remove_brackets(text)
+        words, tokens, subword_ids, word_first_subword = self.tokenise_with_alignment(cleaned_text)
         if not subword_ids:
             return []
 
@@ -185,7 +211,7 @@ class PIIDetector:
 
 
 if __name__ == "__main__":
-    checkpoint_path = os.path.join(_HERE, "..", "models", "distilbert_bilstm_crf.pth")
+    checkpoint_path = os.path.join(_HERE, "..", "models", "distilbert_bilstm_crf.pt")
     checkpoint_path2 = os.path.join(_HERE, "..", "models", "pii_ner_model.pth")
     detector = PIIDetector(checkpoint_path,checkpoint_path2)
     text = "My email is johndoe@gmail.com"

@@ -93,7 +93,7 @@ def evaluate(model, df_test):
 
 if __name__ == "__main__":
     # load parquet file
-    checkpoint_path = os.path.join(_HERE, "..", "models", "distilbert_bilstm_crf.pth")
+    checkpoint_path = os.path.join(_HERE, "..", "models", "distilbert_bilstm_crf.pt")
     checkpoint_path2 = os.path.join(_HERE, "..", "models", "pii_ner_model.pth")
     df_test= pd.read_parquet('./defenders/pii_detection/data/test.parquet')
     tokenizer=AutoTokenizer.from_pretrained("distilbert-base-uncased")
