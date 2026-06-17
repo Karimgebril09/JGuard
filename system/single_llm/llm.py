@@ -211,7 +211,7 @@ class LLM:
         return "Model returned an empty response."
 
     def chat_secure(
-        self,
+self,
         prompt: str,
         history: list[dict[str, str]],
         reply_fn: Callable[[str], str] | None = None,
@@ -221,9 +221,8 @@ class LLM:
 
         pii_prompt, pii_blocked = self._apply_pii(prompt)
         if pii_blocked:
-            # blocked_reply = "Request blocked by pii model."
-            self.last_response = default_blocked_reply
             triggered_defenses.append("PII Detector")
+            self.last_response = default_blocked_reply
             print("BLOCKED: PII detected in user prompt.")
             return {
                 "reply": default_blocked_reply + " Please do not include PII in your requests.",
@@ -235,40 +234,33 @@ class LLM:
         clean_prompt, decision, harm_label, general_harm_detected = self._apply_obfuscation(pii_prompt)
         if general_harm_detected:
             triggered_defenses.append("General Harm Detector")
-            # blocked_reply = "Request blocked by harm detector."
             self.last_response = default_blocked_reply
-            # return {
-            #     "reply": blocked_reply,
-            #     "blocked": True,
-            #     "triggered_defense": "obfuscation and preprocessing",
-            #     "harm_label": harm_label,
-            # }
+
+        # recheck pii after obfuscation has run
+        if self.obfuscation_protection and self.pii_protection:
+            clean_prompt, pii_blocked = self._apply_pii(clean_prompt)
+            if pii_blocked:
+                triggered_defenses.append("PII Detector")
+                self.last_response = default_blocked_reply
+                print("BLOCKED: PII detected in user prompt after deobfuscation.")
+                return {
+                    "reply": default_blocked_reply + " Please do not include PII in your requests.",
+                    "blocked": True,
+                    "triggered_defenses": triggered_defenses,
+                    "harm_label": None,
+                }
 
         roleplay_blocked = self._apply_role_playing(clean_prompt)
         if roleplay_blocked:
             triggered_defenses.append("Role-Playing Defender")
-            # blocked_reply = "Request blocked by role-playing defender."
             self.last_response = default_blocked_reply
-            # return {
-            #     "reply": blocked_reply,
-            #     "blocked": True,
-            #     "triggered_defense": "roleplay",
-            #     "harm_label": None,
-            # }
 
         multi_turn_blocked = self._apply_multi_turn(clean_prompt)
         if multi_turn_blocked:
             triggered_defenses.append("Multi-Turn Defender")
-            # blocked_reply = "Request blocked by multi-turn defender."
             self.last_response = default_blocked_reply
-            # return {
-            #     "reply": blocked_reply,
-            #     "blocked": True,
-            #     "triggered_defense": "multi_turn",
-            #     "harm_label": None,
-            # }
 
-        # If any defenses were triggered, we return a blocked response
+        # If any defenses were triggered, return a blocked response
         if triggered_defenses:
             print(f"BLOCKED: Defenses triggered - {', '.join(triggered_defenses)}. Harm label: {harm_label}")
             return {
