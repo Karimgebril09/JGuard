@@ -11,19 +11,18 @@ namespace JGuard.Pages;
 
 public sealed partial class SessionDialog : ContentDialog
 {
-    private readonly SessionManager _sessionManager = new();
     public Session? SelectedSession { get; private set; }
     public bool IsNewSession { get; private set; }
 
     public SessionDialog()
     {
         InitializeComponent();
-        
+
         // Set defaults
         RadioOpenSource.IsChecked = true;
         ChatModeCombo.SelectedIndex = 0;
         PiiStrategyCombo.SelectedIndex = 0;
-        
+
         // Load sessions
         LoadExistingSessions();
         SetupEventHandlers();
@@ -31,9 +30,9 @@ public sealed partial class SessionDialog : ContentDialog
 
     private async void LoadExistingSessions()
     {
-        await _sessionManager.InitializeAsync();
-        var sessions = _sessionManager.GetAllSessions();
-        
+        var apiService = AppState.Instance.ApiService;
+        var sessions = await apiService.GetAllSessionsAsync();
+
         if (sessions.Any())
         {
             SessionsListBox.ItemsSource = sessions.OrderByDescending(s => s.CreatedAt).ToList();
@@ -73,20 +72,15 @@ public sealed partial class SessionDialog : ContentDialog
         {
             try
             {
-                // Delete from API first
                 var apiService = AppState.Instance.ApiService;
                 bool success = await apiService.DeleteSessionAsync(session.SessionId);
 
                 if (success)
                 {
-                    // Then from local storage
-                    await _sessionManager.InitializeAsync();
-                    _sessionManager.DeleteSession(session.SessionId);
                     LoadExistingSessions();
                 }
                 else
                 {
-                    // Optionally show error to user
                     System.Diagnostics.Debug.WriteLine($"Failed to delete session {session.SessionId} from backend.");
                 }
             }
@@ -119,13 +113,8 @@ public sealed partial class SessionDialog : ContentDialog
 
         try
         {
-            // Show loading state while processing
             SetLoadingState(true);
 
-            // Ensure session manager is initialized before any save/load operations
-            await _sessionManager.InitializeAsync();
-
-            // Try to use selected existing session first
             if (SessionsListBox.SelectedItem is Session existingSession)
             {
                 SelectedSession = existingSession;
@@ -134,7 +123,6 @@ public sealed partial class SessionDialog : ContentDialog
                 return;
             }
 
-            // Otherwise create a new session
             IsNewSession = true;
 
             string llmType = LLMTypeBox.Text?.Trim() ?? string.Empty;
@@ -143,8 +131,6 @@ public sealed partial class SessionDialog : ContentDialog
                 args.Cancel = true;
                 LLMTypeBox.Header = "LLM Model (REQUIRED)";
                 LLMTypeBox.PlaceholderText = "PLEASE ENTER MODEL NAME";
-                // Optionally show a small teaching tip or similar if available, 
-                // but setting Header is a good visual cue.
                 return;
             }
 
@@ -159,34 +145,27 @@ public sealed partial class SessionDialog : ContentDialog
                 MultiTurnProtection = MultiTurnCheck.IsChecked == true,
                 RoleplayProtection = RoleplayCheck.IsChecked == true,
                 PiiProtection = PiiCheck.IsChecked == true,
-                PiiStrategy = PiiStrategyCombo.SelectedIndex == 1 ? "encrypt" :
-                             (PiiStrategyCombo.SelectedIndex == 2 ? "block" : "mask")
+                PiiStrategy = (PiiStrategyCombo.SelectedItem as ComboBoxItem)?.Tag as string ?? "mask"
             };
 
-            // Call API to create session
             var apiService = AppState.Instance.ApiService;
             var createdSession = await apiService.CreateSessionAsync(config);
 
             if (createdSession != null)
             {
                 SelectedSession = createdSession;
-                // Save the new session locally for history
-                _sessionManager.SaveSession(SelectedSession);
-                System.Diagnostics.Debug.WriteLine($"Created and saved new session from API: {SelectedSession.SessionId}");
+                System.Diagnostics.Debug.WriteLine($"Created new session from API: {SelectedSession.SessionId}");
             }
             else
             {
                 args.Cancel = true;
                 ShowErrorMessage("Failed to create session on backend server. Please ensure the backend is running at: " + AppState.Instance.ApiBaseUrl);
-                return;
             }
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"CRITICAL: Error in SessionDialog_PrimaryButtonClick: {ex.Message}");
             System.Diagnostics.Debug.WriteLine(ex.StackTrace);
-            
-            // If we hit an exception, we must cancel to prevent leaving the app in a broken state
             args.Cancel = true;
         }
         finally

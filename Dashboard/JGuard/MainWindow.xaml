@@ -58,6 +58,13 @@
                 </NavigationViewItem>
             </NavigationView.MenuItems>
             <Frame x:Name="NavFrame" />
+            <NavigationView.FooterMenuItems>
+                <NavigationViewItem Content="New Session" Tag="session">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8A5;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.FooterMenuItems>
         </NavigationView>
     </Grid>
 </Window>

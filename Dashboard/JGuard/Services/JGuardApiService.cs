@@ -32,6 +32,29 @@ public class JGuardApiService
     }
 
     /// <summary>
+    /// Gets all sessions from the API
+    /// </summary>
+    public async Task<List<Session>> GetAllSessionsAsync()
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"{_baseUrl}/api/sessions");
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<List<Session>>();
+                return result ?? new List<Session>();
+            }
+            System.Diagnostics.Debug.WriteLine($"API Error fetching sessions: {response.StatusCode}");
+            return new List<Session>();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error fetching sessions: {ex.Message}");
+            return new List<Session>();
+        }
+    }
+
+    /// <summary>
     /// Creates a new session with the specified configuration
     /// </summary>
     public async Task<Session?> CreateSessionAsync(SessionConfig config)

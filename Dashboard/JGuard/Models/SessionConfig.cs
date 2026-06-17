@@ -33,7 +33,7 @@ public class SessionConfig
     public bool PiiProtection { get; set; }
     
     [JsonPropertyName("pii_strategy")]
-    public string PiiStrategy { get; set; } = "mask"; // "mask", "encrypt", or "block"
+    public string PiiStrategy { get; set; } = "mask"; // "mask", "hash", "block", "partial masking"
 
     // Helper properties for UI binding
     [JsonIgnore]

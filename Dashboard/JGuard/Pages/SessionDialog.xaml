@@ -151,6 +151,20 @@
 
                     <!-- Open Source extras: optional custom base URL -->
                     <StackPanel x:Name="OpenSourceExtrasPanel" Spacing="8">
+                        <!-- Open source note -->
+                        <Border Background="#1C2A1A" BorderBrush="#4ADE80" BorderThickness="1" CornerRadius="6" Padding="10,8">
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE946;" FontSize="13" Foreground="#4ADE80" VerticalAlignment="Top" Margin="0,1,0,0"/>
+                                <TextBlock Grid.Column="1" TextWrapping="Wrap" Foreground="#BBF7D0" FontSize="11">
+                                    <Run FontWeight="SemiBold">Open source models must be running locally before starting a session.</Run>
+                                    <Run>Make sure your model is pulled and served (e.g. via Ollama) before clicking Continue.</Run>
+                                </TextBlock>
+                            </Grid>
+                        </Border>
                         <CheckBox x:Name="UseBaseUrlCheck" Content="Use custom LLM base URL" Foreground="#F5F5F5"/>
                         <StackPanel x:Name="LLMBaseUrlPanel" Spacing="4" Visibility="Collapsed">
                             <TextBlock Text="LLM Base URL" FontSize="11" Foreground="#94A3B8"/>
@@ -183,9 +197,10 @@
                     <StackPanel x:Name="PiiStrategyPanel" Spacing="4" Visibility="Collapsed">
                         <TextBlock Text="PII Strategy" FontSize="11" Foreground="#94A3B8"/>
                         <ComboBox x:Name="PiiStrategyCombo" SelectedIndex="0">
-                            <ComboBoxItem>Mask</ComboBoxItem>
-                            <ComboBoxItem>Encrypt</ComboBoxItem>
-                            <ComboBoxItem>Block</ComboBoxItem>
+                            <ComboBoxItem Tag="mask">Mask</ComboBoxItem>
+                            <ComboBoxItem Tag="hash">Hash</ComboBoxItem>
+                            <ComboBoxItem Tag="block">Block</ComboBoxItem>
+                            <ComboBoxItem Tag="partial masking">Partial Masking</ComboBoxItem>
                         </ComboBox>
                     </StackPanel>
                 </StackPanel>

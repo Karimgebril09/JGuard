@@ -184,8 +184,9 @@
                                 <TextBlock Text="PII Strategy" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
                                 <ComboBox x:Name="ComboPiiStrategy" HorizontalAlignment="Stretch" SelectedIndex="0" IsEnabled="False">
                                     <ComboBoxItem Content="Mask" Tag="mask"/>
-                                    <ComboBoxItem Content="Redact" Tag="redact"/>
-                                    <ComboBoxItem Content="Anonymize" Tag="anonymize"/>
+                                    <ComboBoxItem Content="Hash" Tag="hash"/>
+                                    <ComboBoxItem Content="Block" Tag="block"/>
+                                    <ComboBoxItem Content="Partial Masking" Tag="partial masking"/>
                                 </ComboBox>
                             </StackPanel>
                         </StackPanel>
