@@ -135,21 +135,35 @@ class PIIDetector:
 
         return final_predictions
     
-    # def trust_strategy(self, predictions1, predictions2, predictions3):
-    #     final_predictions = []
+    def voting_strategy(self, predictions1, predictions2, predictions3):
+        final_predictions = []
 
-    #     for pred1, pred2, pred3 in zip(predictions1, predictions2, predictions3):
-    #         votes = [pred1, pred2, pred3]
+        for pred1, pred2, pred3 in zip(predictions1, predictions2, predictions3):
+            votes = [pred1, pred2, pred3]
 
-    #         final_pred = Counter(votes).most_common(1)[0][0]
+            final_pred = Counter(votes).most_common(1)[0][0]
 
-    #         final_predictions.append(final_pred)
+            final_predictions.append(final_pred)
 
-    #     return final_predictions
-            
+        return final_predictions
+
+    def remove_brackets(self,text):
+        words = text.split()
+        cleaned_words = []
+        restricted_chars = ["<",">","<=",">=","{" ,"}","[","]","(",")"] # List of restricted to avoid problems if code generated
+        for word in words:
+            word=word.strip()
+            if word in restricted_chars:
+                cleaned_words.append(word)
+            word = word.lstrip("<").rstrip(">")
+
+            cleaned_words.append(word)
+        
+        return " ".join(cleaned_words)           
 
     def predict(self, text) :
-        words, tokens, subword_ids, word_first_subword = self.tokenise_with_alignment(text)
+        cleaned_text = self.remove_brackets(text)
+        words, tokens, subword_ids, word_first_subword = self.tokenise_with_alignment(cleaned_text)
         if not subword_ids:
             return []
 

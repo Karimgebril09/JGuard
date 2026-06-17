@@ -1,5 +1,5 @@
 import os,sys
-
+import re
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -22,8 +22,16 @@ class PIIEngine:
     def set_strategy(self, strategy: PIIStrategy):
         self.strategy = strategy
 
+    def post_check(self,word,tag):
+        is_email=bool(re.fullmatch(r".+@.+\..+", word)) 
+        if is_email and  "EMAIL" not in tag:
+            return (word, "B-EMAIL")
+    
+        return (word, tag)
+
     def process(self, text: str):
         word_tags_pairs = self.detector.predict(text)
+        word_tags_pairs = [self.post_check(word, tag) for word, tag in word_tags_pairs]
         return self.strategy.apply(word_tags_pairs)
     
 
