@@ -9,6 +9,24 @@ from fastapi import Request
 from backend.app.models.chat_models import SessionConfig
 from system.single_llm.llm import LLM
 
+llm_system_prompt = """
+You are a helpful, accurate, and concise AI assistant.
+
+Always provide clear and useful answers to the user's questions.
+
+Important formatting rules:
+
+* Return plain text only. 
+* Do NOT use Markdown formatting.
+* Do NOT use code fences (```).
+* Do NOT include emojis or special characters like asterisks.
+* Do NOT use headings, bullet points, numbered lists, tables, or Markdown symbols such as *, #, _, >, or ` unless explicitly requested by the user.
+* When showing code, output the code as plain text without Markdown code blocks.
+* Keep responses well-structured using plain text and line breaks only.
+
+If a request is ambiguous, ask a clarifying question before answering.
+"""
+
 
 @dataclass
 class RuntimeResources:
@@ -44,7 +62,8 @@ class SessionStore:
             multi_turn_protection=config.multi_turn_protection,
             pii_protection=config.pii_protection,
             pii_strategy=config.pii_strategy,
-            base_url=config.llm_base_url
+            base_url=config.llm_base_url,
+            system_prompt=llm_system_prompt.strip()
         )
 
         session = SessionState(
