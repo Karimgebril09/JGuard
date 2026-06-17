@@ -5,6 +5,7 @@ from torchgen import model
 from transformers import AutoTokenizer, DistilBertModel
 from torchcrf import CRF
 from typing import List, Tuple, Optional
+from defenders.pii_detection.src.pii_crf_predictor import CRFPiiDetector
 import fasttext
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -24,17 +25,6 @@ TAG2IDX = {tag: i for i, tag in enumerate(NER_TAGS)}
 IDX2TAG = {i: tag for tag, i in TAG2IDX.items()}
 NUM_TAGS = len(NER_TAGS)
 
-def mask_pii(text, tagged):
-
-    output_words   = []
-    for word, tag in tagged:
-        if tag.startswith("B-") or tag.startswith("I-"):
-            label= tag[2:]
-            output_words.append( f"<{label}>")
-        else:
-            output_words.append(word)
-
-    return " ".join(output_words)
 
 class DistilBERTBiLSTMCRF(nn.Module):
     def __init__(self, num_tags: int = NUM_TAGS, ignore_index: int = -100):
@@ -126,14 +116,20 @@ class PIIDetector:
         self.model2.to(self.device)
         self.model2.eval()
 
+        self.crf_predictor = CRFPiiDetector()
     
-    def trust_strategy(self, predictions1, predictions2):
+    def trust_strategy(self, predictions1, predictions2,predictions3):
         # trust model2 in ip addresses
         final_predictions = []
+        predictor1_trusted_tags = {"IPV4", "IPV6"}
+        predictor3_trusted_tags = {"ACCOUNTNAME", "PASSWORD","EMAIL"}
 
-        for pred1, pred2 in zip(predictions1, predictions2):
-            if "IPV4" in pred2 or "IPV6" in pred2:
+
+        for pred1, pred2, pred3 in zip(predictions1, predictions2, predictions3):
+            if pred1 in predictor1_trusted_tags:
                 final_predictions.append(pred2)
+            elif pred3 in predictor3_trusted_tags:
+                final_predictions.append(pred3)
             else:
                 final_predictions.append(pred1)
 
@@ -161,7 +157,9 @@ class PIIDetector:
         word_tags = [IDX2TAG[subword_tags[idx]] for idx in word_first_subword]
         word_tags2 = [self.id2label[predictions2[idx]] for idx in word_first_subword]
 
-        final_tags = self.trust_strategy(word_tags,word_tags2)
+        word_tags3 = self.crf_predictor.predict(text)
+
+        final_tags = self.trust_strategy(word_tags,word_tags2,word_tags3)
         return list(zip(words, final_tags))
 
 
@@ -186,3 +184,10 @@ class PIIDetector:
 
 
 
+if __name__ == "__main__":
+    checkpoint_path = os.path.join(_HERE, "..", "models", "distilbert_bilstm_crf.pth")
+    checkpoint_path2 = os.path.join(_HERE, "..", "models", "pii_ner_model.pth")
+    detector = PIIDetector(checkpoint_path,checkpoint_path2)
+    text = "My email is johndoe@gmail.com"
+    predictions = detector.predict(text)
+    print(predictions)
