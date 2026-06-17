@@ -42,3 +42,4 @@ nltk
 textblob
 garak
 optuna
+sklearn-crfsuite
