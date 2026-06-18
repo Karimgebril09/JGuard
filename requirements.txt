@@ -42,3 +42,5 @@ nltk
 textblob
 garak
 optuna
+
+lightgbm
