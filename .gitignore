@@ -29,3 +29,4 @@ defenders/obfuscation/stage8_custom_classifier/models/
 .venv/
 *.json*
 *.html
+*.log
