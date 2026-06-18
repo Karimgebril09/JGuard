@@ -14,7 +14,7 @@ class RiskCalculator:
     def compute_pattern_risk(self, features):
         return (self.pattern_alpha* features["topic_drift_score"] +self.pattern_beta* features["drift_acceleration"])*5
 
-    def calculate_progressive_risk(self, features, prev_progressive: float):
+    def calculate_progressive_risk(self, features, prev_progressive):
         interaction_risk=self.compute_interaction_risk(features)
         pattern_risk=self.compute_pattern_risk(features)
 

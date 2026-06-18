@@ -30,3 +30,4 @@ defenders/obfuscation/stage8_custom_classifier/models/
 *.json*
 *.html
 *.yaml
+*.log
