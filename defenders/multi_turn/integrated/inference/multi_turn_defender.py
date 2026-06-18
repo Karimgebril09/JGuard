@@ -36,44 +36,15 @@ class MultiTurnDefender:
             feature_info=json.load(f)
         self.selected_features=feature_info["selected_features"]
 
-    def _apply_transform(self, series, transform):
-        if transform == "log1p":
-            return np.log1p(np.maximum(series, 0))
 
-        if transform == "square":
-            return np.square(series)
-
-        if transform == "binarize":
-            return (series > 0).astype(float)
-
-        if transform == "yeo-johnson":
-            pt = PowerTransformer(method="yeo-johnson", standardize=False)
-            return pt.fit_transform(
-                np.asarray(series).reshape(-1, 1)
-            ).flatten()
-
-        return series
-
-    def apply_transforms(self, df):
-        df = df.copy()
-
-        for feature, transform in TRANSFORMS.items():
-            if feature not in df.columns:
-                continue
-
-            df[feature] = self._apply_transform(df[feature], transform)
-
-        return df
 
 
     def predict(self, prompt, response) :
         ssm_features, vectors = self._ssm_feature_extractor.extract_features(prompt)
         vectors=pd.DataFrame(vectors, columns=[str(i) for i in range(vectors.shape[1])])
-        tca_features = pd.DataFrame([self._tca_feature_extractor.feature_extract(prompt, response)])
-        features = pd.concat([ssm_features, tca_features], axis=1)
-        features = features[self.selected_features]
-        transformed_features = self.apply_transforms(features)
-        all_features = pd.concat([transformed_features, vectors], axis=1)
+        tca_features = self._tca_feature_extractor.feature_extract(prompt, response)
+       
+        all_features = pd.concat([tca_features, vectors], axis=1)
         prediction = self._model.predict(all_features)
         return prediction[0]
 

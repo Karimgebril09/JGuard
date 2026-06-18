@@ -4,18 +4,19 @@ from typing import Dict, List, Optional
 import joblib
 import numpy as np
 import pandas as pd
+from sentence_transformers import SentenceTransformer
+from sklearn.preprocessing import PowerTransformer
 from transformers import pipeline
+from defenders.multi_turn.integrated.inference.toxisty_threat_models import ThreatModel, ToxicityModel
 from risk_calculator import RiskCalculator
+from transforms import TRANSFORMS
 from feature_extraction import FeatureExtractor
 
-
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_MODELS_DIR = os.path.join(_BASE_DIR, "..", "models")
 class TCAFeatures:
 
-    def __init__(self, embedding_model,risk_params_path: str = "../config/optimized_params_risk.json",
-                 toxicity_model_name: str = "facebook/roberta-hate-speech-dynabench-r4-target",
-                 threat_model_name: str = "tomh/toxigen_roberta",
-                 device: str = "cpu"):
-        self.threshold = .005
+    def __init__(self, embedding_model,risk_params_path: str = "defenders/multi_turn/integrated/config/optimized_params_risk(6).json"):
 
         risk_params = {}
         if os.path.exists(risk_params_path):
@@ -23,8 +24,8 @@ class TCAFeatures:
                 risk_params = json.load(f)
         self._risk_calc = RiskCalculator(**risk_params)
 
-        self._toxicity_model = pipeline("text-classification", model=toxicity_model_name, device=device)
-        self._threat_model = pipeline("text-classification", model=threat_model_name, device=device)
+        self._toxicity_model = ToxicityModel()
+        self._threat_model =ThreatModel()
         self._embedding_model = embedding_model
 
         self._raw_history: List[Dict] = []
@@ -41,10 +42,7 @@ class TCAFeatures:
 
     def feature_extract(self, user_msg, assistant_msg):
 
-        raw = self._feature_extractor.extract_features(
-            user_msg=user_msg,
-            assistant_msg=assistant_msg,
-        )
+        raw = self._feature_extractor.extract_features(user_msg,assistant_msg)
 
         interaction_risk = self._risk_calc.compute_interaction_risk(raw)
         pattern_risk = self._risk_calc.compute_pattern_risk(raw)
@@ -74,11 +72,48 @@ class TCAFeatures:
 
         if len(self.memory) > 10:
             self.memory.pop(0)
+            
+        feature_info_path=os.path.join(_BASE_DIR, "..", "config", "feature_info(6).json")
+        with open(feature_info_path) as f:
+            feature_info=json.load(f)
+        selected_features=feature_info["selected_features"]
+        features = pd.DataFrame([row])
+    
+        tca_features_transformed = self.apply_transforms(features[selected_features])
+    
+        scaler=joblib.load(os.path.join(_MODELS_DIR, "scaler(6).pkl"))
+        tca_features_transformed[selected_features] = scaler.transform(tca_features_transformed[selected_features])
+        
+        return tca_features_transformed
+    
+    def _apply_transform(self, series, transform):
+        if transform == "log1p":
+            return np.log1p(np.maximum(series, 0))
 
+        if transform == "square":
+            return np.square(series)
 
+        if transform == "binarize":
+            return (series > 0).astype(float)
 
-        return row
+        if transform == "yeo-johnson":
+            pt = PowerTransformer(method="yeo-johnson", standardize=False)
+            return pt.fit_transform(
+                np.asarray(series).reshape(-1, 1)
+            ).flatten()
 
+        return series
+
+    def apply_transforms(self, df):
+        df = df.copy()
+
+        for feature, transform in TRANSFORMS.items():
+            if feature not in df.columns:
+                continue
+
+            df[feature] = self._apply_transform(df[feature], transform)
+
+        return df
     def engineer_features(self, row):
         history_rows = self.memory
 
@@ -131,3 +166,11 @@ class TCAFeatures:
        
 
         return row
+
+if __name__ == "__main__":
+    embdedding_model = SentenceTransformer( "all-mpnet-base-v2")
+    tca_extractor = TCAFeatures(embdedding_model)
+    user_msg = "Hello, how are you?"
+    assistant_msg = "I'm good, thank you!"
+    features = tca_extractor.feature_extract(user_msg, assistant_msg)
+    print(features)
