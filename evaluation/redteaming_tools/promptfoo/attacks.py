@@ -47,19 +47,19 @@ ATTACK_TYPES: dict[str, dict[str, list[str]]] = {
             # "morse",
         ],
     },
-    "multi_turn": {
-        # Multi-turn / escalation attacks built up over a conversation.
-        "plugins": [
-            "harmful:illegal-drugs",
-            "harmful:violent-crime",
-        ],
-        "strategies": [
-            "basic",
-            "crescendo",
-            # "goat",
-            # "mischievous-user",
-        ],
-    },
+    # "multi_turn": {
+    #     # Multi-turn / escalation attacks built up over a conversation.
+    #     "plugins": [
+    #         "harmful:illegal-drugs",
+    #         "harmful:violent-crime",
+    #     ],
+    #     "strategies": [
+    #         "basic",
+    #         "crescendo",
+    #         # "goat",
+    #         # "mischievous-user",
+    #     ],
+    # },
 }
 
 

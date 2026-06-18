@@ -18,9 +18,21 @@ from evaluation.redteaming_tools.garak.config import (
     TARGET_SAMPLES,
 )
 from evaluation.redteaming_tools.garak.garak_pipeline import build_dataset_from_garak
+from evaluation.redteaming_tools.promptfoo.attacks import ATTACK_TYPES as PROMPTFOO_ATTACK_TYPES
+from evaluation.redteaming_tools.promptfoo.config import (
+    DATASET_PATH as PROMPTFOO_DATASET_PATH,
+    DEFAULT_PURPOSE as PROMPTFOO_DEFAULT_PURPOSE,
+    MIN_PROMPT_CHARS as PROMPTFOO_MIN_PROMPT_CHARS,
+    NUM_TESTS_PER_PLUGIN as PROMPTFOO_NUM_TESTS_PER_PLUGIN,
+    PROMPTFOO_TIMEOUT_SECONDS,
+    REPORTS_DIR as PROMPTFOO_REPORTS_DIR,
+    TARGET_SAMPLES as PROMPTFOO_TARGET_SAMPLES,
+)
+from evaluation.redteaming_tools.promptfoo.promptfoo_pipeline import build_dataset_from_promptfoo
 
 from backend.app.core import eval_store
 from backend.app.core.garak_eval_metrics import build_garak_eval_record
+from backend.app.core.promptfoo_eval_metrics import build_promptfoo_eval_record
 from backend.app.models.redteam_models import LaunchCampaignRequest
 
 
@@ -316,6 +328,119 @@ def _run_custom_campaign(campaign_id: str, payload: LaunchCampaignRequest) -> No
         _append_log(campaign, f"Saved evaluation metrics for run_id={run_id}")
 
 
+_PROMPTFOO_TARGET_ID_MAP: dict[str, str] = {
+    "openai": "openai:{model}",
+    "anthropic": "anthropic:{model}",
+    "ollama": "ollama:chat:{model}",
+    "gemini": "google:{model}",
+    "litellm": "litellm:{model}",
+}
+
+
+def _build_promptfoo_target_id(target_type: str, target_model: str) -> str:
+    template = _PROMPTFOO_TARGET_ID_MAP.get(target_type)
+    if template:
+        return template.format(model=target_model)
+    return f"{target_type}:{target_model}"
+
+
+def _run_promptfoo_campaign(campaign_id: str, payload: LaunchCampaignRequest) -> None:
+    run_id = campaign_id
+    with _CAMPAIGNS_LOCK:
+        campaign = _CAMPAIGNS.get(campaign_id)
+        if campaign is None:
+            return
+        stop_event = campaign["stop_event"]
+        started_at = _parse_iso_datetime(campaign["started_at"])
+
+    target_type = payload.target_type or "ollama"
+    target_model = payload.target_model or "unknown"
+    target_id = _build_promptfoo_target_id(target_type, target_model)
+
+    with _CAMPAIGNS_LOCK:
+        campaign = _CAMPAIGNS.get(campaign_id)
+        if campaign is not None:
+            campaign["progress_pct"] = 20
+            _append_log(campaign, "Starting promptfoo run")
+            _append_log(campaign, f"Target: {target_type}/{target_model} → {target_id}")
+
+    try:
+        result = build_dataset_from_promptfoo(
+            target_id=target_id,
+            target_label=target_model,
+            purpose=PROMPTFOO_DEFAULT_PURPOSE,
+            attack_types=sorted(PROMPTFOO_ATTACK_TYPES.keys()),
+            output_path=Path(PROMPTFOO_DATASET_PATH),
+            reports_dir=Path(PROMPTFOO_REPORTS_DIR),
+            max_prompts=PROMPTFOO_TARGET_SAMPLES,
+            min_prompt_chars=PROMPTFOO_MIN_PROMPT_CHARS,
+            num_tests=PROMPTFOO_NUM_TESTS_PER_PLUGIN,
+            timeout_seconds=PROMPTFOO_TIMEOUT_SECONDS,
+            stop_event=stop_event,
+        )
+    except Exception as exc:  # noqa: BLE001
+        is_cancelled = stop_event.is_set() or "cancel" in str(exc).lower()
+        new_status = "stopped" if is_cancelled else "failed"
+        with _CAMPAIGNS_LOCK:
+            campaign = _CAMPAIGNS.get(campaign_id)
+            if campaign is None:
+                return
+            campaign["status"] = new_status
+            campaign["progress_pct"] = 100
+            if is_cancelled:
+                _append_log(campaign, "Promptfoo campaign stopped by user.")
+            else:
+                _append_log(campaign, f"Promptfoo campaign failed: {exc}")
+        return
+
+    with _CAMPAIGNS_LOCK:
+        campaign = _CAMPAIGNS.get(campaign_id)
+        if campaign is None:
+            return
+        campaign["status"] = "completed"
+        campaign["progress_pct"] = 100
+        for rp in result.results_paths:
+            _append_log(campaign, f"Promptfoo results: {rp}")
+        _append_log(campaign, f"Saved {result.prompt_count} prompts to {result.output_path}")
+
+    try:
+        end_time = datetime.now(timezone.utc)
+        eval_record = build_promptfoo_eval_record(
+            run_id=run_id,
+            results_paths=result.results_paths,
+            target_model=f"{target_type}/{target_model}",
+            strategy="tool_based",
+            defenses_active="promptfoo_default",
+            start_time=started_at,
+            end_time=end_time,
+        )
+        eval_store.add_run(eval_record)
+        with _CAMPAIGNS_LOCK:
+            campaign = _CAMPAIGNS.get(campaign_id)
+            if campaign is not None:
+                _append_log(campaign, f"Saved evaluation metrics for run_id={run_id}")
+    except Exception as exc:  # noqa: BLE001
+        with _CAMPAIGNS_LOCK:
+            campaign = _CAMPAIGNS.get(campaign_id)
+            if campaign is not None:
+                _append_log(campaign, f"Metrics generation failed: {exc}")
+
+
+def _start_promptfoo_worker(campaign_id: str, payload: LaunchCampaignRequest) -> None:
+    worker = Thread(
+        target=_run_promptfoo_campaign,
+        args=(campaign_id, payload),
+        daemon=True,
+        name=f"promptfoo-campaign-{campaign_id}",
+    )
+    with _CAMPAIGNS_LOCK:
+        campaign = _CAMPAIGNS.get(campaign_id)
+        if campaign is None:
+            return
+        campaign["worker"] = worker
+    worker.start()
+
+
 def _start_custom_worker(campaign_id: str, payload: LaunchCampaignRequest) -> None:
     worker = Thread(
         target=_run_custom_campaign,
@@ -338,17 +463,20 @@ def launch_campaign(payload: LaunchCampaignRequest) -> dict[str, object]:
     strategy = payload.strategy
     tool_framework = payload.tool_framework
     is_garak_campaign = strategy == "tool_based" and tool_framework == "garak"
+    is_promptfoo_campaign = strategy == "tool_based" and tool_framework == "promptfoo"
     is_custom_campaign = strategy == "custom"
 
-    if not is_garak_campaign and not is_custom_campaign:
-        raise ValueError("Unsupported campaign configuration. Use tool_based+garak or custom.")
+    if not is_garak_campaign and not is_promptfoo_campaign and not is_custom_campaign:
+        raise ValueError(
+            "Unsupported campaign configuration. Use tool_based+garak, tool_based+promptfoo, or custom."
+        )
 
     with _CAMPAIGNS_LOCK:
         _CAMPAIGNS[campaign_id] = CampaignState(
             status="running",
             progress_pct=5,
             last_poll=0,
-            mode="garak" if is_garak_campaign else "custom",
+            mode="garak" if is_garak_campaign else ("promptfoo" if is_promptfoo_campaign else "custom"),
             started_at=now,
             stop_event=Event(),
             worker=None,
@@ -362,11 +490,15 @@ def launch_campaign(payload: LaunchCampaignRequest) -> dict[str, object]:
         campaign = _CAMPAIGNS[campaign_id]
         if is_garak_campaign:
             _append_log(campaign, "Dispatching Garak runner")
+        elif is_promptfoo_campaign:
+            _append_log(campaign, "Dispatching promptfoo runner")
         elif is_custom_campaign:
             _append_log(campaign, "Dispatching custom redteaming runner")
 
     if is_garak_campaign:
         _start_garak_worker(campaign_id, payload)
+    elif is_promptfoo_campaign:
+        _start_promptfoo_worker(campaign_id, payload)
     elif is_custom_campaign:
         _start_custom_worker(campaign_id, payload)
 
