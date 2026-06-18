@@ -104,6 +104,7 @@ public sealed partial class MainWindow : Window
 
                 state.IsConfigurationLocked = true;
                 state.ApiService.SetActiveSessionId(sessionDialog.SelectedSession.SessionId);
+                state.ActiveSessionIsNew = sessionDialog.IsNewSession;
 
                 NavView_NavigateToHome();
             }
@@ -159,7 +160,9 @@ public sealed partial class MainWindow : Window
             switch (item.Tag)
             {
                 case "home":
-                    if (NavFrame.CurrentSourcePageType != typeof(HomePage)) NavFrame.Navigate(typeof(HomePage));
+                    // The chat page requires an active session. If none is set yet,
+                    // gate it behind the session dialog instead of opening the chat directly.
+                    await NavigateToHomeWithSessionAsync();
                     break;
                 case "redteam":
                     if (NavFrame.CurrentSourcePageType != typeof(RedTeamPage)) NavFrame.Navigate(typeof(RedTeamPage));
@@ -167,16 +170,47 @@ public sealed partial class MainWindow : Window
                 case "evaluation":
                     if (NavFrame.CurrentSourcePageType != typeof(EvaluationPage)) NavFrame.Navigate(typeof(EvaluationPage));
                     break;
-                case "session":
-                    // Re-select the current page so the nav highlight doesn't move
-                    _syncingSelection = true;
-                    sender.SelectedItem = NavFrame.CurrentSourcePageType == typeof(HomePage) ? NavView.MenuItems[0] :
-                                         NavFrame.CurrentSourcePageType == typeof(RedTeamPage) ? NavView.MenuItems[1] :
-                                         NavView.MenuItems[2];
-                    _syncingSelection = false;
-                    await ShowSessionDialogAsync();
-                    break;
             }
+        }
+    }
+
+    private async Task NavigateToHomeWithSessionAsync()
+    {
+        if (NavFrame.CurrentSourcePageType == typeof(HomePage)) return;
+
+        // An active session already exists — go straight to the chat.
+        if (!string.IsNullOrEmpty(AppState.Instance.ApiService.GetActiveSessionId))
+        {
+            NavView_NavigateToHome();
+            return;
+        }
+
+        // No session yet: require the user to pick/create one. ShowSessionDialogAsync
+        // navigates to Home itself when a session is chosen.
+        await ShowSessionDialogAsync();
+
+        // Dialog cancelled (still no session): don't open the chat. Restore the nav
+        // highlight to whatever page is actually showing.
+        if (string.IsNullOrEmpty(AppState.Instance.ApiService.GetActiveSessionId))
+        {
+            SyncNavSelectionToFrame();
+        }
+    }
+
+    // Restore the pane highlight to match the page currently in the frame.
+    private void SyncNavSelectionToFrame()
+    {
+        NavigationViewItem? target =
+            NavFrame.CurrentSourcePageType == typeof(HomePage) ? NavView.MenuItems[0] as NavigationViewItem :
+            NavFrame.CurrentSourcePageType == typeof(RedTeamPage) ? NavView.MenuItems[1] as NavigationViewItem :
+            NavFrame.CurrentSourcePageType == typeof(EvaluationPage) ? NavView.MenuItems[2] as NavigationViewItem :
+            null;
+
+        if (target != null && !ReferenceEquals(NavView.SelectedItem, target))
+        {
+            _syncingSelection = true;
+            NavView.SelectedItem = target;
+            _syncingSelection = false;
         }
     }
 }

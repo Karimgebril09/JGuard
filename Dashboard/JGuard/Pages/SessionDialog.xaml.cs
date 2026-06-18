@@ -107,6 +107,33 @@ public sealed partial class SessionDialog : ContentDialog
         }
     }
 
+    private void ActivateAllDefensesButton_Checked(object sender, RoutedEventArgs e)
+    {
+        // Checking PiiCheck also reveals the PII strategy panel via its Checked handler
+        ObfuscationCheck.IsChecked = true;
+        MultiTurnCheck.IsChecked = true;
+        RoleplayCheck.IsChecked = true;
+        PiiCheck.IsChecked = true;
+
+        ActivateAllText.Text = "All Active";
+        var on = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xEC, 0xFD, 0xF5)); // #ECFDF5
+        ActivateAllText.Foreground = on;
+        ActivateAllIcon.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xA7, 0xF3, 0xD0)); // #A7F3D0
+    }
+
+    private void ActivateAllDefensesButton_Unchecked(object sender, RoutedEventArgs e)
+    {
+        ObfuscationCheck.IsChecked = false;
+        MultiTurnCheck.IsChecked = false;
+        RoleplayCheck.IsChecked = false;
+        PiiCheck.IsChecked = false;
+
+        ActivateAllText.Text = "Activate All";
+        var off = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x94, 0xA3, 0xB8)); // #94A3B8
+        ActivateAllText.Foreground = off;
+        ActivateAllIcon.Foreground = off;
+    }
+
     private async void SessionDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
     {
         var deferral = args.GetDeferral();

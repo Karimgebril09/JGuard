@@ -162,6 +162,7 @@
                                 <TextBlock Grid.Column="1" TextWrapping="Wrap" Foreground="#BBF7D0" FontSize="11">
                                     <Run FontWeight="SemiBold">Open source models must be running locally before starting a session.</Run>
                                     <Run>Make sure your model is pulled and served (e.g. via Ollama) before clicking Continue.</Run>
+                                    <Run>Or use a custom base URL.</Run>
                                 </TextBlock>
                             </Grid>
                         </Border>
@@ -180,13 +181,44 @@
 
                     <!-- Defenses -->
                     <StackPanel Spacing="8">
-                        <TextBlock Text="Defenses" FontSize="11" FontWeight="SemiBold" Foreground="#94A3B8"/>
-                        
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Defenses" FontSize="11" FontWeight="SemiBold" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                            <ToggleButton Grid.Column="1" x:Name="ActivateAllDefensesButton"
+                                          Checked="ActivateAllDefensesButton_Checked"
+                                          Unchecked="ActivateAllDefensesButton_Unchecked"
+                                          Padding="10,4" BorderThickness="1" CornerRadius="6">
+                                <ToggleButton.Resources>
+                                    <!-- Unchecked (neutral slate) -->
+                                    <SolidColorBrush x:Key="ToggleButtonBackground" Color="#1E293B"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBackgroundPointerOver" Color="#27364B"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBackgroundPressed" Color="#0F172A"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBorderBrush" Color="#334155"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBorderBrushPointerOver" Color="#475569"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBorderBrushPressed" Color="#334155"/>
+                                    <!-- Checked (green active) -->
+                                    <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="#064E3B"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="#076049"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPressed" Color="#053E30"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBorderBrushChecked" Color="#10B981"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPointerOver" Color="#10B981"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPressed" Color="#10B981"/>
+                                </ToggleButton.Resources>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon x:Name="ActivateAllIcon" Glyph="&#xE73E;" FontSize="11" Foreground="#94A3B8"/>
+                                    <TextBlock x:Name="ActivateAllText" Text="Activate All" FontSize="11" Foreground="#94A3B8"/>
+                                </StackPanel>
+                            </ToggleButton>
+                        </Grid>
+
                         <StackPanel Orientation="Horizontal" Spacing="16">
                             <CheckBox x:Name="ObfuscationCheck" Content="Obfuscation" Foreground="#F5F5F5"/>
                             <CheckBox x:Name="MultiTurnCheck" Content="Multi-Turn" Foreground="#F5F5F5"/>
                         </StackPanel>
-                        
+
                         <StackPanel Orientation="Horizontal" Spacing="16">
                             <CheckBox x:Name="RoleplayCheck" Content="Roleplay" Foreground="#F5F5F5"/>
                             <CheckBox x:Name="PiiCheck" Content="PII Protection" Foreground="#F5F5F5"/>

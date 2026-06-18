@@ -162,7 +162,7 @@ public sealed partial class ChatPage : Page
                 Role = "assistant",
                 Timestamp = ts,
                 Blocked = response.Blocked,
-                TriggeredDefense = response.TriggeredDefense,
+                TriggeredDefenses = response.TriggeredDefenses,
                 Decision = response.Decision,
                 HarmLabel = response.HarmLabel
             };
