@@ -69,9 +69,10 @@ public sealed partial class HomePage : Page
         
         _messages.Clear();
         
-        // Load history if active session exists
+        // Load history only when resuming an existing session. A brand-new session
+        // has no server-side history, so skip the fetch and just show the welcome.
         string? sessionId = _apiService.GetActiveSessionId;
-        if (!string.IsNullOrEmpty(sessionId))
+        if (!string.IsNullOrEmpty(sessionId) && !state.ActiveSessionIsNew)
         {
             await LoadChatHistoryAsync(sessionId);
         }
@@ -79,6 +80,9 @@ public sealed partial class HomePage : Page
         {
             AddWelcomeMessage();
         }
+
+        // Flag consumed: a later return to this session should load its history.
+        state.ActiveSessionIsNew = false;
 
         ChatListView.ItemsSource = _messages;
     }
@@ -164,6 +168,7 @@ public sealed partial class HomePage : Page
 
             // Set active session in API service
             state.ApiService.SetActiveSessionId(sessionDialog.SelectedSession.SessionId);
+            state.ActiveSessionIsNew = sessionDialog.IsNewSession;
 
             // Reload UI to reflect new session
             await LoadStateAsync();
@@ -371,7 +376,7 @@ public sealed partial class HomePage : Page
                 Role = "assistant",
                 Timestamp = ts,
                 Blocked = response.Blocked,
-                TriggeredDefense = response.TriggeredDefense,
+                TriggeredDefenses = response.TriggeredDefenses,
                 Decision = response.Decision,
                 HarmLabel = response.HarmLabel
             };

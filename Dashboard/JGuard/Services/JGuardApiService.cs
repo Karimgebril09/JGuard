@@ -15,7 +15,12 @@ public class JGuardApiService
     public JGuardApiService(string baseUrl)
     {
         _baseUrl = baseUrl.TrimEnd('/');
-        _httpClient = new HttpClient();
+        _httpClient = new HttpClient
+        {
+            // LLM inference plus the defense pipeline can take well over the
+            // default 100s, especially on cold/local models. Allow up to 10 minutes.
+            Timeout = TimeSpan.FromMinutes(10)
+        };
     }
 
     /// <summary>
@@ -29,6 +34,29 @@ public class JGuardApiService
     public void SetActiveSessionId(string sessionId)
     {
         _activeSessionId = sessionId;
+    }
+
+    /// <summary>
+    /// Gets all sessions from the API
+    /// </summary>
+    public async Task<List<Session>> GetAllSessionsAsync()
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"{_baseUrl}/api/sessions");
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<SessionListResponse>();
+                return result?.Sessions ?? new List<Session>();
+            }
+            System.Diagnostics.Debug.WriteLine($"API Error fetching sessions: {response.StatusCode}");
+            return new List<Session>();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error fetching sessions: {ex.Message}");
+            return new List<Session>();
+        }
     }
 
     /// <summary>

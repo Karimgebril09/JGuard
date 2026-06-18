@@ -56,6 +56,12 @@ public class Session
     }
 }
 
+public class SessionListResponse
+{
+    [JsonPropertyName("sessions")]
+    public List<Session> Sessions { get; set; } = new();
+}
+
 public class SessionHistory
 {
     [JsonPropertyName("session_id")]

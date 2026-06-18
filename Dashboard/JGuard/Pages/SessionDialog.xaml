@@ -151,6 +151,21 @@
 
                     <!-- Open Source extras: optional custom base URL -->
                     <StackPanel x:Name="OpenSourceExtrasPanel" Spacing="8">
+                        <!-- Open source note -->
+                        <Border Background="#1C2A1A" BorderBrush="#4ADE80" BorderThickness="1" CornerRadius="6" Padding="10,8">
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <FontIcon Grid.Column="0" Glyph="&#xE946;" FontSize="13" Foreground="#4ADE80" VerticalAlignment="Top" Margin="0,1,0,0"/>
+                                <TextBlock Grid.Column="1" TextWrapping="Wrap" Foreground="#BBF7D0" FontSize="11">
+                                    <Run FontWeight="SemiBold">Open source models must be running locally before starting a session.</Run>
+                                    <Run>Make sure your model is pulled and served (e.g. via Ollama) before clicking Continue.</Run>
+                                    <Run>Or use a custom base URL.</Run>
+                                </TextBlock>
+                            </Grid>
+                        </Border>
                         <CheckBox x:Name="UseBaseUrlCheck" Content="Use custom LLM base URL" Foreground="#F5F5F5"/>
                         <StackPanel x:Name="LLMBaseUrlPanel" Spacing="4" Visibility="Collapsed">
                             <TextBlock Text="LLM Base URL" FontSize="11" Foreground="#94A3B8"/>
@@ -166,13 +181,44 @@
 
                     <!-- Defenses -->
                     <StackPanel Spacing="8">
-                        <TextBlock Text="Defenses" FontSize="11" FontWeight="SemiBold" Foreground="#94A3B8"/>
-                        
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Defenses" FontSize="11" FontWeight="SemiBold" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                            <ToggleButton Grid.Column="1" x:Name="ActivateAllDefensesButton"
+                                          Checked="ActivateAllDefensesButton_Checked"
+                                          Unchecked="ActivateAllDefensesButton_Unchecked"
+                                          Padding="10,4" BorderThickness="1" CornerRadius="6">
+                                <ToggleButton.Resources>
+                                    <!-- Unchecked (neutral slate) -->
+                                    <SolidColorBrush x:Key="ToggleButtonBackground" Color="#1E293B"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBackgroundPointerOver" Color="#27364B"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBackgroundPressed" Color="#0F172A"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBorderBrush" Color="#334155"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBorderBrushPointerOver" Color="#475569"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBorderBrushPressed" Color="#334155"/>
+                                    <!-- Checked (green active) -->
+                                    <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="#064E3B"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="#076049"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPressed" Color="#053E30"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBorderBrushChecked" Color="#10B981"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPointerOver" Color="#10B981"/>
+                                    <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPressed" Color="#10B981"/>
+                                </ToggleButton.Resources>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon x:Name="ActivateAllIcon" Glyph="&#xE73E;" FontSize="11" Foreground="#94A3B8"/>
+                                    <TextBlock x:Name="ActivateAllText" Text="Activate All" FontSize="11" Foreground="#94A3B8"/>
+                                </StackPanel>
+                            </ToggleButton>
+                        </Grid>
+
                         <StackPanel Orientation="Horizontal" Spacing="16">
                             <CheckBox x:Name="ObfuscationCheck" Content="Obfuscation" Foreground="#F5F5F5"/>
                             <CheckBox x:Name="MultiTurnCheck" Content="Multi-Turn" Foreground="#F5F5F5"/>
                         </StackPanel>
-                        
+
                         <StackPanel Orientation="Horizontal" Spacing="16">
                             <CheckBox x:Name="RoleplayCheck" Content="Roleplay" Foreground="#F5F5F5"/>
                             <CheckBox x:Name="PiiCheck" Content="PII Protection" Foreground="#F5F5F5"/>
@@ -183,9 +229,10 @@
                     <StackPanel x:Name="PiiStrategyPanel" Spacing="4" Visibility="Collapsed">
                         <TextBlock Text="PII Strategy" FontSize="11" Foreground="#94A3B8"/>
                         <ComboBox x:Name="PiiStrategyCombo" SelectedIndex="0">
-                            <ComboBoxItem>Mask</ComboBoxItem>
-                            <ComboBoxItem>Encrypt</ComboBoxItem>
-                            <ComboBoxItem>Block</ComboBoxItem>
+                            <ComboBoxItem Tag="mask">Mask</ComboBoxItem>
+                            <ComboBoxItem Tag="hash">Hash</ComboBoxItem>
+                            <ComboBoxItem Tag="block">Block</ComboBoxItem>
+                            <ComboBoxItem Tag="partial masking">Partial Masking</ComboBoxItem>
                         </ComboBox>
                     </StackPanel>
                 </StackPanel>
