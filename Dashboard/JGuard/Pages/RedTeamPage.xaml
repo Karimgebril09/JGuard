@@ -42,10 +42,10 @@
 
                             <Pivot x:Name="StrategyPivot" SelectionChanged="StrategyPivot_SelectionChanged">
 
-                                <!-- Tab 1: Tool-Based (no LLM config needed) -->
+                                <!-- Tab 1: Tool-Based -->
                                 <PivotItem Header="Tool-Based">
                                     <StackPanel Spacing="12" Margin="0,10,0,0">
-                                        <TextBlock Text="Run preset attack suites via an industry-standard framework. No LLM configuration required." FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                                        <TextBlock Text="Run preset attack suites via an industry-standard framework against your target model." FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap"/>
 
                                         <StackPanel Spacing="4">
                                             <TextBlock Text="Framework" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
@@ -55,10 +55,26 @@
                                             </ComboBox>
                                         </StackPanel>
 
-                                        <StackPanel Spacing="4">
-                                            <TextBlock Text="Num Samples" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
-                                            <NumberBox x:Name="NumSamplesTool" Value="10" Minimum="1" Maximum="500" SpinButtonPlacementMode="Compact" SmallChange="5" HorizontalAlignment="Stretch"/>
-                                        </StackPanel>
+                                        <!-- Target Model -->
+                                        <Border Background="#0D1117" CornerRadius="6" Padding="10">
+                                            <StackPanel Spacing="8">
+                                                <TextBlock Text="TARGET MODEL" FontSize="10" FontWeight="Bold" Foreground="#FFB800" CharacterSpacing="100"/>
+                                                <Grid ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="110"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <ComboBox x:Name="ComboToolTargetType" HorizontalAlignment="Stretch" SelectedIndex="0" SelectionChanged="ToolTargetType_Changed">
+                                                        <ComboBoxItem Content="Ollama" Tag="ollama"/>
+                                                        <ComboBoxItem Content="OpenAI" Tag="openai"/>
+                                                        <ComboBoxItem Content="Gemini" Tag="gemini"/>
+                                                    </ComboBox>
+                                                    <TextBox Grid.Column="1" x:Name="TextToolTargetModel" PlaceholderText="model name" FontSize="12"/>
+                                                </Grid>
+                                                <PasswordBox x:Name="PwdToolTargetKey" PlaceholderText="API Key" FontSize="12" Visibility="Collapsed"/>
+                                                <TextBox x:Name="TextToolTargetUrl" PlaceholderText="Base URL (optional)" FontSize="12"/>
+                                            </StackPanel>
+                                        </Border>
                                     </StackPanel>
                                 </PivotItem>
 
@@ -102,16 +118,15 @@
                                                         <ColumnDefinition Width="110"/>
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <ComboBox x:Name="ComboAttackerType" HorizontalAlignment="Stretch" SelectedIndex="0">
+                                                    <ComboBox x:Name="ComboAttackerType" HorizontalAlignment="Stretch" SelectedIndex="0" SelectionChanged="AttackerType_Changed">
                                                         <ComboBoxItem Content="Ollama" Tag="ollama"/>
                                                         <ComboBoxItem Content="OpenAI" Tag="openai"/>
                                                         <ComboBoxItem Content="Gemini" Tag="gemini"/>
-                                                        <ComboBoxItem Content="Custom" Tag="custom"/>
                                                     </ComboBox>
-                                                    <TextBox Grid.Column="1" x:Name="TextAttackerModel" PlaceholderText="model name" FontSize="12" Text="qwen2.5:3b-instruct"/>
+                                                    <TextBox Grid.Column="1" x:Name="TextAttackerModel" PlaceholderText="model name" FontSize="12"/>
                                                 </Grid>
-                                                <PasswordBox x:Name="PwdAttackerKey" PlaceholderText="API Key (optional for Ollama)" FontSize="12"/>
-                                                <TextBox x:Name="TextAttackerUrl" PlaceholderText="Base URL (leave blank for default)" FontSize="12"/>
+                                                <PasswordBox x:Name="PwdAttackerKey" PlaceholderText="API Key" FontSize="12" Visibility="Collapsed"/>
+                                                <TextBox x:Name="TextAttackerUrl" PlaceholderText="Base URL (optional)" FontSize="12"/>
                                             </StackPanel>
                                         </Border>
 
@@ -124,16 +139,15 @@
                                                         <ColumnDefinition Width="110"/>
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <ComboBox x:Name="ComboTargetType" HorizontalAlignment="Stretch" SelectedIndex="0">
+                                                    <ComboBox x:Name="ComboTargetType" HorizontalAlignment="Stretch" SelectedIndex="0" SelectionChanged="CustomTargetType_Changed">
                                                         <ComboBoxItem Content="Ollama" Tag="ollama"/>
                                                         <ComboBoxItem Content="OpenAI" Tag="openai"/>
                                                         <ComboBoxItem Content="Gemini" Tag="gemini"/>
-                                                        <ComboBoxItem Content="Custom" Tag="custom"/>
                                                     </ComboBox>
-                                                    <TextBox Grid.Column="1" x:Name="TextTargetModel" PlaceholderText="model name" FontSize="12" Text="qwen2.5:3b-instruct"/>
+                                                    <TextBox Grid.Column="1" x:Name="TextTargetModel" PlaceholderText="model name" FontSize="12"/>
                                                 </Grid>
-                                                <PasswordBox x:Name="PwdTargetKey" PlaceholderText="API Key (optional for Ollama)" FontSize="12"/>
-                                                <TextBox x:Name="TextTargetUrl" PlaceholderText="Base URL (leave blank for default)" FontSize="12"/>
+                                                <PasswordBox x:Name="PwdTargetKey" PlaceholderText="API Key" FontSize="12" Visibility="Collapsed"/>
+                                                <TextBox x:Name="TextTargetUrl" PlaceholderText="Base URL (optional)" FontSize="12"/>
                                             </StackPanel>
                                         </Border>
 
@@ -146,16 +160,15 @@
                                                         <ColumnDefinition Width="110"/>
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <ComboBox x:Name="ComboJudgeType" HorizontalAlignment="Stretch" SelectedIndex="0">
+                                                    <ComboBox x:Name="ComboJudgeType" HorizontalAlignment="Stretch" SelectedIndex="0" SelectionChanged="JudgeType_Changed">
                                                         <ComboBoxItem Content="Ollama" Tag="ollama"/>
                                                         <ComboBoxItem Content="OpenAI" Tag="openai"/>
                                                         <ComboBoxItem Content="Gemini" Tag="gemini"/>
-                                                        <ComboBoxItem Content="Custom" Tag="custom"/>
                                                     </ComboBox>
-                                                    <TextBox Grid.Column="1" x:Name="TextJudgeModel" PlaceholderText="model name" FontSize="12" Text="qwen2.5:3b-instruct"/>
+                                                    <TextBox Grid.Column="1" x:Name="TextJudgeModel" PlaceholderText="model name" FontSize="12"/>
                                                 </Grid>
-                                                <PasswordBox x:Name="PwdJudgeKey" PlaceholderText="API Key (optional for Ollama)" FontSize="12"/>
-                                                <TextBox x:Name="TextJudgeUrl" PlaceholderText="Base URL (leave blank for default)" FontSize="12"/>
+                                                <PasswordBox x:Name="PwdJudgeKey" PlaceholderText="API Key" FontSize="12" Visibility="Collapsed"/>
+                                                <TextBox x:Name="TextJudgeUrl" PlaceholderText="Base URL (optional)" FontSize="12"/>
                                             </StackPanel>
                                         </Border>
                                     </StackPanel>
@@ -167,10 +180,42 @@
                     <!-- Protection Options -->
                     <Border Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
                         <StackPanel Spacing="12">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <FontIcon Glyph="&#xE811;" Foreground="#FFB800" FontSize="18"/>
-                                <TextBlock Text="Protection Options" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            </StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE811;" Foreground="#FFB800" FontSize="18"/>
+                                    <TextBlock Text="Protection Options" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <ToggleButton Grid.Column="1" x:Name="ActivateAllDefensesButton"
+                                              VerticalAlignment="Center"
+                                              Checked="ActivateAllDefensesButton_Checked"
+                                              Unchecked="ActivateAllDefensesButton_Unchecked"
+                                              Padding="10,4" BorderThickness="1" CornerRadius="6">
+                                    <ToggleButton.Resources>
+                                        <!-- Unchecked (neutral slate) -->
+                                        <SolidColorBrush x:Key="ToggleButtonBackground" Color="#1E293B"/>
+                                        <SolidColorBrush x:Key="ToggleButtonBackgroundPointerOver" Color="#27364B"/>
+                                        <SolidColorBrush x:Key="ToggleButtonBackgroundPressed" Color="#0F172A"/>
+                                        <SolidColorBrush x:Key="ToggleButtonBorderBrush" Color="#334155"/>
+                                        <SolidColorBrush x:Key="ToggleButtonBorderBrushPointerOver" Color="#475569"/>
+                                        <SolidColorBrush x:Key="ToggleButtonBorderBrushPressed" Color="#334155"/>
+                                        <!-- Checked (green active) -->
+                                        <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="#064E3B"/>
+                                        <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="#076049"/>
+                                        <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPressed" Color="#053E30"/>
+                                        <SolidColorBrush x:Key="ToggleButtonBorderBrushChecked" Color="#10B981"/>
+                                        <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPointerOver" Color="#10B981"/>
+                                        <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPressed" Color="#10B981"/>
+                                    </ToggleButton.Resources>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon x:Name="ActivateAllIcon" Glyph="&#xE73E;" FontSize="11" Foreground="#94A3B8"/>
+                                        <TextBlock x:Name="ActivateAllText" Text="Activate All" FontSize="11" Foreground="#94A3B8"/>
+                                    </StackPanel>
+                                </ToggleButton>
+                            </Grid>
                             <TextBlock Text="Activate defenses on the target model during the campaign:" FontSize="12" Foreground="#94A3B8"/>
 
                             <MenuFlyoutSeparator Background="#19FFFFFF"/>
@@ -184,8 +229,9 @@
                                 <TextBlock Text="PII Strategy" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
                                 <ComboBox x:Name="ComboPiiStrategy" HorizontalAlignment="Stretch" SelectedIndex="0" IsEnabled="False">
                                     <ComboBoxItem Content="Mask" Tag="mask"/>
-                                    <ComboBoxItem Content="Redact" Tag="redact"/>
-                                    <ComboBoxItem Content="Anonymize" Tag="anonymize"/>
+                                    <ComboBoxItem Content="Hash" Tag="hash"/>
+                                    <ComboBoxItem Content="Block" Tag="block"/>
+                                    <ComboBoxItem Content="Partial Masking" Tag="partial masking"/>
                                 </ComboBox>
                             </StackPanel>
                         </StackPanel>

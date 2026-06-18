@@ -39,9 +39,72 @@ public sealed partial class RedTeamPage : Page
         ComboPiiStrategy.IsEnabled = on;
     }
 
+    private void ToolTargetType_Changed(object sender, SelectionChangedEventArgs e)
+        => UpdateProviderFields(GetTag(ComboToolTargetType), PwdToolTargetKey, TextToolTargetUrl);
+
+    private void AttackerType_Changed(object sender, SelectionChangedEventArgs e)
+        => UpdateProviderFields(GetTag(ComboAttackerType), PwdAttackerKey, TextAttackerUrl);
+
+    private void CustomTargetType_Changed(object sender, SelectionChangedEventArgs e)
+        => UpdateProviderFields(GetTag(ComboTargetType), PwdTargetKey, TextTargetUrl);
+
+    private void JudgeType_Changed(object sender, SelectionChangedEventArgs e)
+        => UpdateProviderFields(GetTag(ComboJudgeType), PwdJudgeKey, TextJudgeUrl);
+
+    // Ollama runs locally: show the (optional) base URL and hide the API key.
+    // Cloud providers (OpenAI/Gemini): show the API key and hide the base URL.
+    private static void UpdateProviderFields(string? providerType, PasswordBox apiKeyBox, TextBox baseUrlBox)
+    {
+        if (apiKeyBox == null || baseUrlBox == null) return; // not yet realized during initial XAML parse
+
+        bool isLocal = providerType == "ollama";
+        apiKeyBox.Visibility  = isLocal ? Visibility.Collapsed : Visibility.Visible;
+        baseUrlBox.Visibility = isLocal ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void ActivateAllDefensesButton_Checked(object sender, RoutedEventArgs e)
+    {
+        // Toggling TogglePii also reveals the PII strategy panel via its Toggled handler
+        ToggleObfuscation.IsOn = true;
+        ToggleRoleplay.IsOn = true;
+        ToggleMultiTurn.IsOn = true;
+        TogglePii.IsOn = true;
+
+        ActivateAllText.Text = "All Active";
+        var on = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xEC, 0xFD, 0xF5)); // #ECFDF5
+        ActivateAllText.Foreground = on;
+        ActivateAllIcon.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xA7, 0xF3, 0xD0)); // #A7F3D0
+    }
+
+    private void ActivateAllDefensesButton_Unchecked(object sender, RoutedEventArgs e)
+    {
+        ToggleObfuscation.IsOn = false;
+        ToggleRoleplay.IsOn = false;
+        ToggleMultiTurn.IsOn = false;
+        TogglePii.IsOn = false;
+
+        ActivateAllText.Text = "Activate All";
+        var off = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x94, 0xA3, 0xB8)); // #94A3B8
+        ActivateAllText.Foreground = off;
+        ActivateAllIcon.Foreground = off;
+    }
+
     private async void BtnLaunch_Click(object sender, RoutedEventArgs e)
     {
         if (_isRunning) return;
+
+        bool isToolBased = StrategyPivot.SelectedIndex == 0;
+
+        // Target model is required — same idea as the session dialog: don't proceed
+        // with an empty model name, just flag the field and prompt the user.
+        var targetModelBox = isToolBased ? TextToolTargetModel : TextTargetModel;
+        if (string.IsNullOrWhiteSpace(targetModelBox.Text))
+        {
+            targetModelBox.PlaceholderText = "PLEASE ENTER MODEL NAME";
+            targetModelBox.Focus(FocusState.Programmatic);
+            TextControllerStatus.Text = "Target model is required before launching a campaign.";
+            return;
+        }
 
         _isRunning = true;
         BtnLaunch.IsEnabled = false;
@@ -52,13 +115,15 @@ public sealed partial class RedTeamPage : Page
         _terminalLog.Clear();
         TextControllerStatus.Text = "Launching red team campaign...";
 
-        bool isToolBased = StrategyPivot.SelectedIndex == 0;
         var request = BuildLaunchRequest(isToolBased);
 
         AppendTerminalLine("[INIT] Building campaign configuration...");
         AppendTerminalLine($"[CONFIG] Strategy: {request.Strategy}");
         if (isToolBased)
+        {
             AppendTerminalLine($"[CONFIG] Framework: {request.ToolFramework}");
+            AppendTerminalLine($"[CONFIG] Target:   {request.TargetType}/{request.TargetModel}");
+        }
         else
         {
             AppendTerminalLine($"[CONFIG] Attack Type: {request.CustomAttackType}");
@@ -66,8 +131,8 @@ public sealed partial class RedTeamPage : Page
             AppendTerminalLine($"[CONFIG] Attacker: {request.AttackerType}/{request.AttackerModel}");
             AppendTerminalLine($"[CONFIG] Target:   {request.TargetType}/{request.TargetModel}");
             AppendTerminalLine($"[CONFIG] Judge:    {request.JudgeType}/{request.JudgeModel}");
+            AppendTerminalLine($"[CONFIG] Samples: {request.NumSamples}");
         }
-        AppendTerminalLine($"[CONFIG] Samples: {request.NumSamples}");
         AppendTerminalLine("[API] Contacting backend to launch campaign...");
 
         var launchResult = await AppState.Instance.ApiService.LaunchRedTeamCampaignAsync(request);
@@ -175,7 +240,10 @@ public sealed partial class RedTeamPage : Page
         {
             req.Strategy       = "tool_based";
             req.ToolFramework  = GetTag(ComboToolFramework) ?? "promptfoo";
-            req.NumSamples     = (int)NumSamplesTool.Value;
+
+            // Tool-based suites still run against a target model
+            ApplyTarget(req, GetTag(ComboToolTargetType) ?? "ollama",
+                TextToolTargetModel.Text, PwdToolTargetKey.Password, TextToolTargetUrl.Text);
         }
         else
         {
@@ -185,30 +253,36 @@ public sealed partial class RedTeamPage : Page
             req.NumSamples       = (int)NumSamplesCustom.Value;
 
             string attackerType = GetTag(ComboAttackerType) ?? "ollama";
-            string targetType   = GetTag(ComboTargetType)   ?? "ollama";
             string judgeType    = GetTag(ComboJudgeType)    ?? "ollama";
 
             req.AttackerType  = attackerType;
-            req.TargetType    = targetType;
             req.JudgeType     = judgeType;
 
             req.AttackerModel = TextAttackerModel.Text.Trim();
-            req.TargetModel   = TextTargetModel.Text.Trim();
             req.JudgeModel    = TextJudgeModel.Text.Trim();
 
             req.AttackerApiKey = NullIfBlank(PwdAttackerKey.Password);
-            req.TargetApiKey   = NullIfBlank(PwdTargetKey.Password);
             req.JudgeApiKey    = NullIfBlank(PwdJudgeKey.Password);
 
             req.AttackerBaseUrl = string.IsNullOrWhiteSpace(TextAttackerUrl.Text)
                 ? DefaultBaseUrl(attackerType) : TextAttackerUrl.Text.Trim();
-            req.TargetBaseUrl   = string.IsNullOrWhiteSpace(TextTargetUrl.Text)
-                ? DefaultBaseUrl(targetType)   : TextTargetUrl.Text.Trim();
             req.JudgeBaseUrl    = string.IsNullOrWhiteSpace(TextJudgeUrl.Text)
                 ? DefaultBaseUrl(judgeType)    : TextJudgeUrl.Text.Trim();
+
+            ApplyTarget(req, GetTag(ComboTargetType) ?? "ollama",
+                TextTargetModel.Text, PwdTargetKey.Password, TextTargetUrl.Text);
         }
 
         return req;
+    }
+
+    // Populates the target-model fields shared by both tool-based and custom strategies.
+    private static void ApplyTarget(RedTeamLaunchRequest req, string targetType, string model, string apiKey, string baseUrl)
+    {
+        req.TargetType    = targetType;
+        req.TargetModel   = model.Trim();
+        req.TargetApiKey  = NullIfBlank(apiKey);
+        req.TargetBaseUrl = string.IsNullOrWhiteSpace(baseUrl) ? DefaultBaseUrl(targetType) : baseUrl.Trim();
     }
 
     private static string? GetTag(ComboBox combo)

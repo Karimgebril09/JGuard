@@ -213,7 +213,7 @@ public sealed partial class EvaluationPage : Page
         try
         {
             var runs = AppState.Instance.AttackRuns;
-            string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "jguard_export.csv");
+            string path = Path.Combine(GetReportsDirectory(), "jguard_export.csv");
 
             using (var writer = new StreamWriter(path))
             {
@@ -237,7 +237,7 @@ public sealed partial class EvaluationPage : Page
         try
         {
             var runs = AppState.Instance.AttackRuns;
-            string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "jguard_export.json");
+            string path = Path.Combine(GetReportsDirectory(), "jguard_export.json");
 
             var jsonContent = System.Text.Json.JsonSerializer.Serialize(runs, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(path, jsonContent);
@@ -248,6 +248,14 @@ public sealed partial class EvaluationPage : Page
         {
             ShowToast($"Export failed: {ex.Message}");
         }
+    }
+
+    // Ensures a "reports" folder exists next to the app and returns its path.
+    private static string GetReportsDirectory()
+    {
+        string dir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "reports");
+        Directory.CreateDirectory(dir);
+        return dir;
     }
 
     private void ShowToast(string message)
