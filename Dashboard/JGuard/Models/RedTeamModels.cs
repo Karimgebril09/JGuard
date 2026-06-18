@@ -18,7 +18,8 @@ public class RedTeamLaunchRequest
     public string? CustomHarmType { get; set; }
 
     [JsonPropertyName("num_samples")]
-    public int NumSamples { get; set; } = 5;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? NumSamples { get; set; }
 
     [JsonPropertyName("judge_model")]
     public string? JudgeModel { get; set; }

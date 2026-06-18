@@ -2,7 +2,7 @@
 .PHONY: backend dashboard-build dashboard
 
 backend:
-	python -m uvicorn backend.app.main:app --reload
+	python -m uvicorn backend.app.main:app
 
 dashboard-build:
 

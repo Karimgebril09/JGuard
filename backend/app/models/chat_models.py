@@ -55,10 +55,23 @@ class SessionHistoryResponse(BaseModel):
     meta: dict[str, Any] = Field(default_factory=dict)
 
 
+class SessionSummary(BaseModel):
+    session_id: str
+    created_at: str
+    last_active: str
+    config: SessionConfig
+    meta: dict[str, Any] = Field(default_factory=dict)
+
+
+class SessionListResponse(BaseModel):
+    sessions: list[SessionSummary]
+
+
 class ChatResponse(BaseModel):
     reply: str
+    clean_prompt: str | None = None
     blocked: bool
-    triggered_defense: str | None
+    triggered_defenses: list[str] | None
     decision: str | None = None
     harm_label: str | None = None
     timestamp: str

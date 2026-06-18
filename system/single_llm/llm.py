@@ -1,6 +1,6 @@
 from collections import deque
 from threading import Lock
-from typing import Any, Callable, cast
+from typing import Any, Callable, List, cast
 
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -15,10 +15,10 @@ from defenders.role_playing.pipeline import run_role_playing_guard
 
 load_dotenv("./.env")
 
+default_blocked_reply = "I cannot fulfill that request."
+
 
 def _resolve_pii_strategy(strategy_name: str) -> PIIStrategy:
-    if strategy_name is None:
-        return MaskStrategy()
     normalized = strategy_name.strip().lower()
     if normalized == "hash":
         return HashStrategy()
@@ -67,7 +67,6 @@ class LLM:
 
         self.multi_turn_defender = MultiTurnDefender() if self.multi_turn_protection else None
         self.multi_turn_lock = Lock()
-        self.multi_turn_state: dict[str, Any] = {}
         self.last_response = ""
 
 
@@ -157,7 +156,6 @@ class LLM:
             prediction = self.multi_turn_defender.predict(prompt_text, self.last_response)
 
         prediction_value = int(prediction)
-        self.multi_turn_state["last_prediction"] = prediction_value
         return prediction_value == 1
 
     def _apply_pii(self, prompt_text: str) -> tuple[str, bool]:
@@ -168,7 +166,7 @@ class LLM:
             self.pii_engine.set_strategy(_resolve_pii_strategy(self.pii_strategy))
             pii_result = str(self.pii_engine.process(prompt_text))
 
-        if pii_result == "[BLOCKED: PII DETECTED]":
+        if pii_result == "<BLOCKED>":
             return pii_result, True
         return pii_result, False
 
@@ -213,83 +211,94 @@ class LLM:
         return "Model returned an empty response."
 
     def chat_secure(
-        self,
+self,
         prompt: str,
         history: list[dict[str, str]],
         reply_fn: Callable[[str], str] | None = None,
-    ) -> dict[str, str | bool | None]:
+    ) -> dict[str, Any]:
+        triggered_defenses = []
+        harm_label = None
+
         pii_prompt, pii_blocked = self._apply_pii(prompt)
         if pii_blocked:
-            blocked_reply = "Request blocked by pii model."
-            self.last_response = blocked_reply
-            self.multi_turn_state["last_response"] = blocked_reply
+            triggered_defenses.append("PII Detector")
+            self.last_response = default_blocked_reply
+            print("BLOCKED: PII detected in user prompt.")
             return {
-                "reply": blocked_reply,
+                "reply": default_blocked_reply + " Please do not include PII in your requests.",
                 "blocked": True,
-                "triggered_defense": "pii",
+                "triggered_defenses": triggered_defenses,
                 "harm_label": None,
+                "clean_prompt": pii_prompt
             }
 
-        clean_prompt, decision, harm_label, blocked = self._apply_obfuscation(pii_prompt)
-        if blocked:
-            blocked_reply = "Request blocked by harm detector."
-            self.last_response = blocked_reply
-            self.multi_turn_state["last_response"] = blocked_reply
-            return {
-                "reply": blocked_reply,
-                "blocked": True,
-                "triggered_defense": "obfuscation and preprocessing",
-                "harm_label": harm_label,
-            }
+        clean_prompt, decision, harm_label, general_harm_detected = self._apply_obfuscation(pii_prompt)
+        if general_harm_detected:
+            triggered_defenses.append("General Harm Detector")
+            self.last_response = default_blocked_reply
 
+
+        # recheck pii after obfuscation has run
+        if self.obfuscation_protection and self.pii_protection:
+            clean_prompt, pii_blocked = self._apply_pii(clean_prompt)
+            if pii_blocked:
+                triggered_defenses.append("PII Detector")
+                self.last_response = default_blocked_reply
+                print("BLOCKED: PII detected in user prompt after deobfuscation.")
+                return {
+                    "reply": default_blocked_reply + " Please do not include PII in your requests.",
+                    "blocked": True,
+                    "triggered_defenses": triggered_defenses,
+                    "harm_label": None,
+                    "clean_prompt": clean_prompt
+                }
+            
         roleplay_blocked = self._apply_role_playing(clean_prompt)
         if roleplay_blocked:
-            blocked_reply = "Request blocked by role-playing defender."
-            self.last_response = blocked_reply
-            self.multi_turn_state["last_response"] = blocked_reply
-            return {
-                "reply": blocked_reply,
-                "blocked": True,
-                "triggered_defense": "roleplay",
-                "harm_label": None,
-            }
+            triggered_defenses.append("Role-Playing Defender")
+            self.last_response = default_blocked_reply
 
         multi_turn_blocked = self._apply_multi_turn(clean_prompt)
         if multi_turn_blocked:
-            blocked_reply = "Request blocked by multi-turn defender."
-            self.last_response = blocked_reply
-            self.multi_turn_state["last_response"] = blocked_reply
+            triggered_defenses.append("Multi-Turn Defender")
+            self.last_response = default_blocked_reply
+
+        # If any defenses were triggered, return a blocked response
+        if triggered_defenses:
+            print(f"BLOCKED: Defenses triggered - {', '.join(triggered_defenses)}. Harm label: {harm_label}")
             return {
-                "reply": blocked_reply,
+                "reply": default_blocked_reply,
                 "blocked": True,
-                "triggered_defense": "multi_turn",
-                "harm_label": None,
+                "triggered_defenses": triggered_defenses,
+                "harm_label": harm_label,
+                "clean_prompt": clean_prompt
             }
 
         if reply_fn is not None:
-            reply = reply_fn(pii_prompt)
+            reply = reply_fn(clean_prompt)
         else:
             reply = self._call_foundational_model(history=history, prompt_text=clean_prompt)
 
         pii_reply, output_pii_blocked = self._apply_pii(reply)
         if output_pii_blocked:
-            blocked_reply = "Response blocked by pii model."
+            blocked_reply = "Response blocked by PII Detector."
             self.last_response = blocked_reply
-            self.multi_turn_state["last_response"] = blocked_reply
+            print("BLOCKED: PII detected in model response.")
             return {
                 "reply": blocked_reply,
                 "blocked": True,
-                "triggered_defense": "pii",
+                "triggered_defenses": ["PII Detector"],
                 "harm_label": None,
+                "clean_prompt": clean_prompt
             }
 
         self.last_response = pii_reply
-        self.multi_turn_state["last_response"] = pii_reply
         return {
             "reply": pii_reply,
             "blocked": False,
-            "triggered_defense": None,
+            "triggered_defenses": triggered_defenses,
             "harm_label": harm_label,
+            "clean_prompt": clean_prompt
         }
 
 # TESTING

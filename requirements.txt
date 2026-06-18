@@ -44,3 +44,4 @@ garak
 optuna
 
 lightgbm
+sklearn-crfsuite

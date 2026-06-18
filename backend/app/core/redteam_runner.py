@@ -7,8 +7,17 @@ from typing import Literal, TypedDict, cast
 from uuid import uuid4
 
 from data_generation.custom.cutom_data_generator import CustomGenerator
-from evaluation.redteaming_tools.garak.config import DEFAULT_TARGET_NAME, DEFAULT_TARGET_TYPE
-from evaluation.redteaming_tools.garak.garak_pipeline import run_with_config_defaults
+from evaluation.redteaming_tools.garak.attacks import ATTACK_TYPES
+from evaluation.redteaming_tools.garak.config import (
+    DATASET_PATH,
+    DEFAULT_TARGET_NAME,
+    DEFAULT_TARGET_TYPE,
+    GARAK_TIMEOUT_SECONDS,
+    MIN_PROMPT_CHARS,
+    REPORTS_DIR,
+    TARGET_SAMPLES,
+)
+from evaluation.redteaming_tools.garak.garak_pipeline import build_dataset_from_garak
 
 from backend.app.core import eval_store
 from backend.app.core.garak_eval_metrics import build_garak_eval_record
@@ -19,7 +28,7 @@ class CampaignState(TypedDict):
     status: str
     progress_pct: int
     last_poll: int
-    mode: Literal["garak", "custom"]
+    mode: Literal["garak", "custom", "promptfoo"]
     started_at: str
     stop_event: Event
     worker: Thread | None
@@ -28,8 +37,6 @@ class CampaignState(TypedDict):
 
 _CAMPAIGNS: dict[str, CampaignState] = {}
 _CAMPAIGNS_LOCK = Lock()
-LOGGER = logging.getLogger(__name__)
-_CUSTOM_METRICS_PATH = Path("data_generation") / "custom" / "outputs" / "metrics.json"
 LOGGER = logging.getLogger(__name__)
 _CUSTOM_METRICS_PATH = Path("data_generation") / "custom" / "outputs" / "metrics.json"
 
@@ -115,17 +122,33 @@ def _run_garak_campaign(campaign_id: str, payload: LaunchCampaignRequest) -> Non
         if campaign is None:
             return
         stop_event = campaign["stop_event"]
-        started_at = _parse_iso_datetime(campaign["started_at"])
+
+    target_type = payload.target_type or DEFAULT_TARGET_TYPE
+    target_name = payload.target_model or DEFAULT_TARGET_NAME
+    target_api_key = payload.target_api_key or None
+    target_base_url = payload.target_base_url or None
 
     with _CAMPAIGNS_LOCK:
         campaign = _CAMPAIGNS.get(campaign_id)
         if campaign is not None:
             campaign["progress_pct"] = 20
-            _append_log(campaign, "Starting Garak run with config defaults")
-            _append_log(campaign, f"Target: {DEFAULT_TARGET_TYPE}/{DEFAULT_TARGET_NAME}")
+            _append_log(campaign, "Starting Garak run")
+            _append_log(campaign, f"Target: {target_type}/{target_name}")
 
     try:
-        result = run_with_config_defaults(stop_event=stop_event)
+        result = build_dataset_from_garak(
+            target_type=target_type,
+            target_name=target_name,
+            attack_types=sorted(ATTACK_TYPES.keys()),
+            output_path=Path(DATASET_PATH),
+            reports_dir=Path(REPORTS_DIR),
+            max_prompts=TARGET_SAMPLES,
+            min_prompt_chars=MIN_PROMPT_CHARS,
+            timeout_seconds=GARAK_TIMEOUT_SECONDS,
+            target_api_key=target_api_key,
+            target_base_url=target_base_url,
+            stop_event=stop_event,
+        )
     except Exception as exc:  # noqa: BLE001
         is_cancelled = stop_event.is_set() or "cancel" in str(exc).lower()
         new_status = "stopped" if is_cancelled else "failed"
@@ -157,7 +180,7 @@ def _run_garak_campaign(campaign_id: str, payload: LaunchCampaignRequest) -> Non
             run_id=run_id,
             report_log=result.report_log,
             hit_log=result.hit_log,
-            target_model=f"{DEFAULT_TARGET_TYPE}/{DEFAULT_TARGET_NAME}",
+            target_model=f"{target_type}/{target_name}",
             strategy="tool_based",
             defenses_active="garak_default",
         )

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
@@ -10,15 +11,17 @@ public class ChatMessageDisplay
     public string Role { get; set; } = string.Empty;
     public string FormattedTime { get; set; } = string.Empty;
     public bool Blocked { get; set; }
-    public string? TriggeredDefense { get; set; }
+    public List<string> TriggeredDefenses { get; set; } = new();
     public string? Decision { get; set; }
     public string? HarmLabel { get; set; }
-    
+
     public string BlockedStatus => Blocked ? "🚫 BLOCKED" : "";
     public Visibility BlockedVisibility => Blocked ? Visibility.Visible : Visibility.Collapsed;
-    
-    public string TriggeredDefenseStatus => string.IsNullOrEmpty(TriggeredDefense) ? "" : $"⚠️ Defense: {TriggeredDefense}";
-    public Visibility DefenseVisibility => !string.IsNullOrEmpty(TriggeredDefense) ? Visibility.Visible : Visibility.Collapsed;
+
+    public string TriggeredDefenseStatus => TriggeredDefenses.Count == 0
+        ? ""
+        : $"⚠️ Defenses: {string.Join(", ", TriggeredDefenses)}";
+    public Visibility DefenseVisibility => TriggeredDefenses.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 
     public string DecisionStatus => string.IsNullOrEmpty(Decision) ? "" : $"⚖️ Decision: {Decision}";
     public Visibility DecisionVisibility => !string.IsNullOrEmpty(Decision) ? Visibility.Visible : Visibility.Collapsed;

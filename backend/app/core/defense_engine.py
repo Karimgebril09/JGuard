@@ -89,6 +89,10 @@ class SessionStore:
         with self._lock:
             return self._sessions.pop(session_id, None) is not None
 
+    def list_sessions(self) -> list[SessionState]:
+        with self._lock:
+            return list(self._sessions.values())
+
     def clear(self) -> None:
         with self._lock:
             self._sessions.clear()

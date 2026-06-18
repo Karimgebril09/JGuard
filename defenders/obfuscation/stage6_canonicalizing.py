@@ -61,8 +61,8 @@ def normalize_punctuation(text: str) -> tuple[str, int]:
         replaced_count += 1
 
     # Canonical punctuation spacing
-    updated = re.sub(r"\s+([,.;:!?])", r"\1", updated)
-    updated = re.sub(r"([,.;:!?])(\S)", r"\1 \2", updated)
+    # updated = re.sub(r"\s+([,.;:!?])", r"\1", updated)
+    # updated = re.sub(r"([,.;:!?])(\S)", r"\1 \2", updated)
 
     return updated, replaced_count
 
@@ -74,17 +74,15 @@ def canonicalize_stage6(raw_input: str | bytes) -> dict[str, object]:
     text = unicodedata.normalize("NFKC", original_text)
 
     punctuation_text, punct_changes = normalize_punctuation(text)
-    lowered_text = punctuation_text.lower()
-    collapsed_text = re.sub(r"\s+", " ", lowered_text).strip()
+    # lowered_text = punctuation_text.lower()
+    collapsed_text = re.sub(r"\s+", " ", punctuation_text).strip()
 
-    lowered = punctuation_text != lowered_text
-    whitespace_collapsed = lowered_text != collapsed_text
+    whitespace_collapsed = punctuation_text != collapsed_text
     punctuation_normalized = punct_changes > 0
 
     return {
         "original_text": original_text,
         "canonical_text": collapsed_text,
-        "lowered": lowered,
         "whitespace_collapsed": whitespace_collapsed,
         "punctuation_normalized": punctuation_normalized,
         "metadata": {
