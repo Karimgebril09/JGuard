@@ -55,7 +55,7 @@ class StateFeatureExtractor:
         self.embedding_model = embedding_model
         self.ssm = stateSpaceModel(self.state_dim, self.input_dim, self.hidden_dim_ssm1, self.hidden_dim_ssm2, self.output_dim)
         # checkpoint = torch.load("./../models/models_best_ssm.pth",map_location=torch.device("cpu"))
-        checkpoint = torch.load(os.path.join(_MODELS_DIR, "models_best_ssm.pth"), map_location=torch.device("cpu"))
+        checkpoint = torch.load(os.path.join(_MODELS_DIR, "models_best_ssm_new_data.pth"), map_location=torch.device("cpu"))
         self.ssm.load_state_dict(checkpoint["ssm"])
         self.ssm.eval()
 
