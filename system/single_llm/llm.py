@@ -231,14 +231,12 @@ self,
                 "harm_label": None,
                 "clean_prompt": pii_prompt
             }
-        print("FIRST: ", pii_prompt)
 
         clean_prompt, decision, harm_label, general_harm_detected = self._apply_obfuscation(pii_prompt)
         if general_harm_detected:
             triggered_defenses.append("General Harm Detector")
             self.last_response = default_blocked_reply
 
-        print("SECOND: ", clean_prompt)
 
         # recheck pii after obfuscation has run
         if self.obfuscation_protection and self.pii_protection:
@@ -255,8 +253,6 @@ self,
                     "clean_prompt": clean_prompt
                 }
             
-        print("THIRD: ", clean_prompt)
-
         roleplay_blocked = self._apply_role_playing(clean_prompt)
         if roleplay_blocked:
             triggered_defenses.append("Role-Playing Defender")
