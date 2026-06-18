@@ -1,6 +1,5 @@
 import json
 import os
-
 import joblib
 import numpy as np
 import pandas as pd
@@ -9,88 +8,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import RobustScaler
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.preprocessing import PowerTransformer
-TRANSFORMS = {
-    "risk_growth_ratio": "square",
-
-    "mean_risk_so_far": "log1p",
-    "interaction_risk_ema3": "log1p",
-    "interaction_risk": "log1p",
-    "progressive_risk": "log1p",
-    "toxicity_score_ema3": "log1p",
-    "toxicity_score": "log1p",
-    "late_risk_increase": "log1p",
-    "max_toxicity_so_far": "log1p",
-
-    "mean_similarity": "log1p",
-    "early_high_risk": "log1p",
-    "min_similarity": "yeo-johnson",
-    "prev_progressive": "log1p",
-    "threat_score": "log1p",
-    "risk_slope_3": "square",
-    "toxicity_accel": "square",
-    "toxicity_diff": "square",
-    "threat_score_ema3": "log1p",
-    "threat_diff": "square",
-    "max_threat_so_far": "log1p",
-    "threat_accel": "square",
-    "max_similarity": "log1p",
-    "distance_ratio": "log1p",
-    "drift_momentum": "log1p",
-    "pattern_risk_ema3": "log1p",
-    "std_similarity": "log1p",
-    "origin_drift": "log1p",
-    "drift_acceleration": "log1p",
-    "topic_drift_score": "binarize",
-    "pattern_risk": "binarize",
-    "angular_coverage": "binarize",
-    "trajectory_linearity": "binarize",
-}
-
-# TRANSFORMS = {
-#     # Strong features
-#     "interaction_risk": "log1p",
-#     "progressive_risk": "log1p",
-#     "interaction_risk_ema3": "log1p",
-#     "toxicity_score": "log1p",
-#     "interaction_risk_rolling3_mean": "log1p",
-#     "mean_risk_so_far": "log1p",
-#     "interaction_risk_rolling3_max": "log1p",
-#     "toxicity_score_ema3": "log1p",
-#     "toxicity_score_rolling3_mean": "log1p",
-#     "toxicity_score_rolling3_max": "log1p",
-#     "max_toxicity_so_far": "log1p",
-#     "threat_score": "log1p",
-#     "threat_score_ema3": "log1p",
-#     "threat_score_rolling3_mean": "log1p",
-#     "threat_score_rolling3_max": "log1p",
-#     "max_threat_so_far": "log1p",
-#     "late_risk_increase": "log1p",
-#     "early_high_risk": "log1p",
-
-#     # Features benefiting from transformation
-#     "risk_slope_3": "square",
-#     "toxicity_diff": "square",
-#     "toxicity_accel": "square",
-#     "threat_diff": "square",
-
-#     # Weak but non-noise
-#     "prev_progressive": "log1p",
-#     "state_input_similarity": "yeo-johnson",
-#     "long_term_state_similarity": "log1p",
-#     "long_term_state_drift": "log1p",
-#     "state_input_distance": "log1p",
-#     "drift_acceleration": "log1p",
-
-#     "state_similarity": "binarize",
-#     "topic_drift_score": "log1p",
-
-#     "pattern_risk": "binarize",
-#     "pattern_risk_ema3": "binarize",
-#     "pattern_risk_rolling3_mean": "log1p",
-#     "pattern_risk_rolling3_max": "binarize",
-# }
-
-
+from defenders.multi_turn.integrated.inference.transforms import TRANSFORMS
 
 os.makedirs("data/processed",exist_ok=True)
 os.makedirs("models",exist_ok=True)
@@ -115,7 +33,6 @@ def remove_multicollinear(X_train,y_train,threshold):
     corr_matrix= corr_df.corr()
 
     upper= corr_matrix.where(np.triu(np.ones(corr_matrix.shape),k=1).astype(bool))
-
     to_remove= set()
     for col in upper.columns:
         if col== "target":
@@ -126,7 +43,7 @@ def remove_multicollinear(X_train,y_train,threshold):
                 continue
             corr_col= abs(corr_matrix.loc[col,"target"])
             corr_other_col= abs(corr_matrix.loc[other_col,"target"])
-            if corr_col >= corr_other_col:
+            if corr_col >= corr_other_col: # will remove the one that less correlate with the 
                 to_remove.add(other_col)
             else:
                 to_remove.add(col)
@@ -153,7 +70,6 @@ def transform_feature(series, transform):
 
     if transform == "binarize":
         return (series > 0).astype(float)
-
     if transform == "yeo-johnson":
         pt = PowerTransformer(method="yeo-johnson", standardize=False)
         return pt.fit_transform(
@@ -179,10 +95,7 @@ def main():
     train_df= data["train"]
     val_df= data["val"]
     test_df= data["test"]
-
-
     feature_cols = [c for c in train_df.columns if c not in ["conv_id", "turn_id", "label"]]
-
     meta_train= train_df[["conv_id","turn_id"]]
     meta_val= val_df[["conv_id","turn_id"]]
     meta_test= test_df[["conv_id","turn_id"]]
