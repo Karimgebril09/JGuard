@@ -126,9 +126,9 @@ class PIIDetector:
 
 
         for pred1, pred2, pred3 in zip(predictions1, predictions2, predictions3):
-            if pred1 in predictor1_trusted_tags:
+            if len(pred1) > 2 and (pred1[2:] in predictor1_trusted_tags):
                 final_predictions.append(pred2)
-            elif pred3 in predictor3_trusted_tags:
+            elif len(pred3) > 2 and (pred3[2:] in predictor3_trusted_tags):
                 final_predictions.append(pred3)
             else:
                 final_predictions.append(pred1)

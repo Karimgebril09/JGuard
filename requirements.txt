@@ -42,4 +42,6 @@ nltk
 textblob
 garak
 optuna
+
+lightgbm
 sklearn-crfsuite
