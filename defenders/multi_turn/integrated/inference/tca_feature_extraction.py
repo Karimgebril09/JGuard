@@ -176,10 +176,10 @@ class TCAFeatures:
 
         return row
 
-if __name__=="__main__":
-    embdedding_model=SentenceTransformer( "all-mpnet-base-v2")
-    tca_extractor=TCAFeatures(embdedding_model)
-    user_msg="Hello, how are you?"
-    assistant_msg="I'm good, thank you!"
-    features=tca_extractor.feature_extract(user_msg, assistant_msg)
-    print(features)
+# if __name__=="__main__":
+#     embdedding_model=SentenceTransformer( "all-mpnet-base-v2")
+#     tca_extractor=TCAFeatures(embdedding_model)
+#     user_msg="Hello, how are you?"
+#     assistant_msg="I'm good, thank you!"
+#     features=tca_extractor.feature_extract(user_msg, assistant_msg)
+#     print(features)

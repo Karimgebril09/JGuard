@@ -132,6 +132,7 @@ class StateFeatureExtractor:
         vectors=torch.concat([x_curr, u], dim=0)
 
         vectors = self.pca_model.transform(vectors.detach().cpu().unsqueeze(0).numpy())
+        vectors=pd.DataFrame(vectors, columns=[str(i) for i in range(vectors.shape[1])])
         features = pd.DataFrame([features.detach().cpu().numpy()], columns=[
             "state_drift", 
             "state_input_distance",
