@@ -1,9 +1,12 @@
+from pyexpat import features
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pandas as pd
 import joblib
 from collections import deque
+import numpy as np
 
 import os
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -57,11 +60,31 @@ class StateFeatureExtractor:
         self.ssm.eval()
 
         # self.pca_model= joblib.load("./../models/pca_model.pkl")
-        self.pca_model= joblib.load(os.path.join(_MODELS_DIR, "pca_model.pkl"))
+        self.pca_model= joblib.load(os.path.join(_MODELS_DIR, "pca_model_new_labels.pkl"))
     
         self.x_prev=torch.zeros(self.state_dim)
         self.x_prev_4step_back = None
         self.q=deque(maxlen=4)
+
+    def apply_selected_transformations(self,df, selected_features):
+        transformed = {}
+        for feature in selected_features:
+            transform = feature.split("_")[-1]
+            base_feature = "_".join(feature.split("_")[:-1])
+            x = df[base_feature].copy()
+
+            if transform == "orig":
+                transformed[base_feature] = x
+            else:
+                x = x + 1 + 1e-6
+                if transform == "log":
+                    transformed[feature] = np.log(x)
+                elif transform == "sqrt":
+                    transformed[feature] = np.sqrt(x)
+                else:
+                    raise ValueError(f"Unknown transformation: {transform}")
+
+        return pd.DataFrame(transformed)
 
     def feature_engineering(self, x_t, u_t, x_prev, x_prev_4step_back=None):
         features = []
@@ -73,31 +96,22 @@ class StateFeatureExtractor:
         state_input_distance = torch.norm(x_t -u_t).item()
         features.append(state_input_distance)
             
-        long_term_state_drift = torch.norm(
-            x_t - x_prev_4step_back
-        ).item()
+        long_term_state_drift = torch.norm(x_t - x_prev_4step_back).item()
         features.append(long_term_state_drift)
 
         # similarity features
-        state_similarity = F.cosine_similarity(
-            x_t.unsqueeze(0),
-            x_prev.unsqueeze(0)
-        ).item()
+        state_similarity = F.cosine_similarity(x_t.unsqueeze(0),x_prev.unsqueeze(0)).item()
         features.append(state_similarity)
 
-        state_input_similarity = F.cosine_similarity(
-            x_t.unsqueeze(0),
-            u_t.unsqueeze(0)
-        ).item()
+        state_input_similarity = F.cosine_similarity(x_t.unsqueeze(0),u_t.unsqueeze(0)).item()
         features.append(state_input_similarity)
 
 
-        long_term_state_similarity = F.cosine_similarity(
-            x_t.unsqueeze(0),
-            x_prev_4step_back.unsqueeze(0)
-        ).item()
+        long_term_state_similarity = F.cosine_similarity(x_t.unsqueeze(0),x_prev_4step_back.unsqueeze(0)).item()
         features.append(long_term_state_similarity)
 
+        features.append(torch.mean((x_t - x_prev) ** 2).item())
+        features.append(torch.mean((x_t - x_prev_4step_back) ** 2).item())
 
         return torch.tensor(features, dtype=torch.float32)
     
@@ -119,15 +133,27 @@ class StateFeatureExtractor:
 
         vectors = self.pca_model.transform(vectors.detach().cpu().unsqueeze(0).numpy())
         features = pd.DataFrame([features.detach().cpu().numpy()], columns=[
-            "state_drift",
+            "state_drift", 
             "state_input_distance",
             "long_term_state_drift",
             "state_similarity",
             "state_input_similarity",
-            "long_term_state_similarity"
+            "long_term_state_similarity", 
+            "mean_squared_change_short",
+            "mean_squared_change_long",
         ])
 
-        return features, vectors
+        transformed_selected_features = [
+            'long_term_state_drift_sqrt', 
+            'mean_squared_change_long_sqrt', 
+            'state_input_distance_sqrt', 
+            'long_term_state_similarity_sqrt',
+            'state_similarity_log',
+        ]
+
+        features_transformed = self.apply_selected_transformations(features, transformed_selected_features)
+
+        return features_transformed, vectors
         
 
 
