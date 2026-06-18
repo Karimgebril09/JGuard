@@ -11,7 +11,12 @@ from defenders.multi_turn.integrated.inference.toxisty_threat_models import Thre
 from risk_calculator import RiskCalculator
 from transforms import TRANSFORMS
 from feature_extraction import FeatureExtractor
-
+from sklearn.exceptions import InconsistentVersionWarning
+import warnings
+warnings.filterwarnings(
+    "ignore",
+    category=InconsistentVersionWarning
+)
 _BASE_DIR=os.path.dirname(os.path.abspath(__file__))
 _MODELS_DIR=os.path.join(_BASE_DIR, "..", "models")
 class TCAFeatures:
