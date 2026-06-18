@@ -2,13 +2,19 @@ import json
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 from transformers import pipeline
-from feature_extraction import FeatureExtractor
 
+from defenders.multi_turn.integrated.inference.feature_extraction import FeatureExtractor
+from defenders.multi_turn.integrated.inference.toxisty_threat_models import ThreatModel, ToxicityModel
 
-toxicity_model = pipeline("text-classification",model="facebook/roberta-hate-speech-dynabench-r4-target",device="cuda",)
-threat_model = pipeline("text-classification",model="tomh/toxigen_roberta",device="cuda",)
+toxicity_model = ToxicityModel()
+threat_model = ThreatModel()
 embedding_model = SentenceTransformer('all-mpnet-base-v2')
-feature_extractor = FeatureExtractor(toxicity_model=toxicity_model,threat_model=threat_model,embedding_model=embedding_model,)
+
+feature_extractor = FeatureExtractor(
+    toxicity_model=toxicity_model,
+    threat_model=threat_model,
+    embedding_model=embedding_model,
+)
 
 def process_unified(path: str) -> pd.DataFrame:
     with open(path, "r", encoding="utf-8") as f:
@@ -26,15 +32,24 @@ def process_unified(path: str) -> pd.DataFrame:
             user_msg = turn["u"]
             label = turn["label"]
 
-            features = feature_extractor.extract_features(user_msg=user_msg,assistant_msg=prev_response)
+            features = feature_extractor.extract_features(
+                user_msg=user_msg,
+                prev_assistant_msg=prev_response
+            )
 
-            all_rows.append({"conv_id": conv_id,"turn_id": turn_id,"label": label,**features})
+            all_rows.append({
+                "conv_id": conv_id,
+                "turn_id": turn_id,
+                "label": label,
+                **features
+            })
+
             prev_response = turn["a"]  
+
     return pd.DataFrame(all_rows)
 
-
-if __name__== "__main__":
+if __name__ == "__main__":
     print("Processing unified dataset...")
-    df= process_unified("../data/raw/combined_conversations.json")
-    df.to_csv("../data/primitive/multi_turn_data.csv", index=False)
+    df = process_unified("/kaggle/input/datasets/mariamamin30/multiturn-dataset/combined_conversations.json")
+    df.to_csv("/kaggle/working/multi_turn_data.csv", index=False)
     print(df.shape)

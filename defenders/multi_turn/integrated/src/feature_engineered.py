@@ -2,12 +2,14 @@ import json
 import os
 import numpy as np
 import pandas as pd
-from risk_calculator import RiskCalculator
+
+from defenders.multi_turn.integrated.inference.risk_calculator import RiskCalculator
 
 
-os.makedirs( "data/processed", exist_ok=True)
-os.makedirs("reports/figures",   exist_ok=True)
-os.makedirs(os.path.dirname("models/scaler.pkl"), exist_ok=True)
+
+# os.makedirs( "data/processed", exist_ok=True)
+# os.makedirs("reports/figures",   exist_ok=True)
+# os.makedirs(os.path.dirname("models/scaler.pkl"), exist_ok=True)
 
 def recompute_risks(df, calc):
     df= df.sort_values(["conv_id", "turn_id"]).reset_index(drop=True)
@@ -40,23 +42,13 @@ def add_smoothing_features(df):
     alpha = 2 / (3 + 1)
 
     for col in ["toxicity_score", "threat_score", "interaction_risk", "pattern_risk"]:
+
         df[f"{col}_ema3"] = (
             df.groupby("conv_id")[col]
             .transform(lambda x: x.ewm(alpha=alpha, adjust=False).mean())
         )
 
-        df[f"{col}_rolling3_mean"] = (
-            df.groupby("conv_id")[col]
-            .transform(lambda x: x.rolling(3, min_periods=1).mean())
-        )
-
-        df[f"{col}_rolling3_max"] = (
-            df.groupby("conv_id")[col]
-            .transform(lambda x: x.rolling(3, min_periods=1).max())
-        )
-
     return df
-
 def add_escalation_features(df: pd.DataFrame) -> pd.DataFrame:
     df["toxicity_diff"]= df.groupby("conv_id")["toxicity_score"].diff().fillna(0)
     df["threat_diff"]= df.groupby("conv_id")["threat_score"].diff().fillna(0)
@@ -83,24 +75,29 @@ def add_context_features(df ):
     return df
 
 def add_shape_features(df):
-    g= df.groupby("conv_id")
-    df["early_high_risk"]= g["interaction_risk"].transform(lambda x: x.head(3).max())
-    df["late_risk_increase"]= g["interaction_risk"].transform(lambda x: x.tail(3).mean())
-    df["risk_growth_ratio"]= df["late_risk_increase"] -df["early_high_risk"] 
+    g = df.groupby("conv_id")
+
+    df["early_high_risk"] = g["interaction_risk"].transform(lambda x: x.head(3).max())
+    df["late_risk_increase"] = g["interaction_risk"].transform(lambda x: x.tail(3).mean())
+
+    df["risk_growth_ratio"] = ((df["late_risk_increase"] - df["early_high_risk"])/ (df["early_high_risk"] + 1e-6))
+
     return df
 
-def build_features(df) :
-    df= df.sort_values(["conv_id", "turn_id"])
-    df= add_smoothing_features(df)
-    df= add_escalation_features(df)
-    df= add_context_features(df)
-    df= add_shape_features(df)
+def build_features(df):
+    df = df.sort_values(["conv_id", "turn_id"])
+    df = recompute_risks(df, df.attrs.get("calc")) if "calc" in df.attrs else df
+    df = add_smoothing_features(df)
+    df = add_escalation_features(df)
+    df = add_context_features(df)
+    df = add_shape_features(df)
+
     return df
 
 def main():
-    df= pd.read_csv("data/primitive/multi_turn_data3.csv")
+    df= pd.read_csv("defenders/multi_turn/integrated/data/primitive/multi_turn_data(6).csv")
     print("Shape:", df.shape)
-    params_path= "config/optimized_params_risk.json"
+    params_path= "defenders/multi_turn/integrated/config/optimized_params_risk(6).json"
     if os.path.exists(params_path):
         with open(params_path) as f:
             params= json.load(f)
@@ -113,7 +110,7 @@ def main():
     df= build_features(df.copy())
 
     #save data 
-    df.to_csv(f"data/total/features_before_selection3.csv", index=False)
+    df.to_csv(f"defenders/multi_turn/integrated/data/total/features_before_selection(6).csv", index=False)
 
 if __name__== "__main__":
     main()
