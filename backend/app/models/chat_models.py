@@ -69,6 +69,7 @@ class SessionListResponse(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
+    clean_prompt: str | None = None
     blocked: bool
     triggered_defenses: list[str] | None
     decision: str | None = None
