@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import threading
@@ -21,6 +22,31 @@ from .config import (
     REPORTS_DIR,
     TARGET_SAMPLES,
 )
+
+# Maps provider names used in the app to garak generator module names.
+# Gemini has an OpenAI-compatible REST API, so we route it through garak's
+# openai generator with the appropriate base_url.
+_GARAK_TYPE_MAP: dict[str, str] = {
+    "gemini": "openai",
+    "openai": "openai",
+    "ollama": "ollama",
+    "rest": "rest",
+    "litellm": "litellm",
+}
+
+# Default base URLs injected when a provider is mapped to a different garak type
+# and the caller did not supply an explicit base_url.
+_GARAK_DEFAULT_BASE_URL: dict[str, str] = {
+    "gemini": "https://generativelanguage.googleapis.com/v1beta/openai/",
+}
+
+# Maps garak generator type to the env var its plugin reads for the API key.
+# Garak validates the env var before processing --generator_options, so the key
+# must be in the environment of the subprocess, not in generator_options.
+_GARAK_API_KEY_ENV: dict[str, str] = {
+    "openai": "OPENAI_API_KEY",
+    "litellm": "OPENAI_API_KEY",
+}
 
 PROMPT_KEYS = {
     "prompt",
@@ -58,6 +84,16 @@ def normalize_text(text: str) -> str:
     return " ".join(text.split()).strip()
 
 
+def resolve_garak_target(
+    target_type: str,
+    target_base_url: str | None,
+) -> tuple[str, str | None]:
+    """Return the garak-compatible (type, base_url) pair for a given provider type."""
+    garak_type = _GARAK_TYPE_MAP.get(target_type, target_type)
+    effective_base_url = target_base_url or _GARAK_DEFAULT_BASE_URL.get(target_type)
+    return garak_type, effective_base_url
+
+
 def probe_to_attack_type_map() -> dict[str, list[str]]:
     reverse: dict[str, list[str]] = {}
     for attack_type, probes in ATTACK_TYPES.items():
@@ -79,17 +115,20 @@ def run_garak(
     probes: list[str],
     reports_dir: Path,
     timeout_seconds: int,
+    target_api_key: str | None = None,
+    target_base_url: str | None = None,
 ) -> tuple[Path, Path | None]:
     reports_dir = reports_dir.resolve()
     reports_dir.mkdir(parents=True, exist_ok=True)
     existing_logs = {p.resolve(): p.stat().st_mtime_ns for p in reports_dir.glob("*.jsonl")}
 
+    garak_type, effective_base_url = resolve_garak_target(target_type, target_base_url)
     cmd = [
         sys.executable,
         "-m",
         GARAK_MODULE,
         "--target_type",
-        target_type,
+        garak_type,
         "--target_name",
         target_name,
         "--probes",
@@ -97,6 +136,16 @@ def run_garak(
         "--report_prefix",
         str(reports_dir / "run"),
     ]
+    env = os.environ.copy()
+    if target_api_key:
+        api_key_env_var = _GARAK_API_KEY_ENV.get(garak_type)
+        if api_key_env_var:
+            env[api_key_env_var] = target_api_key
+    generator_opts: dict[str, str] = {}
+    if effective_base_url:
+        generator_opts["base_url"] = effective_base_url
+    if generator_opts:
+        cmd += ["--generator_options", json.dumps(generator_opts)]
 
     completed = subprocess.run(
         cmd,
@@ -106,6 +155,7 @@ def run_garak(
         errors="replace",
         timeout=timeout_seconds if timeout_seconds > 0 else None,
         check=False,
+        env=env,
     )
 
     if completed.returncode != 0:
@@ -139,18 +189,21 @@ def run_garak_with_stop(
     probes: list[str],
     reports_dir: Path,
     timeout_seconds: int,
+    target_api_key: str | None = None,
+    target_base_url: str | None = None,
     stop_event: threading.Event | None = None,
 ) -> tuple[Path, Path | None]:
     reports_dir = reports_dir.resolve()
     reports_dir.mkdir(parents=True, exist_ok=True)
     existing_logs = {p.resolve(): p.stat().st_mtime_ns for p in reports_dir.glob("*.jsonl")}
 
+    garak_type, effective_base_url = resolve_garak_target(target_type, target_base_url)
     cmd = [
         sys.executable,
         "-m",
         GARAK_MODULE,
         "--target_type",
-        target_type,
+        garak_type,
         "--target_name",
         target_name,
         "--probes",
@@ -158,6 +211,16 @@ def run_garak_with_stop(
         "--report_prefix",
         str(reports_dir / "run"),
     ]
+    env = os.environ.copy()
+    if target_api_key:
+        api_key_env_var = _GARAK_API_KEY_ENV.get(garak_type)
+        if api_key_env_var:
+            env[api_key_env_var] = target_api_key
+    generator_opts: dict[str, str] = {}
+    if effective_base_url:
+        generator_opts["base_url"] = effective_base_url
+    if generator_opts:
+        cmd += ["--generator_options", json.dumps(generator_opts)]
 
     print(f"[Garak] Starting: {' '.join(cmd)}")
     process = subprocess.Popen(
@@ -167,6 +230,7 @@ def run_garak_with_stop(
         text=True,
         encoding="utf-8",
         errors="replace",
+        env=env,
     )
 
     output_lines: list[str] = []
@@ -417,6 +481,8 @@ def build_dataset_from_garak(
     max_prompts: int,
     min_prompt_chars: int,
     timeout_seconds: int,
+    target_api_key: str | None = None,
+    target_base_url: str | None = None,
     stop_event: threading.Event | None = None,
 ) -> GarakRunResult:
     invalid = sorted(set(attack_types) - set(ATTACK_TYPES.keys()))
@@ -436,6 +502,8 @@ def build_dataset_from_garak(
         probes=probes,
         reports_dir=reports_dir,
         timeout_seconds=timeout_seconds,
+        target_api_key=target_api_key,
+        target_base_url=target_base_url,
         stop_event=stop_event,
     )
 
@@ -477,6 +545,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--target-type", default=DEFAULT_TARGET_TYPE)
     parser.add_argument("--target-name", default=DEFAULT_TARGET_NAME)
+    parser.add_argument("--target-api-key", default=None)
+    parser.add_argument("--target-base-url", default=None)
     parser.add_argument(
         "--attack-types",
         nargs="+",
@@ -503,6 +573,8 @@ def main() -> None:
         max_prompts=args.max_prompts,
         min_prompt_chars=args.min_prompt_chars,
         timeout_seconds=args.timeout_seconds,
+        target_api_key=args.target_api_key,
+        target_base_url=args.target_base_url,
     )
 
     print(f"GARAK report log: {result.report_log}")
