@@ -86,56 +86,101 @@ class AgentState(MessagesState):
     response: str
     next_action: Literal["code", "research", "document", "email", "end","rag"] | None = None
 
-def run_coder_agent(state: AgentState) -> None:
+def run_coder_agent(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
     print("Running coder agent...")
+    mas_guard = config.get("configurable", {}).get("mas_guard")
+    if mas_guard is not None and mas_guard.check_multi_turn("coder", state["user_message"]):
+        print("BLOCKED: Multi-turn attack detected for coder agent.")
+        blocked = "I cannot fulfill that request."
+        mas_guard.update_last_response("coder", blocked)
+        return {"messages": [AIMessage(content=blocked)]}
+
     response = coder_agent.invoke({"problem_description": state["user_message"]})
-    return{
-        "messages": [AIMessage(content=response["code"])],
-    }
-def run_research_agent(state: AgentState) -> None:
+    content = response["code"]
+    if mas_guard is not None:
+        mas_guard.update_last_response("coder", content)
+    return {"messages": [AIMessage(content=content)]}
+
+
+def run_research_agent(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
     print("Running research agent...")
-    response = research_agent.invoke({"research_topic_from_user": state["user_message"],"remaining_available_steps":3})
-    return{
-        "messages": [response["messages"][-1]],
-    }
+    mas_guard = config.get("configurable", {}).get("mas_guard")
+    if mas_guard is not None and mas_guard.check_multi_turn("research", state["user_message"]):
+        print("BLOCKED: Multi-turn attack detected for research agent.")
+        blocked = "I cannot fulfill that request."
+        mas_guard.update_last_response("research", blocked)
+        return {"messages": [AIMessage(content=blocked)]}
 
-def run_document_agent(state: AgentState) -> None:
-    """ file path should be revised how it is handeled"""
+    response = research_agent.invoke(cast(Any, {"research_topic_from_user": state["user_message"], "remaining_available_steps": 3}))
+    last_msg = response["messages"][-1]
+    content = getattr(last_msg, "content", str(last_msg))
+    if mas_guard is not None:
+        mas_guard.update_last_response("research", content)
+    return {"messages": [last_msg]}
+
+
+def run_document_agent(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
     print("Running document agent...")
-    response = document_agent.invoke({"request": state["user_message"]})
-    return {
-        "messages": [AIMessage(response["messages"][-1].content)],
-    }
-def run_rag_agent(state: AgentState) -> None:
-    """Run RAG agent to get employee information from database based on user query"""
-    print("Running RAG agent...")
-    # Pass messages to RAG agent - convert user_message to message format if needed
-    rag_input = {
-        "messages": [HumanMessage(content=state["user_message"])]
-    }
-    response = rag_agent.invoke(rag_input)
-    return {
-        "messages": [AIMessage(content=response["messages"][-1].content)],
-       
-    }
+    mas_guard = config.get("configurable", {}).get("mas_guard")
+    if mas_guard is not None and mas_guard.check_multi_turn("document", state["user_message"]):
+        print("BLOCKED: Multi-turn attack detected for document agent.")
+        blocked = "I cannot fulfill that request."
+        mas_guard.update_last_response("document", blocked)
+        return {"messages": [AIMessage(content=blocked)]}
 
-def run_email_agent_node(state: AgentState) -> None:
-    """Run the email agent for reading/sending emails"""
+    response = document_agent.invoke({"request": state["user_message"]})
+    content = response["messages"][-1].content
+    if mas_guard is not None:
+        mas_guard.update_last_response("document", content)
+    return {"messages": [AIMessage(content=content)]}
+
+
+def run_rag_agent(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
+    print("Running RAG agent...")
+    mas_guard = config.get("configurable", {}).get("mas_guard")
+    if mas_guard is not None and mas_guard.check_multi_turn("rag", state["user_message"]):
+        print("BLOCKED: Multi-turn attack detected for RAG agent.")
+        blocked = "I cannot fulfill that request."
+        mas_guard.update_last_response("rag", blocked)
+        return {"messages": [AIMessage(content=blocked)]}
+
+    response = rag_agent.invoke({"messages": [HumanMessage(content=state["user_message"])]})
+    content = response["messages"][-1].content
+    if mas_guard is not None:
+        mas_guard.update_last_response("rag", content)
+    return {"messages": [AIMessage(content=content)]}
+
+
+def run_email_agent_node(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
     print("Running email agent...")
+    mas_guard = config.get("configurable", {}).get("mas_guard")
+    if mas_guard is not None and mas_guard.check_multi_turn("email", state["user_message"]):
+        print("BLOCKED: Multi-turn attack detected for email agent.")
+        blocked = "I cannot fulfill that request."
+        mas_guard.update_last_response("email", blocked)
+        return {"messages": [AIMessage(content=blocked)]}
+
     result = run_email_agent(email_agent, state["user_message"])
-    response_content = f"Action: {result['action']}\nResponse: {result['response']}"
-    if result.get('result'):
-        response_content += f"\nResult: {result['result']}"
-    return {
-        "messages": [AIMessage(content=response_content)],
-    }
+    content = f"Action: {result['action']}\nResponse: {result['response']}"
+    if result.get("result"):
+        content += f"\nResult: {result['result']}"
+    if mas_guard is not None:
+        mas_guard.update_last_response("email", content)
+    return {"messages": [AIMessage(content=content)]}
 
 def orch_agent_node(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
     print("Running orchestration agent...")
 
     mas_guard = config.get("configurable", {}).get("mas_guard")
 
-    # check  last AI message coming to the orchestrator (previous agent output)
+    # Multi-turn check: detect attack patterns across conversation turns
+    if mas_guard is not None and mas_guard.check_multi_turn("orchestrator", state["user_message"]):
+        print("BLOCKED: Multi-turn attack detected for orchestrator.")
+        blocked = "I cannot fulfill that request."
+        mas_guard.update_last_response("orchestrator", blocked)
+        return {"next_action": "end", "response": blocked, "messages": [AIMessage(content=blocked)]}
+
+    # Check the last AI message coming INTO the orchestrator (previous agent output)
     if mas_guard is not None:
         msgs = state.get("messages", [])
         if msgs:
@@ -143,8 +188,8 @@ def orch_agent_node(state: AgentState, config: RunnableConfig) -> dict[str, Any]
             if getattr(last_msg, "type", "") == "ai":
                 content = getattr(last_msg, "content", "")
                 if isinstance(content, str) and content.strip():
-                    checked_content, blocked, defenses = mas_guard.check_message(content)
-                    if blocked:
+                    checked_content, blocked_flag, defenses = mas_guard.check_message(content)
+                    if blocked_flag:
                         print(f"BLOCKED: Incoming message to orchestrator blocked by {defenses}")
                         return {
                             "next_action": "end",
@@ -152,23 +197,30 @@ def orch_agent_node(state: AgentState, config: RunnableConfig) -> dict[str, Any]
                             "messages": [AIMessage(content=checked_content)],
                         }
 
-    messages=[SystemMessage(content=orchestrator_system_prompt),
-    HumanMessage(content=f"user message: {state['user_message']} \n current collected info: {state.get('messages',[])}" )]
+    messages = [
+        SystemMessage(content=orchestrator_system_prompt),
+        HumanMessage(content=f"user message: {state['user_message']} \n current collected info: {state.get('messages', [])}"),
+    ]
     response = cast(orch_messages, orch_agent.invoke(messages))
 
     final_response = response.final_response
 
-    # Check the orchestrator's final response before it reaches the next, agent or user
+    # Check the orchestrator's outgoing final response before it reaches the next agent or user
     if mas_guard is not None and final_response.strip():
-        checked_response, blocked, defenses = mas_guard.check_message(final_response)
-        if blocked:
+        checked_response, blocked_flag, defenses = mas_guard.check_message(final_response)
+        if blocked_flag:
             print(f"BLOCKED: Orchestrator outgoing response blocked by {defenses}")
+            mas_guard.update_last_response("orchestrator", checked_response)
             return {
                 "next_action": "end",
                 "response": checked_response,
                 "messages": [AIMessage(content=checked_response)],
             }
         final_response = checked_response
+
+    # Update last response only when the orchestrator produces a meaningful reply to the user
+    if mas_guard is not None and response.Next_action == "end" and final_response.strip():
+        mas_guard.update_last_response("orchestrator", final_response)
 
     return {
         "next_action": response.Next_action,

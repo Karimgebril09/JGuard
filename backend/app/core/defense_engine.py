@@ -59,6 +59,7 @@ class SessionStore:
         mas_guard: Optional[MASGuard] = None
 
         if config.chat_mode == "foundational":
+            assert config.llm_type, "llm_type is required for foundational mode"
             model_type = "ollama" if config.local_llm else _resolve_cloud_provider(config.llm_type)
             llm = LLM(
                 model_name=config.llm_type,
@@ -78,6 +79,7 @@ class SessionStore:
                 roleplay_protection=config.roleplay_protection,
                 pii_protection=config.pii_protection,
                 pii_strategy=config.pii_strategy,
+                multi_turn_protection=config.multi_turn_protection,
             )
 
         session = SessionState(

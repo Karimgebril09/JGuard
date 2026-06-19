@@ -1,6 +1,7 @@
 from threading import Lock
 from typing import Any
 
+from defenders.multi_turn.integrated.inference.multi_turn_defender import MultiTurnDefender
 from defenders.obfuscation.pipeline import run_obfuscation
 from defenders.pii_detection.src.pii_engine import PIIEngine
 from defenders.pii_detection.src.strategies import (
@@ -11,6 +12,8 @@ from defenders.pii_detection.src.strategies import (
     PIIStrategy,
 )
 from defenders.role_playing.pipeline import run_role_playing_guard
+
+_AGENT_NAMES = ("orchestrator", "coder", "research", "document", "rag", "email")
 
 _default_blocked_reply = "I cannot fulfill that request."
 
@@ -34,11 +37,13 @@ class MASGuard:
         roleplay_protection: bool = False,
         pii_protection: bool = False,
         pii_strategy: str = "mask",
+        multi_turn_protection: bool = False,
     ) -> None:
         self.obfuscation_protection = obfuscation_protection
         self.roleplay_protection = roleplay_protection
         self.pii_protection = pii_protection
         self.pii_strategy = pii_strategy
+        self.multi_turn_protection = multi_turn_protection
 
         self._pii_lock = Lock()
         self._pii_engine: PIIEngine | None = (
@@ -46,6 +51,16 @@ class MASGuard:
             if pii_protection
             else None
         )
+
+        self._multi_turn_lock = Lock()
+        if multi_turn_protection:
+            self._defenders: dict[str, MultiTurnDefender] = {
+                name: MultiTurnDefender() for name in _AGENT_NAMES
+            }
+            self._last_responses: dict[str, str] = {name: "" for name in _AGENT_NAMES}
+        else:
+            self._defenders = {}
+            self._last_responses = {}
 
     def _apply_pii(self, text: str) -> tuple[str, bool]:
         if not self.pii_protection or self._pii_engine is None:
@@ -77,6 +92,23 @@ class MASGuard:
         if action == "block":
             return True
         return not bool(result.get("is_safe", True))
+
+    def check_multi_turn(self, agent_name: str, prompt: str) -> bool:
+        if not self.multi_turn_protection:
+            return False
+        print("CHECKING MULTI-TURN DEFENSE FOR AGENT: ", agent_name)
+        with self._multi_turn_lock:
+            defender = self._defenders[agent_name]
+            last = self._last_responses.get(agent_name, "")
+            prediction = defender.predict(prompt, last)
+        return int(prediction) == 1
+
+    def update_last_response(self, agent_name: str, response: str) -> None:
+        if not self.multi_turn_protection:
+            return
+        print("UPDATING LAST RESPONSE FOR AGENT: ", agent_name)
+        with self._multi_turn_lock:
+            self._last_responses[agent_name] = response
 
     def secure_input(self, prompt: str) -> dict[str, Any]:
         """
