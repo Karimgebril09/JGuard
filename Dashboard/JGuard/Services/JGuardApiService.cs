@@ -263,22 +263,86 @@ public class JGuardApiService
     }
 
     /// <summary>
-    /// Gets evaluation history
+    /// GET /api/eval/summary — the top stat cards.
     /// </summary>
-    public async Task<object?> GetEvaluationHistoryAsync()
+    public async Task<EvalSummaryResponse?> GetEvalSummaryAsync()
     {
         try
         {
-            var response = await _httpClient.GetAsync($"{_baseUrl}/api/eval");
+            var response = await _httpClient.GetAsync($"{_baseUrl}/api/eval/summary");
             if (response.IsSuccessStatusCode)
-            {
-                return await response.Content.ReadFromJsonAsync<object>();
-            }
+                return await response.Content.ReadFromJsonAsync<EvalSummaryResponse>();
+            System.Diagnostics.Debug.WriteLine($"Eval summary error: {response.StatusCode}");
             return null;
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Error fetching evaluation history: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Error fetching eval summary: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// GET /api/eval/attack-trends — historical success rates for the line chart.
+    /// </summary>
+    public async Task<List<EvalAttackTrend>?> GetEvalAttackTrendsAsync()
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"{_baseUrl}/api/eval/attack-trends");
+            if (response.IsSuccessStatusCode)
+                return await response.Content.ReadFromJsonAsync<List<EvalAttackTrend>>();
+            System.Diagnostics.Debug.WriteLine($"Eval attack-trends error: {response.StatusCode}");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error fetching eval attack-trends: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// GET /api/eval/runs — full run history log for the table.
+    /// </summary>
+    public async Task<List<EvalRun>?> GetEvalRunsAsync()
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"{_baseUrl}/api/eval/runs");
+            if (response.IsSuccessStatusCode)
+                return await response.Content.ReadFromJsonAsync<List<EvalRun>>();
+            System.Diagnostics.Debug.WriteLine($"Eval runs error: {response.StatusCode}");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error fetching eval runs: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// POST /api/eval/compare — the "Analyze Delta" run comparison engine.
+    /// </summary>
+    public async Task<EvalCompareResponse?> CompareEvalRunsAsync(string baselineRunId, string compareRunId)
+    {
+        try
+        {
+            var body = new EvalCompareRequest
+            {
+                BaselineRunId = baselineRunId,
+                CompareRunId = compareRunId
+            };
+            var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/api/eval/compare", body);
+            if (response.IsSuccessStatusCode)
+                return await response.Content.ReadFromJsonAsync<EvalCompareResponse>();
+            System.Diagnostics.Debug.WriteLine($"Eval compare error: {response.StatusCode}");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error comparing eval runs: {ex.Message}");
             return null;
         }
     }
