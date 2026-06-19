@@ -5,6 +5,7 @@ using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using JGuard.Models;
 using JGuard.Services;
 using LiveChartsCore;
 using LiveChartsCore.SkiaSharpView;
@@ -40,6 +41,9 @@ public sealed partial class EvaluationPage : Page
 {
     private readonly ObservableCollection<AttackRunDisplay> _runDisplays = new();
 
+    // Latest run history fetched from GET /api/eval/runs — the source for exports.
+    private List<EvalRun> _runs = new();
+
     public EvaluationPage()
     {
         InitializeComponent();
@@ -53,71 +57,82 @@ public sealed partial class EvaluationPage : Page
         await RefreshDataAsync();
     }
 
+    private static SolidColorBrush GreenBrush => new(Windows.UI.Color.FromArgb(255, 34, 255, 136));
+    private static SolidColorBrush RedBrush => new(Windows.UI.Color.FromArgb(255, 255, 45, 85));
+
     private async Task RefreshDataAsync()
     {
-        // Try to fetch from backend first
-        var backendRuns = await AppState.Instance.ApiService.GetEvaluationHistoryAsync();
-        if (backendRuns != null)
+        var api = AppState.Instance.ApiService;
+
+        // The dashboard is driven entirely by the backend. Each call returns null on
+        // failure, which we render as an empty / "no data" state — never mock data.
+        var summary = await api.GetEvalSummaryAsync();
+        _runs = await api.GetEvalRunsAsync() ?? new List<EvalRun>();
+        var trends = await api.GetEvalAttackTrendsAsync();
+
+        // 1. KPI stat cards (GET /api/eval/summary)
+        if (summary != null)
         {
-            // If we had a specific DTO we would parse it here.
-            // For now, we continue using AppState or update it if possible.
-            System.Diagnostics.Debug.WriteLine("Successfully fetched evaluation history from backend.");
+            TxtTotalCampaigns.Text = summary.TotalCampaigns.ToString();
+
+            double avg = Math.Round(summary.AvgJailbreakSuccessRate, 1);
+            TxtAvgSuccess.Text = $"{avg}%";
+            TxtAvgSuccess.Foreground = avg < 40 ? GreenBrush : RedBrush;
+
+            TxtShieldEfficiency.Text = $"{Math.Round(summary.DefenseBlockedSweepsPct, 1)}%";
+        }
+        else
+        {
+            TxtTotalCampaigns.Text = "—";
+            TxtAvgSuccess.Text = "—";
+            TxtShieldEfficiency.Text = "—";
         }
 
-        var runs = AppState.Instance.AttackRuns;
+        // "Critical Issues" card — sum of critical findings reported by the runs.
+        TxtTotalVulnerabilities.Text = _runs.Sum(r => r.CriticalVulnerabilities).ToString();
 
-        // 1. Update KPI Counters
-        if (runs.Count == 0) return;
-
-        TxtTotalCampaigns.Text = runs.Count.ToString();
-        
-        double avgSuccess = Math.Round(runs.Average(r => r.SuccessRate), 1);
-        TxtAvgSuccess.Text = $"{avgSuccess}%";
-        TxtAvgSuccess.Foreground = avgSuccess < 40 
-            ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 34, 255, 136)) // Green
-            : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 45, 85)); // Red
-
-        int totalCrit = runs.Sum(r => r.Vulnerabilities.Critical);
-        TxtTotalVulnerabilities.Text = totalCrit.ToString();
-
-        double shieldEfficiency = Math.Round(100.0 - avgSuccess, 1);
-        TxtShieldEfficiency.Text = $"{shieldEfficiency}%";
-
-        // 2. Refresh Runs Table
+        // 2. Run history table + comparison dropdowns (GET /api/eval/runs)
         _runDisplays.Clear();
-        foreach (var r in runs)
+        ComboCompareRun1.Items.Clear();
+        ComboCompareRun2.Items.Clear();
+
+        foreach (var r in _runs)
         {
             _runDisplays.Add(new AttackRunDisplay
             {
-                Id = r.Id,
-                FormattedTime = r.Timestamp.ToString("MM/dd HH:mm"),
+                Id = r.RunId,
+                FormattedTime = FormatTimestamp(r.Timestamp),
                 TargetModel = r.TargetModel,
-                AttackStrategy = r.AttackStrategy,
-                DefenseConfig = r.DefenseConfig,
+                AttackStrategy = r.Strategy,
+                DefenseConfig = r.DefensesActive,
                 SuccessRate = r.SuccessRate,
-                TotalVulnerabilities = r.Vulnerabilities.Total,
+                TotalVulnerabilities = r.TotalVulnerabilities,
                 Duration = r.Duration
             });
+            ComboCompareRun1.Items.Add(r.RunId);
+            ComboCompareRun2.Items.Add(r.RunId);
         }
 
-        // 3. Populate Chart Data (LiveCharts2)
-        int crit = runs.Sum(r => r.Vulnerabilities.Critical);
-        int high = runs.Sum(r => r.Vulnerabilities.High);
-        int med = runs.Sum(r => r.Vulnerabilities.Medium);
-        int low = runs.Sum(r => r.Vulnerabilities.Low);
+        // 3. Severity pie chart — aggregated from the per-run vulnerability breakdown.
+        int crit = _runs.Sum(r => r.CriticalVulnerabilities);
+        int high = _runs.Sum(r => r.HighVulnerabilities);
+        int med = _runs.Sum(r => r.MediumVulnerabilities);
+        int low = _runs.Sum(r => r.LowVulnerabilities);
 
-        SeverityPieChart.Series = new ISeries[]
-        {
-            new PieSeries<int> { Values = new int[] { crit }, Name = "Critical", Fill = new SolidColorPaint(new SKColor(255, 45, 85)) },
-            new PieSeries<int> { Values = new int[] { high }, Name = "High", Fill = new SolidColorPaint(new SKColor(255, 184, 0)) },
-            new PieSeries<int> { Values = new int[] { med }, Name = "Medium", Fill = new SolidColorPaint(new SKColor(5, 217, 232)) },
-            new PieSeries<int> { Values = new int[] { low }, Name = "Low", Fill = new SolidColorPaint(new SKColor(34, 255, 136)) }
-        };
+        SeverityPieChart.Series = (crit + high + med + low) > 0
+            ? new ISeries[]
+            {
+                new PieSeries<int> { Values = new int[] { crit }, Name = "Critical", Fill = new SolidColorPaint(new SKColor(255, 45, 85)) },
+                new PieSeries<int> { Values = new int[] { high }, Name = "High", Fill = new SolidColorPaint(new SKColor(255, 184, 0)) },
+                new PieSeries<int> { Values = new int[] { med }, Name = "Medium", Fill = new SolidColorPaint(new SKColor(5, 217, 232)) },
+                new PieSeries<int> { Values = new int[] { low }, Name = "Low", Fill = new SolidColorPaint(new SKColor(34, 255, 136)) }
+            }
+            : Array.Empty<ISeries>();
 
-        // Historical Area Chart
-        var recentRuns = runs.Reverse().Take(8).ToList();
-        var successValues = recentRuns.Select(r => r.SuccessRate).ToArray();
-        var runLabels = recentRuns.Select(r => r.Id).ToArray();
+        // 4. Attack-trend line chart (GET /api/eval/attack-trends)
+        var trendPoints = trends ?? new List<EvalAttackTrend>();
+        var successValues = trendPoints.Select(t => t.SuccessRate).ToArray();
+        var runLabels = trendPoints.Select(t => t.RunId).ToArray();
 
         TrendsChart.Series = new ISeries[]
         {
@@ -137,90 +152,96 @@ public sealed partial class EvaluationPage : Page
             new Axis { Labels = runLabels }
         };
 
-        // 4. Update Dropdowns
-        ComboCompareRun1.Items.Clear();
-        ComboCompareRun2.Items.Clear();
-        foreach (var r in runs)
-        {
-            ComboCompareRun1.Items.Add(r.Id);
-            ComboCompareRun2.Items.Add(r.Id);
-        }
-
-        if (runs.Count >= 2)
+        // 5. Seed a default comparison once two runs are available.
+        if (ComboCompareRun1.Items.Count >= 2)
         {
             ComboCompareRun1.SelectedIndex = 1;
             ComboCompareRun2.SelectedIndex = 0;
-            PerformComparison();
+            await PerformComparisonAsync();
         }
     }
 
-    private void BtnCompare_Click(object sender, RoutedEventArgs e)
+    // /api/eval/runs returns an ISO-ish timestamp string; render it to match the mock format.
+    private static string FormatTimestamp(string raw)
     {
-        PerformComparison();
+        if (DateTimeOffset.TryParse(raw, out var dto))
+            return dto.ToLocalTime().ToString("MM/dd HH:mm");
+        return raw;
     }
 
-    private void PerformComparison()
+    private async void BtnCompare_Click(object sender, RoutedEventArgs e)
+    {
+        await PerformComparisonAsync();
+    }
+
+    private async Task PerformComparisonAsync()
     {
         if (ComboCompareRun1.SelectedItem == null || ComboCompareRun2.SelectedItem == null) return;
 
         string id1 = ComboCompareRun1.SelectedItem.ToString()!;
         string id2 = ComboCompareRun2.SelectedItem.ToString()!;
 
-        var run1 = AppState.Instance.AttackRuns.FirstOrDefault(r => r.Id == id1);
-        var run2 = AppState.Instance.AttackRuns.FirstOrDefault(r => r.Id == id2);
+        // POST /api/eval/compare — the run comparison engine.
+        var cmp = await AppState.Instance.ApiService.CompareEvalRunsAsync(id1, id2);
+        if (cmp == null)
+        {
+            ComparisonResultBox.Visibility = Visibility.Collapsed;
+            return;
+        }
 
-        if (run1 == null || run2 == null) return;
+        RenderComparison(id1, id2, cmp);
+    }
 
-        TxtRun1Header.Text = $"{run1.Id} (Base)";
-        TxtRun2Header.Text = $"{run2.Id} (Compare)";
+    private void RenderComparison(string baseId, string compareId, EvalCompareResponse cmp)
+    {
+        TxtRun1Header.Text = $"{baseId} (Base)";
+        TxtRun2Header.Text = $"{compareId} (Compare)";
 
-        TxtRun1Success.Text = $"{run1.SuccessRate}%";
-        TxtRun1Crit.Text = run1.Vulnerabilities.Critical.ToString();
-        TxtRun1Total.Text = run1.Vulnerabilities.Total.ToString();
-        TxtRun1Duration.Text = run1.Duration;
+        TxtRun1Success.Text = $"{cmp.JailbreakSuccessRate.Base}%";
+        TxtRun1Crit.Text = cmp.CriticalVulnerabilities.Base.ToString();
+        TxtRun1Total.Text = cmp.TotalVulnerabilities.Base.ToString();
+        TxtRun1Duration.Text = cmp.AssessmentDuration.Base;
 
-        double successDelta = Math.Round(run2.SuccessRate - run1.SuccessRate, 1);
-        int critDelta = run2.Vulnerabilities.Critical - run1.Vulnerabilities.Critical;
-        int totalDelta = run2.Vulnerabilities.Total - run1.Vulnerabilities.Total;
+        double successDelta = Math.Round(cmp.JailbreakSuccessRate.Delta, 1);
+        int critDelta = cmp.CriticalVulnerabilities.Delta;
+        int totalDelta = cmp.TotalVulnerabilities.Delta;
 
-        string successSign = successDelta >= 0 ? "+" : "";
-        string critSign = critDelta >= 0 ? "+" : "";
-        string totalSign = totalDelta >= 0 ? "+" : "";
-
-        TxtRun2Success.Text = $"{run2.SuccessRate}% ({successSign}{successDelta}%)";
-        TxtRun2Crit.Text = $"{run2.Vulnerabilities.Critical} ({critSign}{critDelta})";
-        TxtRun2Total.Text = $"{run2.Vulnerabilities.Total} ({totalSign}{totalDelta})";
-        TxtRun2Duration.Text = run2.Duration;
-
-        // Color coding: success rate going down is GREEN (improvement), going up is RED (regression)
-        TxtRun2Success.Foreground = successDelta <= 0
-            ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 34, 255, 136)) // Green
-            : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 45, 85)); // Red
-
-        TxtRun2Crit.Foreground = critDelta <= 0
-            ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 34, 255, 136))
-            : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 45, 85));
-
-        TxtRun2Total.Foreground = totalDelta <= 0
-            ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 34, 255, 136))
-            : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 45, 85));
+        ApplyCompareCell(TxtRun2Success, $"{cmp.JailbreakSuccessRate.Compare}% ({Signed(successDelta)}%)", successDelta);
+        ApplyCompareCell(TxtRun2Crit, $"{cmp.CriticalVulnerabilities.Compare} ({Signed(critDelta)})", critDelta);
+        ApplyCompareCell(TxtRun2Total, $"{cmp.TotalVulnerabilities.Compare} ({Signed(totalDelta)})", totalDelta);
+        TxtRun2Duration.Text = cmp.AssessmentDuration.Compare;
 
         ComparisonResultBox.Visibility = Visibility.Visible;
+    }
+
+    private static string Signed(double value) => value >= 0 ? $"+{value}" : value.ToString();
+    private static string Signed(int value) => value >= 0 ? $"+{value}" : value.ToString();
+
+    // Color coding: a metric going down is GREEN (improvement), going up is RED (regression).
+    private static void ApplyCompareCell(TextBlock cell, string text, double delta)
+    {
+        cell.Text = text;
+        cell.Foreground = delta <= 0 ? GreenBrush : RedBrush;
     }
 
     private void ExportCSV_Click(object sender, RoutedEventArgs e)
     {
         try
         {
-            var runs = AppState.Instance.AttackRuns;
+            if (_runs.Count == 0)
+            {
+                ShowToast("Nothing to export — no run history loaded from the server.");
+                return;
+            }
+
             string path = Path.Combine(GetReportsDirectory(), "jguard_export.csv");
 
             using (var writer = new StreamWriter(path))
             {
-                writer.WriteLine("RunID,Timestamp,TargetModel,AttackStrategy,DefenseConfig,SuccessRate,Critical,High,Medium,Low,Duration");
-                foreach (var r in runs)
+                writer.WriteLine("RunID,Timestamp,TargetModel,Strategy,DefensesActive,SuccessRate,Critical,High,Medium,Low,Duration");
+                foreach (var r in _runs)
                 {
-                    writer.WriteLine($"{r.Id},{r.Timestamp:yyyy-MM-dd HH:mm:ss},{r.TargetModel},{r.AttackStrategy},{r.DefenseConfig},{r.SuccessRate},{r.Vulnerabilities.Critical},{r.Vulnerabilities.High},{r.Vulnerabilities.Medium},{r.Vulnerabilities.Low},{r.Duration}");
+                    writer.WriteLine($"{r.RunId},{r.Timestamp},{r.TargetModel},{r.Strategy},{r.DefensesActive},{r.SuccessRate},{r.CriticalVulnerabilities},{r.HighVulnerabilities},{r.MediumVulnerabilities},{r.LowVulnerabilities},{r.Duration}");
                 }
             }
 
@@ -236,10 +257,15 @@ public sealed partial class EvaluationPage : Page
     {
         try
         {
-            var runs = AppState.Instance.AttackRuns;
+            if (_runs.Count == 0)
+            {
+                ShowToast("Nothing to export — no run history loaded from the server.");
+                return;
+            }
+
             string path = Path.Combine(GetReportsDirectory(), "jguard_export.json");
 
-            var jsonContent = System.Text.Json.JsonSerializer.Serialize(runs, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+            var jsonContent = System.Text.Json.JsonSerializer.Serialize(_runs, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(path, jsonContent);
 
             ShowToast($"Export successful: Saved to {path}");
