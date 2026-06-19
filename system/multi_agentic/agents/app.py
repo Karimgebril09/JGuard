@@ -8,7 +8,8 @@ from .rag_agent import build_rag_agent
 from .email_agent import build_email_agent, run_email_agent, display_result
 from .llm import llm
 from langchain.messages import SystemMessage, HumanMessage, AIMessage
-from typing import Literal
+from langchain_core.runnables import RunnableConfig
+from typing import Any, Literal, cast
 from langgraph.graph.message import MessagesState
 from pydantic import BaseModel,Field
 from dotenv import load_dotenv
@@ -16,6 +17,51 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph,START,END
 import os
+
+orchestrator_system_prompt = (
+        "You are an orchestration agent. Your job is to choose exactly ONE next action "
+        "for the user's request from this set: 'code', 'research', 'document', 'email', 'end'.\n\n"
+
+        "Use 'code' for programming-related work: writing, fixing, explaining, or testing code when the main goal "
+        "is to work on the code itself. Examples: 'write a Python function', 'fix this TypeError', 'generate unit "
+        "tests', 'explain this code and give an example'. If the main goal is to produce documentation or a PDF "
+        "about the code (for example, API documentation), prefer 'document' instead of 'code'.\n\n"
+
+        "Use 'research' when the user asks for up-to-date information or broad knowledge that "
+        "typically requires searching the web or external sources. Examples: 'latest advancements', "
+        "'compare frameworks in 2026', 'find recent research and summarize it', 'give trustworthy sources'.\n\n"
+
+        "Use 'document' when the task is about reading from or writing to documents (PDFs, files, "
+        "documentation). Whenever the user asks to create or update documentation, manuals, or PDF files (for example, "
+        "'create API documentation and save as PDF', 'generate API documentation for my Flask app and save it as a PDF'), "
+        "treat this as 'document' even if code is involved. Other examples: 'read this PDF and summarize it', "
+        "'write pipeline documentation to the docs folder', 'read user_manual.pdf and list features'.\n\n"
+
+        "Use 'email' only when the task clearly involves email or an inbox: reading emails, summarizing emails, "
+        "or drafting/sending emails to recipients. The user should mention words like 'email', 'mail', 'inbox', "
+        "'Gmail', or similar. Examples: 'check my inbox', 'summarize unread emails', 'draft a polite email', "
+        "'send a follow-up email'. Never choose 'email' if the user is just greeting you, asking you to say hello or "
+        "goodbye, asking for a recap of what you did, or asking for a short motivational or closing message, and the "
+        "request does not explicitly mention email or an inbox.\n\n"
+
+        "Use 'end' when the user explicitly indicates the conversation should end, or when you can fully answer "
+        "the request yourself without delegating to any other agent. This includes simple greetings, friendly goodbyes, "
+        "brief recaps of what you did together, and short motivational or closing messages, as well as pure explanation "
+        "questions that do not require tools (for example, short descriptions of what this orchestration or multi-agent "
+        "system does in one paragraph). In these cases, answer the user directly in 'final_response' and choose 'end' "
+        "instead of any tool-using action.\n\n"
+
+        "In particular, simple greeting requests (for example, anything equivalent to 'Just say hello to me and do nothing "
+        "else'), short friendly goodbyes (for example, 'Just tell me a friendly goodbye message and then stop responding'), "
+        "brief recaps of the session (for example, 'Give a brief recap of what we did today and then wrap up'), and short "
+        "motivational closing messages (for example, 'Wrap up with a short motivational message and then stop') should all "
+        "be answered directly in 'final_response' with Next_action set to 'end'. Do not route these cases to 'email', "
+        "'document', 'code', or 'research'.\n\n"
+
+        "You should keep using agents (code, research, document, email) only while they are truly needed to fulfill "
+        "the user's request. When you no longer need any more actions: (1) generate a final response to the user using "
+        "all collected information, and (2) choose the 'end' action."
+    )
 
 coder_agent = build_coding_agent()
 research_agent = build_research_agent()
@@ -84,26 +130,50 @@ def run_email_agent_node(state: AgentState) -> None:
         "messages": [AIMessage(content=response_content)],
     }
 
-def orch_agent_node(state: AgentState) -> None:
+def orch_agent_node(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
     print("Running orchestration agent...")
-    messages=[SystemMessage(content="You are an orchestration agent that decides " \
-    "whether to delegate tasks to " \
-    "rag: helps you find information about employees agent have access to employee database " \
-    ", research: helps you find information from web if you need or dont have the knowledge" \
-    ", document processing: handles tasks related to processing and managing documents like creating documentation and save in pdf" \
-    "or reading docs based on user input if it returned file path required end."\
-    ", email: handles tasks related to reading emails from inbox or sending emails to recipients."\
-    "you should keep using the agents until the user's request is fulfilled."
-    
-     "1-generate a final response to the user using all info you collected"\
-     "2-end the conversation by choosing the 'end' action"
-    ),
+
+    mas_guard = config.get("configurable", {}).get("mas_guard")
+
+    # check  last AI message coming to the orchestrator (previous agent output)
+    if mas_guard is not None:
+        msgs = state.get("messages", [])
+        if msgs:
+            last_msg = msgs[-1]
+            if getattr(last_msg, "type", "") == "ai":
+                content = getattr(last_msg, "content", "")
+                if isinstance(content, str) and content.strip():
+                    checked_content, blocked, defenses = mas_guard.check_message(content)
+                    if blocked:
+                        print(f"BLOCKED: Incoming message to orchestrator blocked by {defenses}")
+                        return {
+                            "next_action": "end",
+                            "response": checked_content,
+                            "messages": [AIMessage(content=checked_content)],
+                        }
+
+    messages=[SystemMessage(content=orchestrator_system_prompt),
     HumanMessage(content=f"user message: {state['user_message']} \n current collected info: {state.get('messages',[])}" )]
-    response = orch_agent.invoke(messages)
-    return{
+    response = cast(orch_messages, orch_agent.invoke(messages))
+
+    final_response = response.final_response
+
+    # Check the orchestrator's final response before it reaches the next, agent or user
+    if mas_guard is not None and final_response.strip():
+        checked_response, blocked, defenses = mas_guard.check_message(final_response)
+        if blocked:
+            print(f"BLOCKED: Orchestrator outgoing response blocked by {defenses}")
+            return {
+                "next_action": "end",
+                "response": checked_response,
+                "messages": [AIMessage(content=checked_response)],
+            }
+        final_response = checked_response
+
+    return {
         "next_action": response.Next_action,
-        "response": response.final_response,
-        "messages":AIMessage(content=f"{response.final_response} next action: {response.Next_action}")
+        "response": final_response,
+        "messages": [AIMessage(content=f"{final_response} next action: {response.Next_action}")],
     }
 
 
