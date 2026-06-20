@@ -24,18 +24,18 @@ class TCAFeatures:
     def __init__(self, embedding_model,risk_params_path: str="defenders/multi_turn/integrated/config/optimized_params_risk(6).json"):
 
         risk_params={}
+        #load alpha beta gamma parameters
         if os.path.exists(risk_params_path):
             with open(risk_params_path) as f:
                 risk_params=json.load(f)
+        #risk cacutor and models
         self._risk_calc=RiskCalculator(**risk_params)
-
         self._toxicity_model=ToxicityModel()
         self._threat_model=ThreatModel()
         self._embedding_model=embedding_model
-
-        self._raw_history: List[Dict]=[]
+        self.memory=[]
         self.reset()
-
+    #if there new conversation
     def reset(self) -> None:
         self._feature_extractor=FeatureExtractor(
             toxicity_model=self._toxicity_model,
@@ -46,9 +46,9 @@ class TCAFeatures:
         self.memory=[]
 
     def feature_extract(self, user_msg, assistant_msg):
-
+        #first extract raw features 
         raw=self._feature_extractor.extract_features(user_msg,assistant_msg)
-
+        #extract risk features
         interaction_risk=self._risk_calc.compute_interaction_risk(raw)
         pattern_risk=self._risk_calc.compute_pattern_risk(raw)
         progressive_risk=self._risk_calc.calculate_progressive_risk(raw, self._prev_prog)
@@ -60,7 +60,7 @@ class TCAFeatures:
             "progressive_risk": progressive_risk,
             "prev_progressive": self._prev_prog,
         }
-
+        #extract engineered feature 
         row=self.engineer_features(row)
 
         raw_row_for_memory={
@@ -71,10 +71,11 @@ class TCAFeatures:
             "prev_progressive": self._prev_prog,
             "toxicity_diff": row["toxicity_diff"],
         }
+        
         self.memory.append(raw_row_for_memory)
 
         self._prev_prog=progressive_risk
-
+        # keep window of memory
         if len(self.memory) > 10:
             self.memory.pop(0)
             
@@ -83,10 +84,11 @@ class TCAFeatures:
             feature_info=json.load(f)
         selected_features=feature_info["selected_features"]
         features=pd.DataFrame([row])
-    
+        #apply feature transformation
         tca_features_transformed=self.apply_transforms(features[selected_features])
     
         scaler=joblib.load(os.path.join(_MODELS_DIR, "scaler(6).pkl"))
+        #apply scaling
         tca_features_transformed[selected_features]=scaler.transform(tca_features_transformed[selected_features])
         
         return tca_features_transformed
@@ -110,7 +112,9 @@ class TCAFeatures:
         return series
 
     def apply_transforms(self, df):
+        """apply feature transformations """
         df=df.copy()
+        print("Applying transforms to features...")
 
         for feature, transform in TRANSFORMS.items():
             if feature not in df.columns:
@@ -120,59 +124,82 @@ class TCAFeatures:
 
         return df
     def engineer_features(self, row):
-        history_rows=self.memory
+        """return engineered features"""
+        history = self.memory
 
-        tox_vals=[h.get("toxicity_score", 0.0) for h in history_rows] + [row["toxicity_score"]]
-        thr_vals=[h.get("threat_score", 0.0) for h in history_rows] + [row["threat_score"]]
-        ir_vals=[h.get("interaction_risk", 0.0) for h in history_rows] + [row["interaction_risk"]]
-        pr_vals=[h.get("pattern_risk", 0.0) for h in history_rows] + [row["pattern_risk"]]
+        tox_vals = [h.get("toxicity_score", 0.0) for h in history]
+        tox_vals.append(row["toxicity_score"])
 
-        alpha=2 / (3 + 1)
+        thr_vals = [h.get("threat_score", 0.0) for h in history]
+        thr_vals.append(row["threat_score"])
 
-        def ema3(vals):
-            s=vals[0]
-            for v in vals[1:]:
-                s=alpha * v + (1 - alpha) * s
-            return float(s)
+        ir_vals = [h.get("interaction_risk", 0.0) for h in history]
+        ir_vals.append(row["interaction_risk"])
 
-        def roll3_mean(vals):
-            return float(np.mean(vals[-3:]))
+        pr_vals = [h.get("pattern_risk", 0.0) for h in history]
+        pr_vals.append(row["pattern_risk"])
 
-        def roll3_max(vals):
-            return float(np.max(vals[-3:]))
+        alpha = 0.5 
 
-        for name, vals in [("toxicity_score", tox_vals),("threat_score", thr_vals), ("interaction_risk", ir_vals), ("pattern_risk", pr_vals), ]:
-            row[f"{name}_ema3"]=ema3(vals)
-            row[f"{name}_rolling3_mean"]=roll3_mean(vals)
-            row[f"{name}_rolling3_max"]=roll3_max(vals)
+        #exponential moving average features
+        def ema(values):
+            s = values[0]
+            for v in values[1:]:
+                s = alpha * v + (1 - alpha) * s
+            return s
+        
+        #features based on last 3 turns mean 
+        def last3_mean(values):
+            return sum(values[-3:]) / len(values[-3:])
+        
+        #feature based on last 3 turns max
+        def last3_max(values):
+            return max(values[-3:])
 
-        prev_tox=history_rows[-1].get("toxicity_score", 0.0) if history_rows else 0.0
-        prev_thr=history_rows[-1].get("threat_score", 0.0) if history_rows else 0.0
+        row["toxicity_ema3"] = ema(tox_vals)
+        row["threat_ema3"] = ema(thr_vals)
+        row["interaction_risk_ema3"] = ema(ir_vals)
+        row["pattern_risk_ema3"] = ema(pr_vals)
 
-        row["toxicity_diff"]=row["toxicity_score"] - prev_tox
-        row["threat_diff"]=row["threat_score"] - prev_thr
+        row["toxicity_rolling3_mean"] = last3_mean(tox_vals)
+        row["threat_rolling3_mean"] = last3_mean(thr_vals)
+        row["interaction_rolling3_mean"] = last3_mean(ir_vals)
+        row["pattern_rolling3_mean"] = last3_mean(pr_vals)
 
-        prev_tox_diff=history_rows[-1].get("toxicity_diff", 0.0) if history_rows else 0.0
-        prev_thr_diff=history_rows[-1].get("threat_diff", 0.0) if history_rows else 0.0
+        row["toxicity_rolling3_max"] = last3_max(tox_vals)
+        row["threat_rolling3_max"] = last3_max(thr_vals)
+        row["interaction_rolling3_max"] = last3_max(ir_vals)
+        row["pattern_rolling3_max"] = last3_max(pr_vals)
 
-        row["toxicity_accel"]=row["toxicity_diff"] - prev_tox_diff
-        row["threat_accel"]=row["threat_diff"] - prev_thr_diff
+        prev_tox = history[-1]["toxicity_score"] if history else 0.0
+        prev_thr = history[-1]["threat_score"] if history else 0.0
 
-        if len(ir_vals) <=1:
-            row["risk_slope_3"]=0.0
+        row["toxicity_diff"] = row["toxicity_score"] - prev_tox
+        row["threat_diff"] = row["threat_score"] - prev_thr
+
+        prev_tox_diff = history[-1].get("toxicity_diff", 0.0) if history else 0.0
+        prev_thr_diff = history[-1].get("threat_diff", 0.0) if history else 0.0
+
+        row["toxicity_accel"] = row["toxicity_diff"] - prev_tox_diff
+        row["threat_accel"] = row["threat_diff"] - prev_thr_diff
+
+        if len(ir_vals) > 1:
+            diffs = []
+            for i in range(1, len(ir_vals)):
+                diffs.append(ir_vals[i] - ir_vals[i - 1])
+
+            row["risk_slope_3"] = sum(diffs[-3:]) / len(diffs[-3:])
         else:
-            diffs=np.diff(ir_vals)
-            row["risk_slope_3"]=float(np.mean(diffs[-3:]))
+            row["risk_slope_3"] = 0.0
 
-  
-        row["max_toxicity_so_far"]=float(max(tox_vals))
-        row["max_threat_so_far"]=float(max(thr_vals))
-        row["mean_risk_so_far"]=float(np.mean(ir_vals))
+        row["max_toxicity_so_far"] = max(tox_vals)
+        row["max_threat_so_far"] = max(thr_vals)
+        row["mean_risk_so_far"] = sum(ir_vals) / len(ir_vals)
 
-        row["early_high_risk"]=float(np.max(ir_vals[:3]))
-        row["late_risk_increase"]=float(np.mean(ir_vals[-3:]))
+        row["early_high_risk"] = max(ir_vals[:3]) if len(ir_vals) >= 3 else ir_vals[-1]
+        row["late_risk_increase"] = sum(ir_vals[-3:]) / min(3, len(ir_vals))
 
-        row["risk_growth_ratio"]=( row["late_risk_increase"] - row["early_high_risk"]) / (row["early_high_risk"] + 1e-6)
+        row["risk_growth_ratio"] = (row["late_risk_increase"] - row["early_high_risk"]) / (row["early_high_risk"] + 1e-6)
 
         return row
 

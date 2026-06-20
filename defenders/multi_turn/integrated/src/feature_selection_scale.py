@@ -16,6 +16,7 @@ os.makedirs("config",exist_ok=True)
 
 
 def conversation_split(df):
+    """split data into train, validation and test based on conversation id to avoid data leakage between sets"""
     all_conv_ids = df["conv_id"].unique()
     train_val_ids, test_ids = train_test_split(all_conv_ids, test_size=0.2, random_state=42, shuffle=True, stratify=df.groupby("conv_id")["label"].max())
     train_ids, val_ids = train_test_split(train_val_ids, test_size=0.25, random_state=42, shuffle=True, stratify=df[df["conv_id"].isin(train_val_ids)].groupby("conv_id")["label"].max())
@@ -28,6 +29,7 @@ def conversation_split(df):
 
 
 def remove_multicollinear(X_train,y_train,threshold):
+    """remove feature that are very correlated with each other but less correlate with the target"""
     corr_df= X_train.copy()
     corr_df["target"]= y_train.values
     corr_matrix= corr_df.corr()
@@ -35,7 +37,7 @@ def remove_multicollinear(X_train,y_train,threshold):
     upper= corr_matrix.where(np.triu(np.ones(corr_matrix.shape),k=1).astype(bool))
     to_remove= set()
     for col in upper.columns:
-        if col== "target":
+        if col== "target": #if target column skip
             continue
         highly_correlated= upper.index[abs(upper[col]) > threshold].tolist()
         for other_col in highly_correlated:
@@ -62,6 +64,7 @@ def save_split(X,meta,y,path):
 
 
 def transform_feature(series, transform):
+    """transformation types """
     if transform == "log1p":
         return np.log1p(np.maximum(series, 0))
 
@@ -79,6 +82,7 @@ def transform_feature(series, transform):
     return series
 
 def apply_transform(df) :
+    """apply transfomration of each feature """
     df = df.copy()
     for feature, transform in TRANSFORMS.items():
         if feature not in df.columns:

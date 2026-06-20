@@ -8,6 +8,7 @@ import pandas as pd
 from defenders.multi_turn.integrated.inference.risk_calculator import RiskCalculator
 
 def recompute_risks(df, calc):
+    """calcuate risk values"""
     df=df.sort_values(["conv_id", "turn_id"]).reset_index(drop=True)
     interaction_list=[]
     pattern_list=[]
@@ -34,6 +35,7 @@ def recompute_risks(df, calc):
     return df
 
 def add_escalation_features(df):
+    """cacluate escalation features """
 
     df["toxicity_diff"] = 0.0
     df["threat_diff"] = 0.0
@@ -86,7 +88,7 @@ def add_escalation_features(df):
     return df
 
 def add_smoothing_features(df):
-
+    """calculate reature smoothed """
     alpha = 0.5  # smoothing factor
 
     # initialize new columns
@@ -133,7 +135,7 @@ def add_smoothing_features(df):
     return df
 
 def add_context_features(df):
-
+    """calculate context-based features """
     max_tox_l = []
     max_thr_l = []
     mean_risk_l = []
@@ -166,7 +168,7 @@ def add_context_features(df):
 
     return df
 def add_shape_features(df):
-
+    """calculate features that based on shape"""
     df["early_high_risk"] = 0.0
     df["late_risk_increase"] = 0.0
     df["risk_growth_ratio"] = 0.0
@@ -198,6 +200,7 @@ def add_shape_features(df):
 
     return df
 def build_features(df) :
+    """build all features """
     df=df.sort_values(["conv_id", "turn_id"])
     
     df=add_smoothing_features(df)
