@@ -317,18 +317,19 @@ EXAMPLES:
 """
 
 
-def build_email_agent(use_gmail_service: bool = True):
+def build_email_agent(use_gmail_service: bool = True, email_protection: bool = True):
     """
     Build the Email Agent state machine.
-    
+
     Args:
         use_gmail_service: If True, connects to real Gmail API. If False, uses mock data.
-    
+        email_protection: If True, wraps send/read with the EmailGuard security controls.
+
     Returns:
         Compiled LangGraph email agent
     """
-   
-    
+
+
     # Initialize Gmail service and tools
     gmail_service = None
     if use_gmail_service:
@@ -337,9 +338,17 @@ def build_email_agent(use_gmail_service: bool = True):
             print("✅ Gmail service connected")
         except Exception as e:
             print(f"⚠️ Gmail service not available, using mock data: {e}")
-    
+
     read_email_tool = ReadEmailTool(gmail_service)
     send_email_tool = SendEmailTool(gmail_service)
+
+    # Email security controls (human approval, validation, rate limiting,
+    # dedup, audit logging, scope/query limits, sensitive-data masking,
+    # prompt-injection detection, RBAC, monitoring).
+    guard = None
+    if email_protection:
+        from defenders.tools.email import EmailGuard
+        guard = EmailGuard()
     
     def parse_user_request(state: EmailAgentState) -> EmailAgentState:
         """
@@ -386,9 +395,29 @@ def build_email_agent(use_gmail_service: bool = True):
         params = state.get("read_params", {}) or {}
         max_results = params.get("max_results", 10)
         query = params.get("query", "")
-        
+
+        if guard is not None:
+            # Controls 7, 8, 12: scope limitation, query restrictions, RBAC.
+            allowed, reason, safe_params = guard.check_read(
+                mailbox="me", max_results=max_results, query=query, caller="agent"
+            )
+            if not allowed:
+                return {
+                    **state,
+                    "result": None,
+                    "response": "Email read blocked by security policy.",
+                    "error": reason,
+                }
+            max_results = safe_params["max_results"]
+            query = safe_params["query"]
+
         emails = read_email_tool.read_emails(max_results=max_results, query=query)
-        
+
+        if guard is not None:
+            # Controls 9, 10, 11: mask secrets, restrict attachments,
+            # neutralize prompt injection in untrusted email content.
+            emails = guard.sanitize_emails(emails)
+
         return {
             **state,
             "result": {"emails": emails, "count": len(emails)},
@@ -412,7 +441,7 @@ def build_email_agent(use_gmail_service: bool = True):
         
         required = ["to", "subject", "body"]
         missing = [f for f in required if not params.get(f)]
-        
+
         if missing:
             return {
                 **state,
@@ -420,7 +449,28 @@ def build_email_agent(use_gmail_service: bool = True):
                 "response": f"Cannot send email: missing {', '.join(missing)}",
                 "error": f"Missing required fields: {missing}"
             }
-        
+
+        decision = None
+        if guard is not None:
+            # Controls 1-6, 12: human approval, validation, recipient
+            # restrictions, rate limiting, dedup, RBAC + audit logging.
+            decision = guard.guard_send(
+                to=params["to"],
+                subject=params["subject"],
+                body=params["body"],
+                cc=params.get("cc", ""),
+                bcc=params.get("bcc", ""),
+                caller="agent",
+            )
+            if not decision.allowed:
+                # Control 13: fail securely without leaking internals.
+                return {
+                    **state,
+                    "result": None,
+                    "response": "Email send blocked by security policy.",
+                    "error": decision.reason,
+                }
+
         result = send_email_tool.send_email(
             to=params["to"],
             subject=params["subject"],
@@ -428,7 +478,11 @@ def build_email_agent(use_gmail_service: bool = True):
             cc=params.get("cc", ""),
             bcc=params.get("bcc", "")
         )
-        
+
+        if guard is not None and decision is not None:
+            status = "success" if result.get("status") != "error" else "failure"
+            guard.record_send_result(decision, status, str(result.get("status", "")))
+
         return {
             **state,
             "result": result,
