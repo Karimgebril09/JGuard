@@ -1,6 +1,10 @@
+import os
+
 from defenders.tools.rag.src.chunker import DocumentChunker
 from defenders.tools.rag.src.vector_store import VectorStore
 from defenders.tools.rag.src.embedder import Embedder
+
+_RAG_TEXT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "txt", "rag_text.txt")
 
 
 class RAGPipeline:
@@ -80,4 +84,4 @@ rag = RAGPipeline(
     top_k=4,         
 )
 
-rag.ingest_file("../txt/rag_text.txt")
+rag.ingest_file(_RAG_TEXT_PATH)

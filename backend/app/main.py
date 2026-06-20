@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.router import api_router
 from backend.app.core.config import get_settings
-from backend.app.core.defense_engine import SessionStore, initialize_runtime_resources, shutdown_runtime_resources
+from backend.app.core.defense_engine import SessionStore
 
 
 def _configure_logging() -> None:
@@ -22,13 +22,11 @@ def _configure_logging() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.defense_runtime = initialize_runtime_resources()
     app.state.session_store = SessionStore()
     try:
         yield
     finally:
         app.state.session_store.clear()
-        shutdown_runtime_resources()
 
 
 def create_app() -> FastAPI:
@@ -55,7 +53,7 @@ def create_app() -> FastAPI:
     app.include_router(api_router, prefix=settings.api_prefix)
 
     @app.get("/", tags=["root"])
-    def root() -> dict[str, str]:
+    def _root() -> dict[str, str]:
         return {
             "service": settings.app_name,
             "version": settings.app_version,
