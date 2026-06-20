@@ -66,14 +66,13 @@ def session_chat(
     session_id: str,
     payload: SessionChatRequest,
     session_store: defense_engine.SessionStore = Depends(defense_engine.get_session_store),
-    runtime: defense_engine.RuntimeResources = Depends(defense_engine.get_runtime_resources),
 ) -> ChatResponse:
     session = session_store.get_session(session_id)
     if session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found.")
 
     try:
-        result = defense_engine.run_session_chat(session=session, prompt=payload.prompt, runtime=runtime)
+        result = defense_engine.run_session_chat(session=session, prompt=payload.prompt)
         return ChatResponse(**result)
     except RuntimeError as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc

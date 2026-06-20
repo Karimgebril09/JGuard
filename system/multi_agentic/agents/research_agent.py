@@ -28,17 +28,21 @@ class ResearchAgentState(MessagesState):
 
 
 def research_agent(state: ResearchAgentState):
-    messages = [
-        SystemMessage(
-            content=(
-                "You are a research agent. Use Tavily Search if needed. "
-                "If you have enough information, provide a structured final answer. "
-                "If not, call the Tavily tool. "
-                f"Current info: {state.get('messages', 'no information available yet')} "
-            )
-        ),
-        *state["messages"],
-    ]
+    topic = state["research_topic_from_user"]
+    prior_messages = state.get("messages", [])
+
+    system_prompt = (
+        "You are a research agent. Your task is to research the following topic: "
+        f"{topic}. "
+        "Use the Tavily Search tool to find relevant, up-to-date information. "
+        "Call the tool with a query that is directly related to the topic above. "
+        "Once you have search results, provide a structured final answer and stop calling the tool."
+    )
+
+    if not prior_messages:
+        messages = [SystemMessage(content=system_prompt), HumanMessage(content=topic)]
+    else:
+        messages = [SystemMessage(content=system_prompt), *prior_messages]
 
     response = researcher_llm.invoke(messages)
 
