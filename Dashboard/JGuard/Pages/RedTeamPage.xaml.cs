@@ -249,7 +249,7 @@ public sealed partial class RedTeamPage : Page
         {
             req.Strategy         = "custom";
             req.CustomAttackType = GetTag(ComboAttackType) ?? "role_playing";
-            req.CustomHarmType   = TextHarmType.Text.Trim();
+            req.CustomHarmType   = GetTag(ComboHarmType);
             req.NumSamples       = (int)NumSamplesCustom.Value;
 
             string attackerType = GetTag(ComboAttackerType) ?? "ollama";
