@@ -52,7 +52,7 @@
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="Auto"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Text="{x:Bind Config.LlmType}" FontWeight="Bold" Foreground="#05D9E8" FontSize="16" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{x:Bind Config.ModelDisplay}" FontWeight="Bold" Foreground="#05D9E8" FontSize="16" VerticalAlignment="Center"/>
                                             <Border Grid.Column="1" Background="#0F172A" CornerRadius="4" Padding="8,4" VerticalAlignment="Center" BorderBrush="#334155" BorderThickness="1">
                                                 <TextBlock Text="{x:Bind Config.ModeText}" FontSize="10" Foreground="#F5F5F5" FontWeight="Bold"/>
                                             </Border>
@@ -128,8 +128,8 @@
                         </ComboBox>
                     </StackPanel>
 
-                    <!-- LLM Source -->
-                    <StackPanel Spacing="4">
+                    <!-- LLM Source (foundational only) -->
+                    <StackPanel x:Name="LLMSourcePanel" Spacing="4">
                         <TextBlock Text="LLM Source" FontSize="11" Foreground="#94A3B8"/>
                         <StackPanel Orientation="Horizontal" Spacing="12">
                             <RadioButton x:Name="RadioOpenSource" Content="Open Source" Foreground="#F5F5F5"/>
@@ -137,11 +137,26 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- LLM Model (shared) -->
-                    <StackPanel Spacing="4">
+                    <!-- LLM Model (foundational only) -->
+                    <StackPanel x:Name="LLMModelPanel" Spacing="4">
                         <TextBlock Text="LLM Model" FontSize="11" Foreground="#94A3B8"/>
                         <TextBox x:Name="LLMTypeBox" PlaceholderText="e.g., qwen2.5:3b-instruct"/>
                     </StackPanel>
+
+                    <!-- Agent note (agent mode only) -->
+                    <Border x:Name="AgentNote" Background="#1A2233" BorderBrush="#05D9E8" BorderThickness="1" CornerRadius="6" Padding="10,8" Visibility="Collapsed">
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Grid.Column="0" Glyph="&#xE99A;" FontSize="13" Foreground="#05D9E8" VerticalAlignment="Top" Margin="0,1,0,0"/>
+                            <TextBlock Grid.Column="1" TextWrapping="Wrap" Foreground="#BAE6FD" FontSize="11">
+                                <Run FontWeight="SemiBold">Agent mode uses the backend's built-in agent.</Run>
+                                <Run>No LLM source or model is required — just choose your defenses below.</Run>
+                            </TextBlock>
+                        </Grid>
+                    </Border>
 
                     <!-- Closed source provider note -->
                     <TextBlock x:Name="ClosedSourceNote"

@@ -155,9 +155,10 @@ public sealed partial class HomePage : Page
             var config = sessionDialog.SelectedSession.Config;
 
             state.CurrentModelArch = config.ChatMode == "agent" ? "Agent-Based System" : "Foundational LLM";
-            state.LLMType = config.LlmType;
+            // Agent sessions come back with null LLM fields — coalesce so UI binds don't break.
+            state.LLMType = config.LlmType ?? string.Empty;
             state.LLMSourceType = config.LocalLlm ? "OpenSource" : "ClosedSource";
-            state.LLMApiKey = config.LlmApiKey;
+            state.LLMApiKey = config.LlmApiKey ?? string.Empty;
             state.IsObfuscationEnabled = config.ObfuscationProtection;
             state.IsMultiTurnEnabled = config.MultiTurnProtection;
             state.IsRoleplayingEnabled = config.RoleplayProtection;

@@ -46,6 +46,7 @@ public sealed partial class SessionDialog : ContentDialog
 
     private void SetupEventHandlers()
     {
+        ChatModeCombo.SelectionChanged += (s, e) => UpdateChatModeVisibility();
         RadioOpenSource.Checked += (s, e) => UpdateSourceVisibility();
         RadioClosedSource.Checked += (s, e) => UpdateSourceVisibility();
         UseBaseUrlCheck.Checked += (s, e) => LLMBaseUrlPanel.Visibility = Visibility.Visible;
@@ -64,6 +65,36 @@ public sealed partial class SessionDialog : ContentDialog
         SessionsListBox.SelectionChanged += SessionsListBox_SelectionChanged;
 
         PrimaryButtonClick += SessionDialog_PrimaryButtonClick;
+
+        // Apply the initial chat-mode driven visibility (defaults to Foundational).
+        UpdateChatModeVisibility();
+    }
+
+    private bool IsAgentMode => ChatModeCombo.SelectedIndex == 1;
+
+    private void UpdateChatModeVisibility()
+    {
+        bool isAgent = IsAgentMode;
+
+        // Agent sessions have no user-supplied LLM, so hide source/model and their extras.
+        LLMSourcePanel.Visibility = isAgent ? Visibility.Collapsed : Visibility.Visible;
+        LLMModelPanel.Visibility = isAgent ? Visibility.Collapsed : Visibility.Visible;
+        AgentNote.Visibility = isAgent ? Visibility.Visible : Visibility.Collapsed;
+
+        if (isAgent)
+        {
+            ClosedSourceNote.Visibility = Visibility.Collapsed;
+            OpenSourceExtrasPanel.Visibility = Visibility.Collapsed;
+            ApiKeyPanel.Visibility = Visibility.Collapsed;
+
+            // Drop any leftover "required" validation styling on the model box.
+            LLMTypeBox.Header = "LLM Model";
+        }
+        else
+        {
+            // Restore the source-dependent panels for foundational mode.
+            UpdateSourceVisibility();
+        }
     }
 
     private async void DeleteSessionButton_Click(object sender, RoutedEventArgs e)
@@ -152,8 +183,12 @@ public sealed partial class SessionDialog : ContentDialog
 
             IsNewSession = true;
 
+            bool isAgent = IsAgentMode;
+
+            // The LLM model name is only required for foundational sessions; agent
+            // sessions are driven entirely by the backend's built-in agent.
             string llmType = LLMTypeBox.Text?.Trim() ?? string.Empty;
-            if (string.IsNullOrEmpty(llmType))
+            if (!isAgent && string.IsNullOrEmpty(llmType))
             {
                 args.Cancel = true;
                 LLMTypeBox.Header = "LLM Model (REQUIRED)";
@@ -163,11 +198,11 @@ public sealed partial class SessionDialog : ContentDialog
 
             var config = new SessionConfig
             {
-                ChatMode = ChatModeCombo.SelectedIndex == 0 ? "foundational" : "agent",
+                ChatMode = isAgent ? "agent" : "foundational",
                 LocalLlm = RadioOpenSource.IsChecked == true,
                 LlmType = llmType,
-                LlmApiKey = RadioClosedSource.IsChecked == true ? (ApiKeyBox?.Password ?? string.Empty) : string.Empty,
-                LlmBaseUrl = (RadioOpenSource.IsChecked == true && UseBaseUrlCheck.IsChecked == true) ? (LLMBaseUrlBox.Text?.Trim() ?? string.Empty) : string.Empty,
+                LlmApiKey = (!isAgent && RadioClosedSource.IsChecked == true) ? (ApiKeyBox?.Password ?? string.Empty) : string.Empty,
+                LlmBaseUrl = (!isAgent && RadioOpenSource.IsChecked == true && UseBaseUrlCheck.IsChecked == true) ? (LLMBaseUrlBox.Text?.Trim() ?? string.Empty) : string.Empty,
                 ObfuscationProtection = ObfuscationCheck.IsChecked == true,
                 MultiTurnProtection = MultiTurnCheck.IsChecked == true,
                 RoleplayProtection = RoleplayCheck.IsChecked == true,

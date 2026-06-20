@@ -1,3 +1,4 @@
+using System;
 using Microsoft.UI.Xaml;
 using System.Text.Json.Serialization;
 
@@ -37,10 +38,20 @@ public class SessionConfig
 
     // Helper properties for UI binding
     [JsonIgnore]
-    public string SourceText => LocalLlm ? "Local (Ollama)" : "Cloud API";
-    
+    public bool IsAgent => string.Equals(ChatMode, "agent", StringComparison.OrdinalIgnoreCase);
+
+    // Agent sessions have no user-supplied LLM source/model (the backend returns null),
+    // so surface a friendly label instead of a blank field.
     [JsonIgnore]
-    public string ModeText => ChatMode.ToUpper();
+    public string ModelDisplay => IsAgent
+        ? "Agent System"
+        : (string.IsNullOrWhiteSpace(LlmType) ? "Unknown Model" : LlmType);
+
+    [JsonIgnore]
+    public string SourceText => IsAgent ? "Agent Tooling" : (LocalLlm ? "Local (Ollama)" : "Cloud API");
+
+    [JsonIgnore]
+    public string ModeText => (ChatMode ?? string.Empty).ToUpper();
     
     [JsonIgnore]
     public Visibility ObfuscationVisibility => ObfuscationProtection ? Visibility.Visible : Visibility.Collapsed;
