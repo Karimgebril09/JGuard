@@ -10,9 +10,9 @@ class ChatHistoryMessage(BaseModel):
 
 class SessionConfig(BaseModel):
     chat_mode: Literal["foundational", "agent"] = "foundational"
-    local_llm: bool
+    local_llm: bool | None = True
     llm_api_key: str = ""
-    llm_type: str = Field(..., min_length=1)
+    llm_type: str | None = None
     llm_base_url: str | None = None
     obfuscation_protection: bool
     multi_turn_protection: bool

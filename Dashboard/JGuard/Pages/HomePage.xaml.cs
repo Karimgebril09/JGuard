@@ -286,6 +286,7 @@ public sealed partial class HomePage : Page
     private void ClearChat_Click(object sender, RoutedEventArgs e)
     {
         _messages.Clear();
+        SanitizedInfoBar.IsOpen = false;
         AddWelcomeMessage();
     }
 
@@ -318,6 +319,9 @@ public sealed partial class HomePage : Page
             Timestamp = DateTime.Now
         };
         _messages.Add(userMsg);
+
+        // Clear any sanitized-prompt notice from the previous turn.
+        SanitizedInfoBar.IsOpen = false;
 
         ScrollToBottom();
 
@@ -360,6 +364,18 @@ public sealed partial class HomePage : Page
             }
 
             if (response == null) throw new Exception("Failed to receive response from system.");
+
+            // If PII/obfuscation rewrote the prompt before sending, show what was actually sent.
+            if (!string.IsNullOrEmpty(response.CleanPrompt) &&
+                !string.Equals(response.CleanPrompt, prompt, StringComparison.Ordinal))
+            {
+                SanitizedPromptText.Text = response.CleanPrompt;
+                SanitizedInfoBar.IsOpen = true;
+            }
+            else
+            {
+                SanitizedInfoBar.IsOpen = false;
+            }
 
             DateTime ts;
             if (!DateTime.TryParse(response.Timestamp, out ts))

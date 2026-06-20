@@ -320,13 +320,33 @@
                         </ListView.ItemContainerStyle>
                     </ListView>
 
-                    <!-- Bouncing Typing Indicator (Simulated) -->
-                    <Border Grid.Row="2" x:Name="TypingIndicator" Margin="16,0,16,8" Padding="12,8" HorizontalAlignment="Left" Background="#1E293B" CornerRadius="12,12,12,0" Visibility="Collapsed">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="Model analyzing prompt" FontSize="12" Foreground="#94A3B8" VerticalAlignment="Center"/>
-                            <ProgressRing IsActive="True" Width="16" Height="16" Foreground="#05D9E8" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
+                    <StackPanel Grid.Row="2">
+                        <!-- Shown when PII/obfuscation rewrote the prompt before it was sent. Driven
+                             directly from code-behind (no data binding) so it can't fail silently. -->
+                        <InfoBar x:Name="SanitizedInfoBar"
+                                 Margin="16,0,16,8"
+                                 IsOpen="False"
+                                 IsClosable="True"
+                                 Severity="Warning"
+                                 Title="Prompt sanitized before sending">
+                            <InfoBar.Content>
+                                <TextBlock x:Name="SanitizedPromptText"
+                                           TextWrapping="Wrap"
+                                           IsTextSelectionEnabled="True"
+                                           FontFamily="Consolas"
+                                           Foreground="#FDE68A"
+                                           Margin="0,0,0,12"/>
+                            </InfoBar.Content>
+                        </InfoBar>
+
+                        <!-- Bouncing Typing Indicator (Simulated) -->
+                        <Border x:Name="TypingIndicator" Margin="16,0,16,8" Padding="12,8" HorizontalAlignment="Left" Background="#1E293B" CornerRadius="12,12,12,0" Visibility="Collapsed">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="Model analyzing prompt" FontSize="12" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                                <ProgressRing IsActive="True" Width="16" Height="16" Foreground="#05D9E8" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
 
                     <!-- Chat Input Area -->
                     <Border Grid.Row="3" Background="#1E293B" Padding="16" CornerRadius="0,0,12,12">

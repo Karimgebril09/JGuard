@@ -390,18 +390,25 @@ def build_dataset_from_promptfoo(
         if not plugins:
             continue
 
-        config_path, tests_path, results_path = run_promptfoo_with_stop(
-            target_id=target_id,
-            target_label=target_label,
-            purpose=purpose,
-            plugins=plugins,
-            strategies=strategies,
-            num_tests=num_tests,
-            reports_dir=reports_dir,
-            timeout_seconds=timeout_seconds,
-            run_tag=attack_type,
-            stop_event=stop_event,
-        )
+        try:
+            config_path, tests_path, results_path = run_promptfoo_with_stop(
+                target_id=target_id,
+                target_label=target_label,
+                purpose=purpose,
+                plugins=plugins,
+                strategies=strategies,
+                num_tests=num_tests,
+                reports_dir=reports_dir,
+                timeout_seconds=timeout_seconds,
+                run_tag=attack_type,
+                stop_event=stop_event,
+            )
+        except RuntimeError as exc:
+            if stop_event and stop_event.is_set():
+                raise
+            print(f"[Promptfoo] Skipping attack_type '{attack_type}' after error: {exc}", flush=True)
+            continue
+
         config_paths.append(config_path)
         tests_paths.append(tests_path)
         results_paths.append(results_path)

@@ -28,7 +28,7 @@ public class ChatMessageDisplay
 
     public string HarmLabelStatus => string.IsNullOrEmpty(HarmLabel) ? "" : $"☣️ Harm: {HarmLabel}";
     public Visibility HarmLabelVisibility => !string.IsNullOrEmpty(HarmLabel) ? Visibility.Visible : Visibility.Collapsed;
-    
+
     // For backwards compatibility with HomePage
     public bool IsUser { get; set; }
     
@@ -48,7 +48,7 @@ public class ChatMessageTemplateSelector : DataTemplateSelector
 {
     public DataTemplate? UserMessageTemplate { get; set; }
     public DataTemplate? AssistantMessageTemplate { get; set; }
-    
+
     // For backwards compatibility with HomePage
     public DataTemplate? UserTemplate { get; set; }
     public DataTemplate? ModelTemplate { get; set; }

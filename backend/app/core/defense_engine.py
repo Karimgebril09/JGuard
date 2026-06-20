@@ -1,13 +1,14 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from threading import Lock
-from typing import Any
+from typing import Any, Optional
 from uuid import uuid4
 
 from fastapi import Request
 
 from backend.app.models.chat_models import SessionConfig
 from system.single_llm.llm import LLM
+from system.multi_agentic.mas_guard import MASGuard
 
 llm_system_prompt = """
 You are a helpful, accurate, and concise AI assistant.
@@ -16,7 +17,7 @@ Always provide clear and useful answers to the user's questions.
 
 Important formatting rules:
 
-* Return plain text only. 
+* Return plain text only.
 * Do NOT use Markdown formatting.
 * Do NOT use code fences (```).
 * Do NOT include emojis or special characters like asterisks.
@@ -38,11 +39,12 @@ class RuntimeResources:
 class SessionState:
     session_id: str
     history: list[dict[str, str]]
-    llm: LLM
+    llm: Optional[LLM]
     config: SessionConfig
     created_at: datetime
     last_active: datetime
     meta: dict[str, Any] = field(default_factory=dict)
+    mas_guard: Optional[MASGuard] = None
 
 
 class SessionStore:
@@ -52,19 +54,33 @@ class SessionStore:
 
     def create_session(self, config: SessionConfig) -> SessionState:
         now = datetime.now(timezone.utc)
-        model_type = "ollama" if config.local_llm else _resolve_cloud_provider(config.llm_type)
-        llm = LLM(
-            model_name=config.llm_type,
-            model_type=model_type,
-            api_key=config.llm_api_key if not config.local_llm else None,
-            obfuscation_protection=config.obfuscation_protection,
-            roleplay_protection=config.roleplay_protection,
-            multi_turn_protection=config.multi_turn_protection,
-            pii_protection=config.pii_protection,
-            pii_strategy=config.pii_strategy,
-            base_url=config.llm_base_url,
-            system_prompt=llm_system_prompt.strip()
-        )
+
+        llm: Optional[LLM] = None
+        mas_guard: Optional[MASGuard] = None
+
+        if config.chat_mode == "foundational":
+            assert config.llm_type, "llm_type is required for foundational mode"
+            model_type = "ollama" if config.local_llm else _resolve_cloud_provider(config.llm_type)
+            llm = LLM(
+                model_name=config.llm_type,
+                model_type=model_type,
+                api_key=config.llm_api_key if not config.local_llm else None,
+                obfuscation_protection=config.obfuscation_protection,
+                roleplay_protection=config.roleplay_protection,
+                multi_turn_protection=config.multi_turn_protection,
+                pii_protection=config.pii_protection,
+                pii_strategy=config.pii_strategy,
+                base_url=config.llm_base_url,
+                system_prompt=llm_system_prompt.strip(),
+            )
+        else:
+            mas_guard = MASGuard(
+                obfuscation_protection=config.obfuscation_protection,
+                roleplay_protection=config.roleplay_protection,
+                pii_protection=config.pii_protection,
+                pii_strategy=config.pii_strategy,
+                multi_turn_protection=config.multi_turn_protection,
+            )
 
         session = SessionState(
             session_id=str(uuid4()),
@@ -73,6 +89,7 @@ class SessionStore:
             config=config,
             created_at=now,
             last_active=now,
+            mas_guard=mas_guard,
         )
         with self._lock:
             self._sessions[session.session_id] = session
@@ -127,38 +144,35 @@ def shutdown_runtime_resources() -> None:
     return
 
 
-def run_session_chat(session: SessionState, prompt: str, runtime: RuntimeResources) -> dict[str, str | bool | None]:
+def run_session_chat(session: SessionState, prompt: str, runtime: RuntimeResources) -> dict[str, Any]:
     session.history.append({"role": "user", "content": prompt})
 
-    reply_fn = None
     if session.config.chat_mode == "agent":
-        reply_fn = lambda clean_prompt: _dispatch_agent_reply(
-            session=session,
-            prompt_text=clean_prompt,
-            runtime=runtime,
+        result = _run_agent_chat(session, prompt, runtime)
+    else:
+        if session.llm is None:
+            raise RuntimeError("LLM is not initialized for this session.")
+        result = session.llm.chat_secure(
+            prompt=prompt,
+            history=session.history,
         )
-
-    result = session.llm.chat_secure(
-        prompt=prompt,
-        history=session.history,
-        reply_fn=reply_fn,
-    )
 
     session.history.append({"role": "assistant", "content": str(result["reply"])})
     result["timestamp"] = _now_iso()
     return result
 
 
-def _build_mas_app() -> Any:
-    try:
-        from system.multi_agentic.agents import app as mas_app_module
-    except Exception as exc:
-        raise RuntimeError(f"Failed to import MAS modules: {exc}") from exc
+def _run_agent_chat(session: SessionState, prompt: str, runtime: RuntimeResources) -> dict[str, Any]:
+    if session.mas_guard is None:
+        raise RuntimeError("MASGuard is not initialized for this session.")
 
-    return mas_app_module.graph.compile()
+    guard_result = session.mas_guard.secure_input(prompt)
+    if guard_result["blocked"]:
+        return guard_result
 
+    clean_prompt: str = guard_result["clean_prompt"]
+    print(f"MAS GUARD PASSED. Cleaned prompt: {clean_prompt}")
 
-def _dispatch_agent_reply(session: SessionState, prompt_text: str, runtime: RuntimeResources) -> str:
     with runtime.mas_lock:
         if runtime.mas_app is None:
             runtime.mas_app = _build_mas_app()
@@ -168,10 +182,13 @@ def _dispatch_agent_reply(session: SessionState, prompt_text: str, runtime: Runt
     try:
         final_state = mas_app.invoke(
             {
-                "user_message": prompt_text,
+                "user_message": clean_prompt,
                 "messages": prior_messages,
             },
-            config={"recursion_limit": 30},
+            config={
+                "recursion_limit": 30,
+                "configurable": {"mas_guard": session.mas_guard},
+            },
         )
     except Exception as exc:
         raise RuntimeError(f"Agent-based MAS call failed: {exc}") from exc
@@ -182,7 +199,22 @@ def _dispatch_agent_reply(session: SessionState, prompt_text: str, runtime: Runt
     if "next_action" in final_state:
         session.meta["agent_next_action"] = final_state.get("next_action")
 
-    return _extract_mas_reply(final_state)
+    return {
+        "reply": _extract_mas_reply(final_state),
+        "blocked": False,
+        "triggered_defenses": guard_result["triggered_defenses"],
+        "harm_label": guard_result["harm_label"],
+        "clean_prompt": clean_prompt,
+    }
+
+
+def _build_mas_app() -> Any:
+    try:
+        from system.multi_agentic.agents import app as mas_app_module
+    except Exception as exc:
+        raise RuntimeError(f"Failed to import MAS modules: {exc}") from exc
+
+    return mas_app_module.graph.compile()
 
 
 def _extract_mas_reply(final_state: dict[str, Any]) -> str:
