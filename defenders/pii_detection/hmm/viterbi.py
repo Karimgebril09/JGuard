@@ -3,9 +3,11 @@ import numpy as np
 def get_emission_score(log_emit, state, observation):
     score = 0
     if isinstance(observation, list):
+        # multiple features
         for feature in observation:
             score += log_emit[state][feature]
     else:
+        # single feature 
         score = log_emit[state][observation]
     return score
 
@@ -22,18 +24,19 @@ def viterbi(observations, num_states, log_start, log_trans, log_emit):
     for t in range(1, T):
 
         for current_state in range(num_states):
+            
             best_score = float("-inf")
             best_prev_state = 0
 
             for prev_state in range(num_states):
-
+                # max of prevtag * transiton 
                 score = (dp[prev_state][t - 1]+ log_trans[prev_state][current_state])
                 if score > best_score:
                     best_score = score
                     best_prev_state = prev_state
-
+            # multiply by emission score
             dp[current_state][t] = (best_score + get_emission_score( log_emit,current_state,  observations[t]   ) )
-
+            # save that at this state i came form the best_prev_state
             backpointer[current_state][t] = best_prev_state
 
     # Find final best state
@@ -41,7 +44,7 @@ def viterbi(observations, num_states, log_start, log_trans, log_emit):
     best_score = dp[0][T - 1]
 
     for state in range(1, num_states):
-
+        # find the best score at the last time step
         if dp[state][T - 1] > best_score:
             best_score = dp[state][T - 1]
             best_last_state = state
