@@ -156,12 +156,11 @@ def _run_agent_chat(session: SessionState, prompt: str) -> dict[str, Any]:
     clean_prompt: str = guard_result["clean_prompt"]
     print(f"MAS GUARD PASSED. Cleaned prompt: {clean_prompt}")
 
-    prior_messages = session.meta.get("agent_messages", [])
     try:
         final_state = session.mas_app.invoke(
             {
                 "user_message": clean_prompt,
-                "messages": prior_messages,
+                "messages": [],
             },
             config={
                 "recursion_limit": 30,
@@ -173,7 +172,6 @@ def _run_agent_chat(session: SessionState, prompt: str) -> dict[str, Any]:
     except Exception as exc:
         raise RuntimeError(f"Agent-based MAS call failed: {exc}") from exc
 
-    session.meta["agent_messages"] = final_state.get("messages", prior_messages)
     if "response" in final_state:
         session.meta["agent_response"] = final_state.get("response")
     if "next_action" in final_state:
