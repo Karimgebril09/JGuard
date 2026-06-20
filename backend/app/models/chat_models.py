@@ -19,6 +19,11 @@ class SessionConfig(BaseModel):
     roleplay_protection: bool
     pii_protection: bool
     pii_strategy: str = "mask"
+    web_search_protection: bool = True
+    code_execution_protection: bool = True
+    rag_protection: bool = True
+    email_protection: bool = True       
+    document_protection: bool = True    
 
     @model_validator(mode="after")
     def validate_closed_source_fields(self) -> "SessionConfig":

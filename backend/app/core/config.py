@@ -10,7 +10,7 @@ class Settings:
     app_description: str = "FastAPI backend for JGuard"
     environment: str = "development"
     api_prefix: str = "/api"
-    allowed_origins: list[str] | None = None
+    allowed_origins: list[str] = None
 
 
 def _parse_allowed_origins() -> list[str]:

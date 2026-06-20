@@ -30,12 +30,6 @@ If a request is ambiguous, ask a clarifying question before answering.
 
 
 @dataclass
-class RuntimeResources:
-    mas_app: Any | None
-    mas_lock: Lock
-
-
-@dataclass
 class SessionState:
     session_id: str
     history: list[dict[str, str]]
@@ -45,6 +39,7 @@ class SessionState:
     last_active: datetime
     meta: dict[str, Any] = field(default_factory=dict)
     mas_guard: Optional[MASGuard] = None
+    mas_app: Any | None = None
 
 
 class SessionStore:
@@ -57,6 +52,7 @@ class SessionStore:
 
         llm: Optional[LLM] = None
         mas_guard: Optional[MASGuard] = None
+        mas_app: Any = None
 
         if config.chat_mode == "foundational":
             assert config.llm_type, "llm_type is required for foundational mode"
@@ -81,6 +77,13 @@ class SessionStore:
                 pii_strategy=config.pii_strategy,
                 multi_turn_protection=config.multi_turn_protection,
             )
+            mas_app = _build_mas_app(
+                web_search_protection=config.web_search_protection,
+                code_execution_protection=config.code_execution_protection,
+                rag_protection=config.rag_protection,
+                email_protection=config.email_protection,
+                document_protection=config.document_protection,
+            )
 
         session = SessionState(
             session_id=str(uuid4()),
@@ -90,6 +93,7 @@ class SessionStore:
             created_at=now,
             last_active=now,
             mas_guard=mas_guard,
+            mas_app=mas_app,
         )
         with self._lock:
             self._sessions[session.session_id] = session
@@ -115,13 +119,6 @@ class SessionStore:
             self._sessions.clear()
 
 
-def get_runtime_resources(request: Request) -> RuntimeResources:
-    runtime = getattr(request.app.state, "defense_runtime", None)
-    if runtime is None:
-        raise RuntimeError("Runtime resources are not initialized.")
-    return runtime
-
-
 def get_session_store(request: Request) -> SessionStore:
     session_store = getattr(request.app.state, "session_store", None)
     if session_store is None:
@@ -133,38 +130,24 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def initialize_runtime_resources() -> RuntimeResources:
-    return RuntimeResources(
-        mas_app=None,
-        mas_lock=Lock(),
-    )
-
-
-def shutdown_runtime_resources() -> None:
-    return
-
-
-def run_session_chat(session: SessionState, prompt: str, runtime: RuntimeResources) -> dict[str, Any]:
+def run_session_chat(session: SessionState, prompt: str) -> dict[str, Any]:
     session.history.append({"role": "user", "content": prompt})
 
     if session.config.chat_mode == "agent":
-        result = _run_agent_chat(session, prompt, runtime)
+        result = _run_agent_chat(session, prompt)
     else:
         if session.llm is None:
             raise RuntimeError("LLM is not initialized for this session.")
-        result = session.llm.chat_secure(
-            prompt=prompt,
-            history=session.history,
-        )
+        result = session.llm.chat_secure(prompt=prompt, history=session.history)
 
     session.history.append({"role": "assistant", "content": str(result["reply"])})
     result["timestamp"] = _now_iso()
     return result
 
 
-def _run_agent_chat(session: SessionState, prompt: str, runtime: RuntimeResources) -> dict[str, Any]:
-    if session.mas_guard is None:
-        raise RuntimeError("MASGuard is not initialized for this session.")
+def _run_agent_chat(session: SessionState, prompt: str) -> dict[str, Any]:
+    if session.mas_guard is None or session.mas_app is None:
+        raise RuntimeError("MAS app is not initialized for this session.")
 
     guard_result = session.mas_guard.secure_input(prompt)
     if guard_result["blocked"]:
@@ -173,21 +156,18 @@ def _run_agent_chat(session: SessionState, prompt: str, runtime: RuntimeResource
     clean_prompt: str = guard_result["clean_prompt"]
     print(f"MAS GUARD PASSED. Cleaned prompt: {clean_prompt}")
 
-    with runtime.mas_lock:
-        if runtime.mas_app is None:
-            runtime.mas_app = _build_mas_app()
-        mas_app: Any = runtime.mas_app
-
     prior_messages = session.meta.get("agent_messages", [])
     try:
-        final_state = mas_app.invoke(
+        final_state = session.mas_app.invoke(
             {
                 "user_message": clean_prompt,
                 "messages": prior_messages,
             },
             config={
                 "recursion_limit": 30,
-                "configurable": {"mas_guard": session.mas_guard},
+                "configurable": {
+                    "mas_guard": session.mas_guard,
+                },
             },
         )
     except Exception as exc:
@@ -208,13 +188,25 @@ def _run_agent_chat(session: SessionState, prompt: str, runtime: RuntimeResource
     }
 
 
-def _build_mas_app() -> Any:
+def _build_mas_app(
+    web_search_protection: bool = True,
+    code_execution_protection: bool = True,
+    rag_protection: bool = True,
+    email_protection: bool = True,
+    document_protection: bool = True,
+) -> Any:
     try:
-        from system.multi_agentic.agents import app as mas_app_module
+        from system.multi_agentic.agents.app import build_mas_app
     except Exception as exc:
         raise RuntimeError(f"Failed to import MAS modules: {exc}") from exc
 
-    return mas_app_module.graph.compile()
+    return build_mas_app(
+        web_search_protection=web_search_protection,
+        code_execution_protection=code_execution_protection,
+        rag_protection=rag_protection,
+        email_protection=email_protection,
+        document_protection=document_protection,
+    )
 
 
 def _extract_mas_reply(final_state: dict[str, Any]) -> str:
@@ -222,14 +214,10 @@ def _extract_mas_reply(final_state: dict[str, Any]) -> str:
     if isinstance(response, str) and response.strip():
         return response
 
-    messages = final_state.get("messages", [])
-    for message in reversed(messages):
-        msg_type = getattr(message, "type", "")
-        content = getattr(message, "content", "")
-        if msg_type == "ai":
-            if isinstance(content, str) and content.strip():
-                return content
-            return str(content)
+    for message in reversed(final_state.get("messages", [])):
+        if getattr(message, "type", "") == "ai":
+            content = getattr(message, "content", "")
+            return content if isinstance(content, str) and content.strip() else str(content)
 
     return "Agent system returned no response."
 
