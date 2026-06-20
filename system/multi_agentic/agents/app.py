@@ -109,13 +109,11 @@ def build_mas_app(
     email_protection: bool = True,       
     document_protection: bool = True,   
 ) -> Any:
-    _ = email_protection  
-
     coder_agent = build_coding_agent(code_execution_protection=code_execution_protection)
     research_agent = build_research_agent(web_search_protection=web_search_protection)
     document_agent = build_document_processor(document_protection=document_protection)
     rag_agent = build_rag_agent(rag_protection=rag_protection)
-    email_agent = build_email_agent(use_gmail_service=True)
+    email_agent = build_email_agent(use_gmail_service=True, email_protection=email_protection)
 
     orch_agent = create_llms(local=True)
 
