@@ -51,7 +51,7 @@ def search_knowledge_base(query: str, state: Annotated[dict, InjectedState],) ->
 llm_with_tools = llm.bind_tools([search_knowledge_base])
 
 
-def rag_agent(state: RagAgentState):
+def rag_agent_function(state: RagAgentState):
     system_prompt = SystemMessage(content=(
         "You are a helpful company assistant with access to the company knowledge base. "
         "When needed, use the search_knowledge_base tool to find relevant information. "
@@ -83,7 +83,7 @@ def rag_agent(state: RagAgentState):
 def build_rag_agent():
     workflow = StateGraph(RagAgentState)
 
-    workflow.add_node("agent", rag_agent)
+    workflow.add_node("agent", rag_agent_function)
     workflow.add_node("tools", ToolNode([search_knowledge_base]))
 
     workflow.add_edge(START, "agent")
@@ -98,4 +98,4 @@ def build_rag_agent():
   
 
 
-app = build_rag_agent()
+rag_agent = build_rag_agent()

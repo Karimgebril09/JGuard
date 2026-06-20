@@ -144,7 +144,8 @@ def run_rag_agent(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
         mas_guard.update_last_response("rag", blocked)
         return {"messages": [AIMessage(content=blocked)]}
 
-    response = rag_agent.invoke({"messages": [HumanMessage(content=state["user_message"])]})
+    response = rag_agent.invoke({"messages": [HumanMessage(content=state["user_message"])],
+                                 'enable_scanner': False})  ###  7ot mkanha al var men al backend
     content = response["messages"][-1].content
     if mas_guard is not None:
         mas_guard.update_last_response("rag", content)
