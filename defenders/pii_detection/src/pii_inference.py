@@ -7,6 +7,7 @@ from torchcrf import CRF
 from typing import Counter, List, Tuple, Optional
 from defenders.pii_detection.src.pii_crf_predictor import CRFPiiDetector
 import fasttext
+from defenders.pii_detection.src.utils import tokenise_with_alignment
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -70,23 +71,15 @@ class BiLSTMCRF(nn.Module):
         self.crf = CRF(num_tags=num_classes,batch_first=True)
 
     def forward(self, x):
-
         out1, _ = self.bilstm1(x)
         out2, _ = self.bilstm2(out1)
         out3, _ = self.bilstm3(out2)
-
         emissions = self.classifier(out3)
-
         return emissions
 
     def decode(self, x, mask):
-
         emissions = self.forward(x)
-
-        prediction = self.crf.decode(
-            emissions,
-            mask=mask
-        )
+        prediction = self.crf.decode(emissions,mask=mask)
 
         return prediction
 
@@ -104,8 +97,6 @@ class PIIDetector:
         self.model.load_state_dict(state)
         self.model.to(self.device)
         self.model.eval()
-
-        # self.ENWE = fasttext.load_model("./../models/cc.en.300.bin")
         self.ENWE = fasttext.load_model(os.path.join(_HERE, "..", "models", "cc.en.300.bin"))
 
         state2 = torch.load(checkpoint_path2, map_location=self.device)
@@ -119,7 +110,6 @@ class PIIDetector:
         self.crf_predictor = CRFPiiDetector()
     
     def trust_strategy(self, predictions1, predictions2,predictions3):
-        # trust model2 in ip addresses
         final_predictions = []
         predictor1_trusted_tags = {"IPV4", "IPV6"}
         predictor3_trusted_tags = {"ACCOUNTNAME", "PASSWORD","EMAIL"}
@@ -150,7 +140,7 @@ class PIIDetector:
     def remove_brackets(self,text):
         words = text.split()
         cleaned_words = []
-        restricted_chars = ["<",">","<=",">=","{" ,"}","[","]","(",")"] # List of restricted to avoid problems if code generated
+        restricted_chars = ["<",">","<=",">=","{" ,"}","[","]","(",")"]
         for word in words:
             word=word.strip()
             if word in restricted_chars:
@@ -163,7 +153,7 @@ class PIIDetector:
 
     def predict(self, text) :
         cleaned_text = self.remove_brackets(text)
-        words, tokens, subword_ids, word_first_subword = self.tokenise_with_alignment(cleaned_text)
+        words, tokens, subword_ids, word_first_subword = tokenise_with_alignment(self.tokenizer, cleaned_text)
         if not subword_ids:
             return []
 
@@ -187,26 +177,6 @@ class PIIDetector:
 
         final_tags = self.trust_strategy(word_tags,word_tags2,word_tags3)
         return list(zip(words, final_tags))
-
-
-
-    def tokenise_with_alignment(self, text):
-        words= text.strip().split()
-        subword_ids= []
-        word_first_subword = []
-        tokens = []
-
-        for word in words:
-            pieces = self.tokenizer.tokenize(word)
-            if not pieces:
-                pieces = [self.tokenizer.unk_token]
-            ids = self.tokenizer.convert_tokens_to_ids(pieces)
-            tokens.extend(pieces)
-
-            word_first_subword.append(len(subword_ids))
-            subword_ids.extend(ids)
-
-        return words, tokens, subword_ids, word_first_subword
 
 
 
