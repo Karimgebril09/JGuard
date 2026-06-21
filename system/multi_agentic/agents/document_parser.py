@@ -1,156 +1,117 @@
-from langgraph.graph import StateGraph , START, END
-from typing import Literal, Optional
-from langchain_ollama import ChatOllama
-from langchain.messages import HumanMessage, SystemMessage  ,ToolMessage
+from langgraph.graph import StateGraph, START, END
+from typing import Literal
+from langchain.messages import HumanMessage, SystemMessage
 from langgraph.prebuilt import ToolNode
 from langgraph.graph.message import MessagesState
-from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
 from langchain.tools import tool
 import re
-import os
 import pypdf
 from fpdf import FPDF
-
 from .llm import llm
-
-
+from defenders.tools.document_parser import DocumentGuard, ALLOWED_INPUT_DIR, ALLOWED_OUTPUT_DIR
 
 
 def clean_text(text: str) -> str:
-    "clean the input text by removing special characters, URLs, emails, and extra spaces. "
-    text = text.lower() 
-    text = re.sub(r'http\S+|www\S+|https\S+', '', text)    # Remove URLs
-    text = re.sub(r'\S+@\S+', '', text)  # remove emails
-    text = re.sub(r'[^a-zA-Z0-9\s.,!?]', '', text)  # Remove special characters 
-    text = re.sub(r'\s+', ' ', text).strip()  # Remove extra spaces/newlines
-    
+    text = text.lower()
+    text = re.sub(r'http\S+|www\S+|https\S+', '', text)
+    text = re.sub(r'\S+@\S+', '', text)
+    text = re.sub(r'[^a-zA-Z0-9\s.,!?]', '', text)
+    text = re.sub(r'\s+', ' ', text).strip()
     return text.strip()
-
-@tool
-def read_pdf_file(file_path: str) -> str:
-    """
-    Reads the text content of a PDF file given its path.
-    
-    Args:
-        file_path (str): The local system path to the PDF file.
-        
-    Returns:
-        str: The extracted text from all pages, or an error message if the file cannot be read.
-    """
-    try:
-        text_content = []
-        
-        with open(file_path, 'rb') as file:
-            reader = pypdf.PdfReader(file)
-            
-            for page in reader.pages:
-                extracted_text = page.extract_text()
-                if extracted_text:
-                    text_content.append(extracted_text)
-        
-        return clean_text("\n".join(text_content))
-
-    except FileNotFoundError:
-        return f"Error: The file at {file_path} was not found."
-    except Exception as e:
-        return f"Error: An unexpected error occurred while reading the PDF: {str(e)}"
-    
-
-
-@tool
-def write_documentation_to_pdf(file_path: str, documentation: str) -> str:
-    """
-    Writes a string of documentation text into a PDF file.
-    
-    Args:
-        file_path (str): The destination path where the PDF will be saved.
-        documentation (str): The text content to be written into the PDF.
-        
-    Returns:
-        str: A success message with the file path or an error message.
-    """
-    try:
-        # Initialize FPDF object
-        pdf = FPDF()
-        pdf.set_auto_page_break(auto=True, margin=15)
-        pdf.add_page()
-        
-        pdf.set_font("Arial", size=12)
-        
-        # Multi_cell allows for automatic line wrapping
-        # w=0 means the cell stretches to the right margin
-        pdf.multi_cell(w=0, h=10, txt=documentation)
-        
-        # Output the file
-        pdf.output(file_path)
-        
-        return f"Successfully created PDF documentation at: {file_path}"
-
-    except PermissionError:
-        return f"Error: Permission denied. Close the file if it is open in another program."
-    except Exception as e:
-        return f"Error creating PDF: {str(e)}"
-    
-
-def create_llms(local:bool=True):
-    
-    load_dotenv()
-    # if local:
-    doc_agent = llm.bind_tools([read_pdf_file, write_documentation_to_pdf])
-    # else:
-        # gemini_api_key = os.getenv("GEMINI_API_KEY")
-        # doc_agent = ChatGoogleGenerativeAI(model="gemini-2.5-flash",api_key=gemini_api_key).bind_tools([read_pdf_file, write_documentation_to_pdf])
-   
-    return doc_agent
-
-document_processor_llm = create_llms(local=True)
 
 
 class DocumentProcessorAgentState(MessagesState):
     request: str
-    document:str
+    document: str
 
-def document_processor_agent(state: DocumentProcessorAgentState):
-    messages = [
-        SystemMessage(
-            content=(
-                "you are a document processor agent. "
-                "you are supposed to do either [1] read a documentation file from a given file path, "
-                "or [2] generate documentation based on the provided code and write it to a PDF file  "
-                "you should pick your actions according to user's request. "
-                "you have access to two tools: read_pdf_file(file_path) and write_documentation_to_pdf(file_path, documentation). "
-                "your output should be only the documentation no other additional text if you choose to write documentation. "
-                "if user didn't provide a file path, you should give a file name for generating the documentation PDF file. "
-                "for reading documentation dont use any tool and return message with content that path is required. "
-            )
-        ),
-        HumanMessage(
-            content="user request: " + state["request"] 
-        ),
-    ]
 
-    response = document_processor_llm.invoke(messages)
+def build_document_processor(document_protection: bool = True):
+    load_dotenv()
 
-    return {
-        "messages": [response],
-    }
+    guard = DocumentGuard() if document_protection else None
 
-def route(state: DocumentProcessorAgentState) -> Literal["tools_output", "end"]:
-    print("fififi")
-    last_message = state["messages"][-1]
-    if not last_message.tool_calls:
-        return "end"
-    else:
+    @tool
+    def read_pdf_file(file_path: str) -> str:
+        """
+        Reads the text content of a PDF file.
+        The file must be located inside the designated input directory.
+        Provide only the filename (e.g. 'report.pdf'), not an absolute path.
+        """
+        if guard is not None:
+            safe, reason, file_path = guard.check_read(file_path)
+            if not safe:
+                print(f"[DocumentGuard] READ BLOCKED – {reason}")
+                return f"BLOCKED: {reason}"
+
+        resolved_path = ALLOWED_INPUT_DIR / file_path
+        try:
+            text_content = []
+            with open(resolved_path, 'rb') as f:
+                reader = pypdf.PdfReader(f)
+                for page in reader.pages:
+                    extracted = page.extract_text()
+                    if extracted:
+                        text_content.append(extracted)
+            return clean_text("\n".join(text_content))
+        except FileNotFoundError:
+            return f"Error: '{file_path}' not found in the input directory."
+        except Exception as e:
+            return f"Error reading PDF: {e}"
+
+    @tool
+    def write_documentation_to_pdf(file_path: str, documentation: str) -> str:
+        """
+        Writes documentation text into a PDF file in the designated output directory.
+        Provide only the filename (e.g. 'api-docs.pdf'), not an absolute path.
+        The file must not already exist.
+        """
+        if guard is not None:
+            safe, reason, file_path = guard.check_write(file_path, documentation)
+            if not safe:
+                print(f"[DocumentGuard] WRITE BLOCKED – {reason}")
+                return f"BLOCKED: {reason}"
+
+        resolved_path = ALLOWED_OUTPUT_DIR / file_path
+        try:
+            pdf = FPDF()
+            pdf.set_auto_page_break(auto=True, margin=15)
+            pdf.add_page()
+            pdf.set_font("Arial", size=12)
+            pdf.multi_cell(w=0, h=10, text=documentation)
+            pdf.output(str(resolved_path))
+            return f"Successfully created PDF at: {resolved_path}"
+        except PermissionError:
+            return "Error: Permission denied. Close the file if it is open in another program."
+        except Exception as e:
+            return f"Error creating PDF: {e}"
+
+    doc_agent_llm = llm.bind_tools([read_pdf_file, write_documentation_to_pdf])
+
+    def document_processor_agent(state: DocumentProcessorAgentState):
+        messages = [
+            SystemMessage(content=(
+                "You are a document processor agent. "
+                "You can either (1) read a PDF file using read_pdf_file(file_path), "
+                "or (2) generate documentation and save it as a PDF using write_documentation_to_pdf(file_path, documentation). "
+                "For reading: the file must already exist in the input directory — provide only the filename (e.g. 'report.pdf'). "
+                "For writing: provide only the output filename (e.g. 'api-docs.pdf') and the full documentation text. "
+                "Do not use absolute paths. Do not invent file paths that were not given or implied by the user."
+            )),
+            HumanMessage(content="user request: " + state["request"]),
+        ]
+        response = doc_agent_llm.invoke(messages)
+        return {"messages": [response]}
+
+    def route(state: DocumentProcessorAgentState) -> Literal["tools_output", "end"]:
+        last_message = state["messages"][-1]
+        if not getattr(last_message, "tool_calls", None):
+            return "end"
         return "tools_output"
 
-
-def build_document_processor():
     graph = StateGraph(DocumentProcessorAgentState)
-
-    graph.add_node("document_processor",document_processor_agent)
+    graph.add_node("document_processor", document_processor_agent)
     graph.add_node("tools", ToolNode([read_pdf_file, write_documentation_to_pdf]))
-
     graph.add_edge(START, "document_processor")
     graph.add_conditional_edges("document_processor", route, {
         "tools_output": "tools",
@@ -158,9 +119,4 @@ def build_document_processor():
     })
     graph.add_edge("tools", END)
 
-    app = graph.compile()
-    return app
-
-# if __name__ == "__main__":
-#     app = build_document_processor()
-#     app.run(
+    return graph.compile()

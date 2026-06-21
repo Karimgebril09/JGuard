@@ -66,7 +66,29 @@ public class JGuardApiService
     {
         try
         {
-            var requestBody = new { config };
+            // Agent sessions are not backed by a user-supplied LLM, so the source/model
+            // fields are irrelevant. Send only the chat mode and protection settings —
+            // the backend fills in the rest (local_llm, llm_type, etc.) with defaults.
+            object requestBody = config.ChatMode == "agent"
+                ? new
+                {
+                    config = new
+                    {
+                        chat_mode = config.ChatMode,
+                        obfuscation_protection = config.ObfuscationProtection,
+                        multi_turn_protection = config.MultiTurnProtection,
+                        roleplay_protection = config.RoleplayProtection,
+                        pii_protection = config.PiiProtection,
+                        pii_strategy = config.PiiStrategy,
+                        web_search_protection = config.WebSearchProtection,
+                        code_execution_protection = config.CodeExecutionProtection,
+                        rag_protection = config.RagProtection,
+                        email_protection = config.EmailProtection,
+                        document_protection = config.DocumentProtection
+                    }
+                }
+                : new { config };
+
             var response = await _httpClient.PostAsJsonAsync($"{_baseUrl}/api/sessions", requestBody);
             
             if (response.IsSuccessStatusCode)

@@ -36,9 +36,28 @@ _SECRET_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("BEARER_TOKEN", re.compile(r"\bBearer\s+[A-Za-z0-9._\-]{20,}\b", re.IGNORECASE)),
     ("PRIVATE_KEY", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")),
     ("PASSWORD", re.compile(r"(?i)\b(?:password|passwd|pwd|secret|api[_-]?key|token)\b\s*[:=]\s*\S+")),
-    ("CREDIT_CARD", re.compile(r"\b(?:\d[ -]?){13,16}\b")),
+    ("CREDIT_CARD", re.compile(r"\b\d(?:[ -]?\d){12,18}\b")),
     ("SSN", re.compile(r"\b\d{3}-\d{2}-\d{4}\b")),
 ]
+
+# Labels that need an extra validator before they count as a real match
+# (cuts false positives such as order/tracking numbers).
+_LUHN_LABELS = {"CREDIT_CARD"}
+
+
+def _luhn_valid(text: str) -> bool:
+    """Validate a candidate card number with the Luhn checksum."""
+    digits = [int(c) for c in text if c.isdigit()]
+    if not 13 <= len(digits) <= 19:
+        return False
+    total = 0
+    for i, d in enumerate(reversed(digits)):
+        if i % 2 == 1:
+            d *= 2
+            if d > 9:
+                d -= 9
+        total += d
+    return total % 10 == 0
 
 # Prompt-injection signatures for untrusted email content (control 11).
 _INJECTION_PATTERNS: list[re.Pattern[str]] = [
@@ -496,7 +515,18 @@ class EmailGuard:
         found: list[str] = []
         result = text
         for label, pattern in _SECRET_PATTERNS:
-            if pattern.search(result):
+            if label in _LUHN_LABELS:
+                # Only treat a match as real if it passes the validator,
+                # so order/tracking numbers don't get flagged.
+                def _replace(m: re.Match[str], _label: str = label) -> str:
+                    if _luhn_valid(m.group()):
+                        if _label not in found:
+                            found.append(_label)
+                        return f"[REDACTED_{_label}]" if self.mask_secrets else m.group()
+                    return m.group()
+
+                result = pattern.sub(_replace, result)
+            elif pattern.search(result):
                 found.append(label)
                 if self.mask_secrets:
                     result = pattern.sub(f"[REDACTED_{label}]", result)

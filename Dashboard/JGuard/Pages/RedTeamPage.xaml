@@ -104,7 +104,17 @@
 
                                         <StackPanel Spacing="4">
                                             <TextBlock Text="Harm Category" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
-                                            <TextBox x:Name="TextHarmType" PlaceholderText="e.g. violence, misinformation, jailbreak..." FontSize="12"/>
+                                            <ComboBox x:Name="ComboHarmType" HorizontalAlignment="Stretch" PlaceholderText="Select harm category..." FontSize="12">
+                                                <ComboBoxItem Content="Copyright Infringement / Breaking Law" Tag="copyright infringement_breaking_law"/>
+                                                <ComboBoxItem Content="Data Exposure" Tag="data_exposure"/>
+                                                <ComboBoxItem Content="Hallucination" Tag="hallucination"/>
+                                                <ComboBoxItem Content="Hate Speech" Tag="hate_speech"/>
+                                                <ComboBoxItem Content="Information Extraction / Model Inversion" Tag="information_extraction_model_inversion"/>
+                                                <ComboBoxItem Content="Offensive Content" Tag="offensive_content"/>
+                                                <ComboBoxItem Content="Performance Degradation / DoS" Tag="performance_degradation_DOS"/>
+                                                <ComboBoxItem Content="Scam / Phishing Content" Tag="scam_phishing_content"/>
+                                                <ComboBoxItem Content="Unauthorized Access / Privilege Escalation" Tag="unauthorized_access_privilege_escalation"/>
+                                            </ComboBox>
                                         </StackPanel>
 
                                         <MenuFlyoutSeparator Background="#19FFFFFF"/>

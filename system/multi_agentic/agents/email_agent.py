@@ -335,9 +335,9 @@ def build_email_agent(use_gmail_service: bool = True, email_protection: bool = T
     if use_gmail_service:
         try:
             gmail_service = get_gmail_service()
-            print("✅ Gmail service connected")
+            print("[OK] Gmail service connected")
         except Exception as e:
-            print(f"⚠️ Gmail service not available, using mock data: {e}")
+            print(f"[WARN] Gmail service not available, using mock data: {e}")
 
     read_email_tool = ReadEmailTool(gmail_service)
     send_email_tool = SendEmailTool(gmail_service)

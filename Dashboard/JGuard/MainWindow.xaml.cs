@@ -101,6 +101,11 @@ public sealed partial class MainWindow : Window
                 state.IsMultiTurnEnabled = config.MultiTurnProtection;
                 state.IsRoleplayingEnabled = config.RoleplayProtection;
                 state.IsPiiProtectionEnabled = config.PiiProtection;
+                state.IsWebSearchEnabled = config.WebSearchProtection;
+                state.IsCodeExecutionEnabled = config.CodeExecutionProtection;
+                state.IsRagEnabled = config.RagProtection;
+                state.IsEmailEnabled = config.EmailProtection;
+                state.IsDocumentEnabled = config.DocumentProtection;
 
                 state.IsConfigurationLocked = true;
                 state.ApiService.SetActiveSessionId(sessionDialog.SelectedSession.SessionId);

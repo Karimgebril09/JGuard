@@ -7,6 +7,8 @@ token.pickle
 
 __pycache__/
 *.pyc
+*.faiss
+*.log
 
 *.pth
 *.pt
@@ -32,3 +34,4 @@ defenders/obfuscation/stage8_custom_classifier/models/
 *.yaml
 *.log
 *.faiss
+*.pdf
