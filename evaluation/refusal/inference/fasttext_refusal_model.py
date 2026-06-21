@@ -47,20 +47,4 @@ class FastTextRefusalDetector:
         words_embeddings=torch.stack(words_embeddings).unsqueeze(0)
         logits = self.classifier(words_embeddings)
         prob = torch.sigmoid(logits)
-        return prob.item() > 0.43
-    
-
-# if __name__ == "__main__":
-#     refusal_detector = FastTextRefusalDetector()
-
-#     test_texts = [
-#         "sorry i cannot help you with that",
-#         "I won't be able to assist with that request.",
-#         "yes sure i will provide you with a detailed answer on how to do that",
-#         "no no no no",
-#         "yes i know he showed him an image but he ignored his request and said that he is not available"
-#     ]
-
-#     for text in test_texts:
-#         is_refusal = refusal_detector.predict(text)
-#         print(f"Text: {text} | Refusal Detected: {is_refusal}")
+        return prob.item() > 0.62
