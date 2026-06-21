@@ -112,10 +112,10 @@ def router1(state: CodingAgentState) -> Literal["cont", "end"]:
     return "cont"
 
 
-def build_coding_agent(code_execution_protection: bool = True):
+def build_coding_agent(code_execution_protection: bool = True, code_deep_check: bool = True):
     if code_execution_protection:
         from defenders.tools.code.src.code_defender import CodeDefender
-        defender = CodeDefender(deep_check=True)
+        defender = CodeDefender(deep_check=code_deep_check)
 
         def router2(state: CodingAgentState) -> Literal["execute Tool", "end"]:
             last_msg = state["messages"][-1]
