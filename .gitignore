@@ -7,7 +7,7 @@ token.pickle
 
 __pycache__/
 *.pyc
-
+*.faiss
 *.pth
 *.pt
 *.png
