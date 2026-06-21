@@ -1,4 +1,5 @@
 class ChunkNode:
+    """node that represents a chunk in the graph"""
     def __init__(self, chunk, similarity, is_outlier, no_neighbors):
         self.chunk = chunk
         self.similarity = similarity
@@ -7,8 +8,8 @@ class ChunkNode:
 
 
 class ChunkGraphAnalyzer:
-
-    def __init__(self, similarity_threshold=0.30, outlier_threshold=0.15):
+    """analyzer that builds a graph of chunks based on their embeddings and analyzes their relationships"""
+    def __init__(self, similarity_threshold=0.50, outlier_threshold=0.25):
         
         self.similarity_threshold = similarity_threshold
         self.outlier_threshold = outlier_threshold
@@ -74,7 +75,7 @@ class ChunkGraphAnalyzer:
                 average_similarity = 1
 
             is_outlier = average_similarity < self.outlier_threshold
-
+            # return if the chunk has no neighbors and is an outlier
             node = ChunkNode(
                 chunk=chunks[i],
                 similarity=average_similarity,

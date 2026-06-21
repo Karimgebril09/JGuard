@@ -39,6 +39,7 @@ class ScanResult:
     
 
 class InjectionScanner:
+    """scanner for rag system"""
     def scan_text(self, text, chunk_id=None):
         matched = []
         for pat in compiled_patterns:
@@ -52,19 +53,20 @@ class InjectionScanner:
         )
 
     def scan_chunks(self, chunks) :
-      
+        # scan any defined pattern 
         clean = []
         for chunk in chunks:
             result = self.scan_text(chunk.text, chunk.chunk_id  )
             if not result.is_malicious:
                 clean.append(chunk)
             else :
-                print('[scan sanitization removed]'+chunk.text[:10])
+                print('[scan sanitization removed]'+chunk.text[:100])
             # else :
             #     print(f'[scan] Chunk {chunk.chunk_id} flagged as malicious due to patterns: {result.matched_patterns}')
         return clean
     
     def cosine_similarity(self, vec_a, vec_b):
+        
         vec_a = np.array(vec_a).flatten()
         vec_b = np.array(vec_b).flatten()
 
@@ -78,8 +80,8 @@ class InjectionScanner:
         return float(dot / (norm_a * norm_b))
 
     def check_similarity(self, chunks, query):
-
-        embeddings = rag.embedder.transform_chunks(chunks)
+        # check similarity with the query 
+        embeddings = rag.embedder.embed_chunks(chunks)
         query_embedding = rag.embedder.embed_query(query)
 
         query_embedding = np.array(query_embedding).flatten()
@@ -104,24 +106,24 @@ class InjectionScanner:
 
 
     def check_consistency(self, chunks, embeddings=None):
+        # check if the chunks with each other are similar
         graph_analyzer = ChunkGraphAnalyzer()
         if embeddings is None:
 
-            embeddings = rag.embedder.transform_chunks(chunks)
-        graph, node_info = graph_analyzer.build_graph(chunks, embeddings)
+            embeddings = rag.embedder.embed_chunks(chunks)
+        g, node_info = graph_analyzer.build_graph(chunks, embeddings)
         
 
-        not_outliers = {info.chunk.chunk_id for info in node_info if not info.is_outlier}
+        not_outliers = {info.chunk.chunk_id for info in node_info if not (info.is_outlier and info.no_neighbors == 0)}
         for c in chunks:
             if c.chunk_id not in not_outliers:
-                print('[consistency check removed]'+c.text[:10])
+                print('[consistency check removed]'+c.text[:100])
         # print (f'[consistency check] {len(not_outliers)}/{len(chunks)} chunks are consistent with others based on graph analysis')
         return [c for c in chunks if c.chunk_id in not_outliers]
 
 
     def check_jailbreak(self, chunks, query):
-       
-
+       # go throgh the three stages 
         clean_chunks = self.scan_chunks(chunks)
         if not clean_chunks:
             return []

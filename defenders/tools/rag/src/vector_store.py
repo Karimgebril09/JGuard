@@ -15,7 +15,7 @@ class VectorStore:
         for chunk in chunks:
             self.chunks.append(chunk)
 
-    def search(self, query_vector, top_k=5):
+    def search(self, query_vector, top_k=10):
 
         scores, indices = self.index.search( query_vector, top_k)
         results = []

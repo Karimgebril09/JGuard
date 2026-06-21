@@ -9,7 +9,7 @@ _RAG_TEXT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", 
 
 class RAGPipeline:
 
-    def __init__(self, chunk_size=300, overlap=50, embed_model="tfidf-svd-128", top_k=5):
+    def __init__(self, chunk_size=300, overlap=50, embed_model="all-mpnet-base-v2", top_k=5):
 
         self.chunker = DocumentChunker(chunk_size, overlap)
 

@@ -28,7 +28,7 @@ def build_rag_agent(rag_protection: bool = True):
         print("[retrieved]")
         chunks = [c[0] for c in chunks_tuples]
         for c in chunks:
-            print(f" - {c.text[:10]}... (source: {c.source})")
+            print(f" - {c.text[:100]})")
 
         if rag_protection:
             scanner = InjectionScanner()
@@ -36,7 +36,7 @@ def build_rag_agent(rag_protection: bool = True):
             safe_chunks = scanner.check_jailbreak(chunks, query)
             print("[safe chunks]")
             for c in safe_chunks:
-                print(f" - {c.text[:10]}... (source: {c.source})")
+                print(f" - {c.text[:100]})")
         else:
             safe_chunks = chunks
 
@@ -56,13 +56,13 @@ def build_rag_agent(rag_protection: bool = True):
 
         for m in state["messages"]:
             content = str(m.content) if m.content is not None else "<None>"
-            print(f" - {content[:10]}... ({type(m).__name__})")
+            print(f" - {content[:100]}... ({type(m).__name__})")
 
         messages = state.get("messages", [])
         has_tool_result = any(isinstance(m, ToolMessage) for m in messages)
 
         if has_tool_result:
-            response = llm.invoke([SystemMessage(content="answer only based on the provided tool result")] + messages)
+            response = llm.invoke([SystemMessage(content="answer only based on the provided tool result if no result available just return no information found")] + messages)
         else:
             response = llm_with_tools.invoke([system_prompt] + messages)
 
