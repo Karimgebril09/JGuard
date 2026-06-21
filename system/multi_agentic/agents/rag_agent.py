@@ -1,57 +1,85 @@
-from langgraph.graph import StateGraph, START, END
 from typing import Annotated, TypedDict
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, AIMessage
+from langchain_core.messages import BaseMessage, SystemMessage, ToolMessage
 from langchain_core.tools import tool
+from langgraph.graph import END, START, StateGraph
+from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
-from langchain_google_genai import ChatGoogleGenerativeAI
-import os
+
+from defenders.tools.rag.src.rag_pipeline import rag
+from defenders.tools.rag.src.jailbreak_scanner import InjectionScanner
 
 from .llm import llm
 
 
-DB = {
-    "EMP001": "Name: John Doe, Salary: $90,000, Private_Key: AI_SECRET_2024",
-    "EMP002": "Name: Jane Smith, Salary: $120,000, Private_Key: DB_ADMIN_99",
-}
-
-
-@tool
-def get_info(code: str) -> str:
-    """Retrieves employee information based on their ID code."""
-    return DB.get(code, "ID not found in database.")
-
 class RagAgentState(TypedDict):
-    messages: Annotated[list[BaseMessage], "The conversation history"]
+    messages: Annotated[list[BaseMessage], add_messages]
 
 
+def build_rag_agent(rag_protection: bool = True):
 
-llm_with_tools = llm.bind_tools([get_info])
+    @tool
+    def search_knowledge_base(query: str) -> str:
+        """
+        Searches the company knowledge base using semantic similarity.
+        Use this whenever the user asks about company policies, products, or procedures.
+        Returns the most relevant passages found.
+        """
+        chunks_tuples = rag.retrieve(query)
+        print("[retrieved]")
+        chunks = [c[0] for c in chunks_tuples]
+        for c in chunks:
+            print(f" - {c.text[:10]}... (source: {c.source})")
 
-def rag_agent(state: RagAgentState):
-    system_prompt = SystemMessage(content=(
-        "You are a helpful assistant. You have access to a database tool. "
-        "When the user asks for information about an employee, you should use the database tool to retrieve the relevant information. "
-        "The user will provide you with an employee ID, and you should use the get_info tool to fetch the employee's details. "
-        "After retrieving the information, you should provide a clear and concise response to the user based on the data you obtained. "
+        if rag_protection:
+            scanner = InjectionScanner()
+            print("[scanner]")
+            safe_chunks = scanner.check_jailbreak(chunks, query)
+            print("[safe chunks]")
+            for c in safe_chunks:
+                print(f" - {c.text[:10]}... (source: {c.source})")
+        else:
+            safe_chunks = chunks
 
-    ))
-    messages = state.get("messages", [HumanMessage(content=state.get("user_message", ""))])
-    response = llm_with_tools.invoke([system_prompt] + messages)
-    return {"messages": [response]}
+        return "\n\n".join(c.text for c in safe_chunks)
 
-def build_rag_agent():
+    llm_with_tools = llm.bind_tools([search_knowledge_base])
+
+    def rag_agent_function(state: RagAgentState):
+        system_prompt = SystemMessage(content=(
+            "You are a helpful company assistant with access to the company knowledge base. "
+            "When needed, use the search_knowledge_base tool to find relevant information. "
+            "After receiving tool results, answer the user directly and do not call the tool again. "
+            "Base your answer strictly on what the tool returns. "
+            "If the tool finds nothing relevant, say so clearly — never make up information. "
+            "Be concise and cite which source the information came from."
+        ))
+
+        for m in state["messages"]:
+            content = str(m.content) if m.content is not None else "<None>"
+            print(f" - {content[:10]}... ({type(m).__name__})")
+
+        messages = state.get("messages", [])
+        has_tool_result = any(isinstance(m, ToolMessage) for m in messages)
+
+        if has_tool_result:
+            response = llm.invoke([SystemMessage(content="answer only based on the provided tool result")] + messages)
+        else:
+            response = llm_with_tools.invoke([system_prompt] + messages)
+
+        return {"messages": [response]}
+
     workflow = StateGraph(RagAgentState)
-
-    workflow.add_node("agent", rag_agent)
-    workflow.add_node("tools", ToolNode([get_info]))
-
+    workflow.add_node("agent", rag_agent_function)
+    workflow.add_node("tools", ToolNode([search_knowledge_base]))
     workflow.add_edge(START, "agent")
-    
-    workflow.add_conditional_edges("agent", tools_condition)
+    workflow.add_conditional_edges(
+        "agent",
+        tools_condition,
+        {"tools": "tools", END: END},
+    )
     workflow.add_edge("tools", "agent")
 
     return workflow.compile()
 
-app = build_rag_agent()
 
-
+rag_agent = build_rag_agent()

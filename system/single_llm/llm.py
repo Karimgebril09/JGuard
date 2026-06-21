@@ -211,10 +211,9 @@ class LLM:
         return "Model returned an empty response."
 
     def chat_secure(
-self,
+        self,
         prompt: str,
         history: list[dict[str, str]],
-        reply_fn: Callable[[str], str] | None = None,
     ) -> dict[str, Any]:
         triggered_defenses = []
         harm_label = None
@@ -274,10 +273,7 @@ self,
                 "clean_prompt": clean_prompt
             }
 
-        if reply_fn is not None:
-            reply = reply_fn(clean_prompt)
-        else:
-            reply = self._call_foundational_model(history=history, prompt_text=clean_prompt)
+        reply = self._call_foundational_model(history=history, prompt_text=clean_prompt)
 
         pii_reply, output_pii_blocked = self._apply_pii(reply)
         if output_pii_blocked:

@@ -10,15 +10,20 @@ class ChatHistoryMessage(BaseModel):
 
 class SessionConfig(BaseModel):
     chat_mode: Literal["foundational", "agent"] = "foundational"
-    local_llm: bool
+    local_llm: bool | None = True
     llm_api_key: str = ""
-    llm_type: str = Field(..., min_length=1)
+    llm_type: str | None = None
     llm_base_url: str | None = None
     obfuscation_protection: bool
     multi_turn_protection: bool
     roleplay_protection: bool
     pii_protection: bool
     pii_strategy: str = "mask"
+    web_search_protection: bool = True
+    code_execution_protection: bool = True
+    rag_protection: bool = True
+    email_protection: bool = True       
+    document_protection: bool = True    
 
     @model_validator(mode="after")
     def validate_closed_source_fields(self) -> "SessionConfig":

@@ -1,0 +1,28 @@
+
+All employees are entitled to 21 days of annual leave per year.
+Remote work requests must be approved by the direct line manager.
+Expense claims above $500 require VP-level approval.
+Performance reviews are conducted every six months in January and July.
+The company provides health insurance covering the employee and immediate family.
+Sick leave is separate from annual leave and does not require prior approval.
+Maternity and paternity leave follow local labor law requirements.
+
+
+Passwords must be at least 12 characters and changed every 90 days.
+All laptops must have full-disk encryption enabled before use.
+Employees must not install unapproved software on company devices.
+Two-factor authentication is mandatory for all internal systems.
+Data classified as confidential must not be stored on personal devices.
+VPN must be active when accessing internal systems remotely.
+Security incidents must be reported to it-security@company.com within 2 hours.
+
+
+Our main product is an AI-powered document analysis platform.
+Supported file formats: PDF, DOCX, XLSX, CSV, TXT.
+Maximum file size per upload is 50 MB.
+The platform supports Arabic, English, and French.
+Enterprise plans include dedicated support with a 4-hour SLA.
+Free tier users get 100 document pages per month.
+API access requires a Business or Enterprise subscription.
+
+
