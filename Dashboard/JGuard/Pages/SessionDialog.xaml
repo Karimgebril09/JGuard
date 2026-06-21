@@ -13,6 +13,32 @@
     DefaultButton="Primary"
     MinWidth="600">
 
+    <ContentDialog.Resources>
+        <!-- Green "active" theming shared by the agent-defense toggle buttons.
+             Defined at dialog scope so every plain ToggleButton inherits it; the
+             "Activate All" button overrides these locally so it is unaffected. -->
+        <SolidColorBrush x:Key="ToggleButtonBackground" Color="#1E293B"/>
+        <SolidColorBrush x:Key="ToggleButtonBackgroundPointerOver" Color="#27364B"/>
+        <SolidColorBrush x:Key="ToggleButtonBackgroundPressed" Color="#0F172A"/>
+        <SolidColorBrush x:Key="ToggleButtonBorderBrush" Color="#334155"/>
+        <SolidColorBrush x:Key="ToggleButtonBorderBrushPointerOver" Color="#475569"/>
+        <SolidColorBrush x:Key="ToggleButtonBorderBrushPressed" Color="#334155"/>
+        <SolidColorBrush x:Key="ToggleButtonBackgroundChecked" Color="#064E3B"/>
+        <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPointerOver" Color="#076049"/>
+        <SolidColorBrush x:Key="ToggleButtonBackgroundCheckedPressed" Color="#053E30"/>
+        <SolidColorBrush x:Key="ToggleButtonBorderBrushChecked" Color="#10B981"/>
+        <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPointerOver" Color="#10B981"/>
+        <SolidColorBrush x:Key="ToggleButtonBorderBrushCheckedPressed" Color="#10B981"/>
+
+        <Style x:Key="DefenseToggleStyle" TargetType="ToggleButton">
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        </Style>
+    </ContentDialog.Resources>
+
     <Grid>
         <ScrollViewer x:Name="MainContent">
             <StackPanel Spacing="16" Padding="16" HorizontalAlignment="Stretch">
@@ -89,14 +115,34 @@
                                                     Visibility="{x:Bind Config.RoleplayVisibility}">
                                                 <TextBlock Text="Roleplay" FontSize="10" Foreground="#ECFDF5"/>
                                             </Border>
-                                            <Border CornerRadius="12" Padding="10,3" Background="#064E3B" BorderBrush="#10B981" BorderThickness="1" 
+                                            <Border CornerRadius="12" Padding="10,3" Background="#064E3B" BorderBrush="#10B981" BorderThickness="1"
                                                     Visibility="{x:Bind Config.PiiVisibility}">
                                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                                     <TextBlock Text="PII:" FontSize="10" Foreground="#ECFDF5"/>
                                                     <TextBlock Text="{x:Bind Config.PiiStrategy}" FontSize="10" Foreground="#A7F3D0" FontWeight="SemiBold"/>
                                                 </StackPanel>
                                             </Border>
-                                            
+                                            <Border CornerRadius="12" Padding="10,3" Background="#064E3B" BorderBrush="#10B981" BorderThickness="1"
+                                                    Visibility="{x:Bind Config.WebSearchVisibility}">
+                                                <TextBlock Text="Web Search" FontSize="10" Foreground="#ECFDF5"/>
+                                            </Border>
+                                            <Border CornerRadius="12" Padding="10,3" Background="#064E3B" BorderBrush="#10B981" BorderThickness="1"
+                                                    Visibility="{x:Bind Config.CodeExecutionVisibility}">
+                                                <TextBlock Text="Code Exec" FontSize="10" Foreground="#ECFDF5"/>
+                                            </Border>
+                                            <Border CornerRadius="12" Padding="10,3" Background="#064E3B" BorderBrush="#10B981" BorderThickness="1"
+                                                    Visibility="{x:Bind Config.RagVisibility}">
+                                                <TextBlock Text="RAG" FontSize="10" Foreground="#ECFDF5"/>
+                                            </Border>
+                                            <Border CornerRadius="12" Padding="10,3" Background="#064E3B" BorderBrush="#10B981" BorderThickness="1"
+                                                    Visibility="{x:Bind Config.EmailVisibility}">
+                                                <TextBlock Text="Email" FontSize="10" Foreground="#ECFDF5"/>
+                                            </Border>
+                                            <Border CornerRadius="12" Padding="10,3" Background="#064E3B" BorderBrush="#10B981" BorderThickness="1"
+                                                    Visibility="{x:Bind Config.DocumentVisibility}">
+                                                <TextBlock Text="Document" FontSize="10" Foreground="#ECFDF5"/>
+                                            </Border>
+
                                             <!-- Placeholder if no defenses enabled -->
                                             <TextBlock Text="No defenses active" FontSize="10" Foreground="#64748B" FontStyle="Italic"
                                                        Visibility="{x:Bind Config.NoDefensesVisibility}" VerticalAlignment="Center"/>
@@ -247,8 +293,76 @@
                             <ComboBoxItem Tag="mask">Mask</ComboBoxItem>
                             <ComboBoxItem Tag="hash">Hash</ComboBoxItem>
                             <ComboBoxItem Tag="block">Block</ComboBoxItem>
-                            <ComboBoxItem Tag="partial masking">Partial Masking</ComboBoxItem>
+                            <ComboBoxItem Tag="partial">Partial</ComboBoxItem>
                         </ComboBox>
+                    </StackPanel>
+
+                    <!-- Agent Defenses (agent mode only) -->
+                    <StackPanel x:Name="AgentDefensesPanel" Spacing="8" Visibility="Collapsed">
+                        <MenuFlyoutSeparator Background="#19FFFFFF"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Agent Defenses" FontSize="11" FontWeight="SemiBold" Foreground="#94A3B8" VerticalAlignment="Center"/>
+                            <ToggleButton Grid.Column="1" x:Name="ActivateAllAgentButton"
+                                          Checked="ActivateAllAgentButton_Checked"
+                                          Unchecked="ActivateAllAgentButton_Unchecked"
+                                          Padding="10,4" BorderThickness="1" CornerRadius="6">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon x:Name="ActivateAllAgentIcon" Glyph="&#xE73E;" FontSize="11" Foreground="#94A3B8"/>
+                                    <TextBlock x:Name="ActivateAllAgentText" Text="Activate All" FontSize="11" Foreground="#94A3B8"/>
+                                </StackPanel>
+                            </ToggleButton>
+                        </Grid>
+                        <TextBlock Text="Extra protections available to agent sessions." FontSize="10" Foreground="#64748B" TextWrapping="Wrap"/>
+                        <Grid ColumnSpacing="8" RowSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <ToggleButton Grid.Row="0" Grid.Column="0" x:Name="WebSearchDefenseToggle" Style="{StaticResource DefenseToggleStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE774;" FontSize="13" Foreground="#F5F5F5"/>
+                                    <TextBlock Text="Web Search" FontSize="12" Foreground="#F5F5F5"/>
+                                </StackPanel>
+                            </ToggleButton>
+
+                            <ToggleButton Grid.Row="0" Grid.Column="1" x:Name="CodeExecutionDefenseToggle" Style="{StaticResource DefenseToggleStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE943;" FontSize="13" Foreground="#F5F5F5"/>
+                                    <TextBlock Text="Code Execution" FontSize="12" Foreground="#F5F5F5"/>
+                                </StackPanel>
+                            </ToggleButton>
+
+                            <ToggleButton Grid.Row="1" Grid.Column="0" x:Name="RagDefenseToggle" Style="{StaticResource DefenseToggleStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE8F1;" FontSize="13" Foreground="#F5F5F5"/>
+                                    <TextBlock Text="RAG" FontSize="12" Foreground="#F5F5F5"/>
+                                </StackPanel>
+                            </ToggleButton>
+
+                            <ToggleButton Grid.Row="1" Grid.Column="1" x:Name="EmailDefenseToggle" Style="{StaticResource DefenseToggleStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE715;" FontSize="13" Foreground="#F5F5F5"/>
+                                    <TextBlock Text="Email" FontSize="12" Foreground="#F5F5F5"/>
+                                </StackPanel>
+                            </ToggleButton>
+
+                            <ToggleButton Grid.Row="2" Grid.Column="0" x:Name="DocumentDefenseToggle" Style="{StaticResource DefenseToggleStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE8A5;" FontSize="13" Foreground="#F5F5F5"/>
+                                    <TextBlock Text="Document" FontSize="12" Foreground="#F5F5F5"/>
+                                </StackPanel>
+                            </ToggleButton>
+                        </Grid>
                     </StackPanel>
                 </StackPanel>
             </StackPanel>

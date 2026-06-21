@@ -79,7 +79,12 @@ public class JGuardApiService
                         multi_turn_protection = config.MultiTurnProtection,
                         roleplay_protection = config.RoleplayProtection,
                         pii_protection = config.PiiProtection,
-                        pii_strategy = config.PiiStrategy
+                        pii_strategy = config.PiiStrategy,
+                        web_search_protection = config.WebSearchProtection,
+                        code_execution_protection = config.CodeExecutionProtection,
+                        rag_protection = config.RagProtection,
+                        email_protection = config.EmailProtection,
+                        document_protection = config.DocumentProtection
                     }
                 }
                 : new { config };

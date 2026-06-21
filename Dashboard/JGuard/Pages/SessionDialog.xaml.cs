@@ -81,6 +81,9 @@ public sealed partial class SessionDialog : ContentDialog
         LLMModelPanel.Visibility = isAgent ? Visibility.Collapsed : Visibility.Visible;
         AgentNote.Visibility = isAgent ? Visibility.Visible : Visibility.Collapsed;
 
+        // Email / Web / RAG / Document defenses only apply to agent sessions.
+        AgentDefensesPanel.Visibility = isAgent ? Visibility.Visible : Visibility.Collapsed;
+
         if (isAgent)
         {
             ClosedSourceNote.Visibility = Visibility.Collapsed;
@@ -165,6 +168,33 @@ public sealed partial class SessionDialog : ContentDialog
         ActivateAllIcon.Foreground = off;
     }
 
+    private void ActivateAllAgentButton_Checked(object sender, RoutedEventArgs e)
+    {
+        WebSearchDefenseToggle.IsChecked = true;
+        CodeExecutionDefenseToggle.IsChecked = true;
+        RagDefenseToggle.IsChecked = true;
+        EmailDefenseToggle.IsChecked = true;
+        DocumentDefenseToggle.IsChecked = true;
+
+        ActivateAllAgentText.Text = "All Active";
+        ActivateAllAgentText.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xEC, 0xFD, 0xF5)); // #ECFDF5
+        ActivateAllAgentIcon.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xA7, 0xF3, 0xD0)); // #A7F3D0
+    }
+
+    private void ActivateAllAgentButton_Unchecked(object sender, RoutedEventArgs e)
+    {
+        WebSearchDefenseToggle.IsChecked = false;
+        CodeExecutionDefenseToggle.IsChecked = false;
+        RagDefenseToggle.IsChecked = false;
+        EmailDefenseToggle.IsChecked = false;
+        DocumentDefenseToggle.IsChecked = false;
+
+        ActivateAllAgentText.Text = "Activate All";
+        var off = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x94, 0xA3, 0xB8)); // #94A3B8
+        ActivateAllAgentText.Foreground = off;
+        ActivateAllAgentIcon.Foreground = off;
+    }
+
     private async void SessionDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
     {
         var deferral = args.GetDeferral();
@@ -207,7 +237,14 @@ public sealed partial class SessionDialog : ContentDialog
                 MultiTurnProtection = MultiTurnCheck.IsChecked == true,
                 RoleplayProtection = RoleplayCheck.IsChecked == true,
                 PiiProtection = PiiCheck.IsChecked == true,
-                PiiStrategy = (PiiStrategyCombo.SelectedItem as ComboBoxItem)?.Tag as string ?? "mask"
+                PiiStrategy = (PiiStrategyCombo.SelectedItem as ComboBoxItem)?.Tag as string ?? "mask",
+
+                // Extra agent defenses are only meaningful for agent sessions.
+                WebSearchProtection = isAgent && WebSearchDefenseToggle.IsChecked == true,
+                CodeExecutionProtection = isAgent && CodeExecutionDefenseToggle.IsChecked == true,
+                RagProtection = isAgent && RagDefenseToggle.IsChecked == true,
+                EmailProtection = isAgent && EmailDefenseToggle.IsChecked == true,
+                DocumentProtection = isAgent && DocumentDefenseToggle.IsChecked == true
             };
 
             var apiService = AppState.Instance.ApiService;

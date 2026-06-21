@@ -51,6 +51,12 @@ public sealed partial class HomePage : Page
         if (ToggleRoleplay != null) ToggleRoleplay.IsOn = state.IsRoleplayingEnabled;
         if (TogglePii != null) TogglePii.IsOn = state.IsPiiProtectionEnabled;
 
+        if (ToggleWebSearch != null) ToggleWebSearch.IsOn = state.IsWebSearchEnabled;
+        if (ToggleCodeExecution != null) ToggleCodeExecution.IsOn = state.IsCodeExecutionEnabled;
+        if (ToggleRag != null) ToggleRag.IsOn = state.IsRagEnabled;
+        if (ToggleEmail != null) ToggleEmail.IsOn = state.IsEmailEnabled;
+        if (ToggleDocument != null) ToggleDocument.IsOn = state.IsDocumentEnabled;
+
         if (RadioOpenSource != null) RadioOpenSource.IsChecked = state.LLMSourceType == "OpenSource";
         if (RadioClosedSource != null) RadioClosedSource.IsChecked = state.LLMSourceType == "ClosedSource";
         if (LLMTypeBox != null) LLMTypeBox.Text = state.LLMType;
@@ -65,8 +71,9 @@ public sealed partial class HomePage : Page
         _apiService = state.ApiService;
         
         UpdateLLMSourceVisibility();
+        UpdateAgentDefensesVisibility();
         UpdateShieldStatus();
-        
+
         _messages.Clear();
         
         // Load history only when resuming an existing session. A brand-new session
@@ -163,6 +170,11 @@ public sealed partial class HomePage : Page
             state.IsMultiTurnEnabled = config.MultiTurnProtection;
             state.IsRoleplayingEnabled = config.RoleplayProtection;
             state.IsPiiProtectionEnabled = config.PiiProtection;
+            state.IsWebSearchEnabled = config.WebSearchProtection;
+            state.IsCodeExecutionEnabled = config.CodeExecutionProtection;
+            state.IsRagEnabled = config.RagProtection;
+            state.IsEmailEnabled = config.EmailProtection;
+            state.IsDocumentEnabled = config.DocumentProtection;
 
             // Once session is loaded, lock the configuration
             state.IsConfigurationLocked = true;
@@ -232,6 +244,8 @@ public sealed partial class HomePage : Page
         });
 
         UpdateLLMSourceVisibility();
+        UpdateAgentDefensesVisibility();
+        UpdateShieldStatus();
     }
 
     private void Defense_Toggled(object sender, RoutedEventArgs e)
@@ -248,15 +262,55 @@ public sealed partial class HomePage : Page
         UpdateShieldStatus();
     }
 
+    private void AgentDefense_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (AppState.Instance.IsConfigurationLocked) return; // Prevent changes when locked
+        if (ToggleWebSearch == null || ToggleCodeExecution == null || ToggleRag == null
+            || ToggleEmail == null || ToggleDocument == null) return;
+
+        var state = AppState.Instance;
+        state.IsWebSearchEnabled = ToggleWebSearch.IsOn;
+        state.IsCodeExecutionEnabled = ToggleCodeExecution.IsOn;
+        state.IsRagEnabled = ToggleRag.IsOn;
+        state.IsEmailEnabled = ToggleEmail.IsOn;
+        state.IsDocumentEnabled = ToggleDocument.IsOn;
+
+        UpdateShieldStatus();
+    }
+
+    // The agent tool defenses only make sense for the Agent-Based System architecture.
+    private void UpdateAgentDefensesVisibility()
+    {
+        if (AgentDefensesPanel == null) return;
+        bool isAgent = RadioAgent?.IsChecked == true
+            || AppState.Instance.CurrentModelArch == "Agent-Based System";
+        AgentDefensesPanel.Visibility = isAgent ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     private void UpdateShieldStatus()
     {
         if (StatusShieldIcon == null || StatusHeader == null || StatusSub == null) return;
+
+        bool isAgent = RadioAgent?.IsChecked == true
+            || AppState.Instance.CurrentModelArch == "Agent-Based System";
 
         int activeCount = 0;
         if (ToggleObfuscation.IsOn) activeCount++;
         if (ToggleMultiTurn.IsOn) activeCount++;
         if (ToggleRoleplay.IsOn) activeCount++;
         if (TogglePii.IsOn) activeCount++;
+
+        // Agent sessions add the five tool defenses to the protection surface.
+        if (isAgent)
+        {
+            if (ToggleWebSearch.IsOn) activeCount++;
+            if (ToggleCodeExecution.IsOn) activeCount++;
+            if (ToggleRag.IsOn) activeCount++;
+            if (ToggleEmail.IsOn) activeCount++;
+            if (ToggleDocument.IsOn) activeCount++;
+        }
+
+        int totalCount = isAgent ? 9 : 4;
 
         if (activeCount == 0)
         {
@@ -266,13 +320,13 @@ public sealed partial class HomePage : Page
             StatusHeader.Foreground = StatusShieldIcon.Foreground;
             StatusSub.Text = "Zero guardrails active. Highly vulnerable to prompt injection and jailbreaks.";
         }
-        else if (activeCount < 4)
+        else if (activeCount < totalCount)
         {
             StatusShieldIcon.Glyph = "\uE814";
             StatusShieldIcon.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 184, 0));
             StatusHeader.Text = "Partial Protection";
             StatusHeader.Foreground = StatusShieldIcon.Foreground;
-            StatusSub.Text = $"{activeCount} of 4 defenses active. Moderate safety coverage against specific vectors.";
+            StatusSub.Text = $"{activeCount} of {totalCount} defenses active. Moderate safety coverage against specific vectors.";
         }
         else
         {
@@ -367,8 +421,10 @@ public sealed partial class HomePage : Page
             if (response == null) throw new Exception("Failed to receive response from system.");
 
             // If PII/obfuscation rewrote the prompt before sending, show what was actually sent.
+            // Compare on normalized text so the backend merely trimming whitespace or
+            // changing line endings doesn't raise a false "sanitized" banner.
             if (!string.IsNullOrEmpty(response.CleanPrompt) &&
-                !string.Equals(response.CleanPrompt, prompt, StringComparison.Ordinal))
+                !string.Equals(NormalizePrompt(response.CleanPrompt), NormalizePrompt(prompt), StringComparison.Ordinal))
             {
                 SanitizedPromptText.Text = response.CleanPrompt;
                 SanitizedInfoBar.IsOpen = true;
@@ -416,6 +472,11 @@ public sealed partial class HomePage : Page
 
         ScrollToBottom();
     }
+
+    // Collapses trivial formatting differences (line endings, surrounding whitespace) so
+    // the sanitized-prompt banner only appears when the prompt was meaningfully rewritten.
+    private static string NormalizePrompt(string? text)
+        => (text ?? string.Empty).Replace("\r\n", "\n").Replace("\r", "\n").Trim();
 
     private void LLMSourceType_Changed(object sender, RoutedEventArgs e)
     {
@@ -509,8 +570,23 @@ public sealed partial class HomePage : Page
 
         if (NoDefensesLabel != null)
         {
-            NoDefensesLabel.Visibility = (!state.IsObfuscationEnabled && !state.IsMultiTurnEnabled && !state.IsRoleplayingEnabled && !state.IsPiiProtectionEnabled) 
-                ? Visibility.Visible : Visibility.Collapsed;
+            bool anyBase = state.IsObfuscationEnabled || state.IsMultiTurnEnabled || state.IsRoleplayingEnabled || state.IsPiiProtectionEnabled;
+            NoDefensesLabel.Visibility = !anyBase ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        // Agent tool defenses get their own section, shown only for the Agent-Based System.
+        bool isAgent = state.CurrentModelArch == "Agent-Based System";
+        if (SummaryAgentSection != null) SummaryAgentSection.Visibility = isAgent ? Visibility.Visible : Visibility.Collapsed;
+        if (DefenseWebSearchItem != null) DefenseWebSearchItem.Visibility = state.IsWebSearchEnabled ? Visibility.Visible : Visibility.Collapsed;
+        if (DefenseCodeExecutionItem != null) DefenseCodeExecutionItem.Visibility = state.IsCodeExecutionEnabled ? Visibility.Visible : Visibility.Collapsed;
+        if (DefenseRagItem != null) DefenseRagItem.Visibility = state.IsRagEnabled ? Visibility.Visible : Visibility.Collapsed;
+        if (DefenseEmailItem != null) DefenseEmailItem.Visibility = state.IsEmailEnabled ? Visibility.Visible : Visibility.Collapsed;
+        if (DefenseDocumentItem != null) DefenseDocumentItem.Visibility = state.IsDocumentEnabled ? Visibility.Visible : Visibility.Collapsed;
+
+        if (NoAgentDefensesLabel != null)
+        {
+            bool anyAgent = state.IsWebSearchEnabled || state.IsCodeExecutionEnabled || state.IsRagEnabled || state.IsEmailEnabled || state.IsDocumentEnabled;
+            NoAgentDefensesLabel.Visibility = !anyAgent ? Visibility.Visible : Visibility.Collapsed;
         }
 
         // ABSOLUTELY HIDE everything in the configuration panel
