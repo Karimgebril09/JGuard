@@ -4,17 +4,9 @@
 from matplotlib.pyplot import clf
 import re
 import torch
-
+from  evaluation.refusal.inference.fasttext_refusal_model import remove_non_english_char
 from torch import nn
 from transformers import DistilBertTokenizerFast, DistilBertModel
-
-def remove_non_english_char(text):
-    # remove ay 7aga mesh english we mesh white space
-    text=re.sub(r'[^A-Za-z\s()]', '',text)
-    #remove multi space and replace by only one
-    text=re.sub(r"\s+"," ",text)
-    return text
-
 
 def get_contextualized_embeddings(sentence, model, tokenizer, max_len, device='cuda'):
   
