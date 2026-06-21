@@ -12,6 +12,13 @@ public class AppState
     public bool IsRoleplayingEnabled { get; set; } = false;
     public bool IsPiiProtectionEnabled { get; set; } = false;
 
+    // Agent-only extra defenses (apply when CurrentModelArch is the agent system)
+    public bool IsWebSearchEnabled { get; set; } = false;
+    public bool IsCodeExecutionEnabled { get; set; } = false;
+    public bool IsRagEnabled { get; set; } = false;
+    public bool IsEmailEnabled { get; set; } = false;
+    public bool IsDocumentEnabled { get; set; } = false;
+
     // LLM Configuration
     public string LLMSourceType { get; set; } = "OpenSource"; // OpenSource or ClosedSource
     public string LLMType { get; set; } = "qwen2.5:3b-instruct";

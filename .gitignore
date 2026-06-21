@@ -8,6 +8,11 @@ token.pickle
 __pycache__/
 *.pyc
 *.faiss
+<<<<<<< HEAD
+=======
+*.log
+
+>>>>>>> Dashboard
 *.pth
 *.pt
 *.png

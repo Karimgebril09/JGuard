@@ -1,3 +1,4 @@
+using System;
 using Microsoft.UI.Xaml;
 using System.Text.Json.Serialization;
 
@@ -33,14 +34,40 @@ public class SessionConfig
     public bool PiiProtection { get; set; }
     
     [JsonPropertyName("pii_strategy")]
-    public string PiiStrategy { get; set; } = "mask"; // "mask", "hash", "block", "partial masking"
+    public string PiiStrategy { get; set; } = "mask"; // "mask", "hash", "block", "partial"
+
+    // Agent-only extra defenses (sent as false for foundational sessions)
+    [JsonPropertyName("web_search_protection")]
+    public bool WebSearchProtection { get; set; }
+
+    [JsonPropertyName("code_execution_protection")]
+    public bool CodeExecutionProtection { get; set; }
+
+    [JsonPropertyName("rag_protection")]
+    public bool RagProtection { get; set; }
+
+    [JsonPropertyName("email_protection")]
+    public bool EmailProtection { get; set; }
+
+    [JsonPropertyName("document_protection")]
+    public bool DocumentProtection { get; set; }
 
     // Helper properties for UI binding
     [JsonIgnore]
-    public string SourceText => LocalLlm ? "Local (Ollama)" : "Cloud API";
-    
+    public bool IsAgent => string.Equals(ChatMode, "agent", StringComparison.OrdinalIgnoreCase);
+
+    // Agent sessions have no user-supplied LLM source/model (the backend returns null),
+    // so surface a friendly label instead of a blank field.
     [JsonIgnore]
-    public string ModeText => ChatMode.ToUpper();
+    public string ModelDisplay => IsAgent
+        ? "Agent System"
+        : (string.IsNullOrWhiteSpace(LlmType) ? "Unknown Model" : LlmType);
+
+    [JsonIgnore]
+    public string SourceText => IsAgent ? "Agent Tooling" : (LocalLlm ? "Local (Ollama)" : "Cloud API");
+
+    [JsonIgnore]
+    public string ModeText => (ChatMode ?? string.Empty).ToUpper();
     
     [JsonIgnore]
     public Visibility ObfuscationVisibility => ObfuscationProtection ? Visibility.Visible : Visibility.Collapsed;
@@ -53,7 +80,23 @@ public class SessionConfig
     
     [JsonIgnore]
     public Visibility PiiVisibility => PiiProtection ? Visibility.Visible : Visibility.Collapsed;
-    
+
     [JsonIgnore]
-    public Visibility NoDefensesVisibility => (!ObfuscationProtection && !MultiTurnProtection && !RoleplayProtection && !PiiProtection) ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility WebSearchVisibility => WebSearchProtection ? Visibility.Visible : Visibility.Collapsed;
+
+    [JsonIgnore]
+    public Visibility CodeExecutionVisibility => CodeExecutionProtection ? Visibility.Visible : Visibility.Collapsed;
+
+    [JsonIgnore]
+    public Visibility RagVisibility => RagProtection ? Visibility.Visible : Visibility.Collapsed;
+
+    [JsonIgnore]
+    public Visibility EmailVisibility => EmailProtection ? Visibility.Visible : Visibility.Collapsed;
+
+    [JsonIgnore]
+    public Visibility DocumentVisibility => DocumentProtection ? Visibility.Visible : Visibility.Collapsed;
+
+    [JsonIgnore]
+    public Visibility NoDefensesVisibility => (!ObfuscationProtection && !MultiTurnProtection && !RoleplayProtection && !PiiProtection
+        && !WebSearchProtection && !CodeExecutionProtection && !RagProtection && !EmailProtection && !DocumentProtection) ? Visibility.Visible : Visibility.Collapsed;
 }

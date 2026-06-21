@@ -201,6 +201,85 @@
                                     </StackPanel>
                                     <ToggleSwitch Grid.Column="1" x:Name="TogglePii" Toggled="Defense_Toggled" OnContent="" OffContent="" VerticalAlignment="Center"/>
                                 </Grid>
+
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Agent Tool Defenses Card (only for the Agent-Based System) -->
+                        <Border x:Name="AgentDefensesPanel" Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16" Visibility="Collapsed">
+                            <StackPanel Spacing="16">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE9D9;" Foreground="#22FF88" FontSize="18"/>
+                                    <TextBlock Text="Agent Tool Defenses" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Text="Extra guardrails that apply to the agent's tool usage." FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap"/>
+
+                                <MenuFlyoutSeparator Background="#19FFFFFF"/>
+
+                                <!-- Web Search -->
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Web Search Protection" FontWeight="Medium"/>
+                                        <TextBlock Text="Vets queries and results from the web-search tool." FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <ToggleSwitch Grid.Column="1" x:Name="ToggleWebSearch" Toggled="AgentDefense_Toggled" OnContent="" OffContent="" VerticalAlignment="Center"/>
+                                </Grid>
+
+                                <!-- Code Execution -->
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Code Execution Protection" FontWeight="Medium"/>
+                                        <TextBlock Text="Sandboxes and screens code the agent runs." FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <ToggleSwitch Grid.Column="1" x:Name="ToggleCodeExecution" Toggled="AgentDefense_Toggled" OnContent="" OffContent="" VerticalAlignment="Center"/>
+                                </Grid>
+
+                                <!-- RAG -->
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="RAG Protection" FontWeight="Medium"/>
+                                        <TextBlock Text="Guards against poisoned retrieval-augmented context." FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <ToggleSwitch Grid.Column="1" x:Name="ToggleRag" Toggled="AgentDefense_Toggled" OnContent="" OffContent="" VerticalAlignment="Center"/>
+                                </Grid>
+
+                                <!-- Email -->
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Email Protection" FontWeight="Medium"/>
+                                        <TextBlock Text="Screens content the agent sends or reads via email." FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <ToggleSwitch Grid.Column="1" x:Name="ToggleEmail" Toggled="AgentDefense_Toggled" OnContent="" OffContent="" VerticalAlignment="Center"/>
+                                </Grid>
+
+                                <!-- Document -->
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Document Protection" FontWeight="Medium"/>
+                                        <TextBlock Text="Inspects documents the agent ingests for hidden instructions." FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <ToggleSwitch Grid.Column="1" x:Name="ToggleDocument" Toggled="AgentDefense_Toggled" OnContent="" OffContent="" VerticalAlignment="Center"/>
+                                </Grid>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -241,7 +320,6 @@
 
                             <TextBlock Text="Enabled Defenses:" FontSize="13" FontWeight="SemiBold" Foreground="#94A3B8"/>
                             <StackPanel x:Name="SummaryDefenses" Spacing="4">
-                                <!-- Dynamic checkmarks will go here, or simple comma separated list? Let's use individual items for better UI -->
                                 <StackPanel x:Name="DefenseObfuscationItem" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
                                     <FontIcon Glyph="&#xE73E;" Foreground="#22FF88" FontSize="12"/>
                                     <TextBlock Text="Obfuscation Protection" FontSize="12" Foreground="#F5F5F5"/>
@@ -259,6 +337,35 @@
                                     <TextBlock Text="PII Protection" FontSize="12" Foreground="#F5F5F5"/>
                                 </StackPanel>
                                 <TextBlock x:Name="NoDefensesLabel" Text="None active" FontSize="12" Foreground="#FF4444" Visibility="Visible"/>
+                            </StackPanel>
+
+                            <!-- Agent Tool Defenses (shown only for agent sessions) -->
+                            <StackPanel x:Name="SummaryAgentSection" Spacing="8" Visibility="Collapsed">
+                                <Rectangle Height="1" Fill="#19FFFFFF"/>
+                                <TextBlock Text="Agent Tool Defenses:" FontSize="13" FontWeight="SemiBold" Foreground="#22FF88"/>
+                                <StackPanel x:Name="SummaryAgentDefenses" Spacing="4">
+                                    <StackPanel x:Name="DefenseWebSearchItem" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+                                        <FontIcon Glyph="&#xE73E;" Foreground="#22FF88" FontSize="12"/>
+                                        <TextBlock Text="Web Search Protection" FontSize="12" Foreground="#F5F5F5"/>
+                                    </StackPanel>
+                                    <StackPanel x:Name="DefenseCodeExecutionItem" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+                                        <FontIcon Glyph="&#xE73E;" Foreground="#22FF88" FontSize="12"/>
+                                        <TextBlock Text="Code Execution Protection" FontSize="12" Foreground="#F5F5F5"/>
+                                    </StackPanel>
+                                    <StackPanel x:Name="DefenseRagItem" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+                                        <FontIcon Glyph="&#xE73E;" Foreground="#22FF88" FontSize="12"/>
+                                        <TextBlock Text="RAG Protection" FontSize="12" Foreground="#F5F5F5"/>
+                                    </StackPanel>
+                                    <StackPanel x:Name="DefenseEmailItem" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+                                        <FontIcon Glyph="&#xE73E;" Foreground="#22FF88" FontSize="12"/>
+                                        <TextBlock Text="Email Protection" FontSize="12" Foreground="#F5F5F5"/>
+                                    </StackPanel>
+                                    <StackPanel x:Name="DefenseDocumentItem" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+                                        <FontIcon Glyph="&#xE73E;" Foreground="#22FF88" FontSize="12"/>
+                                        <TextBlock Text="Document Protection" FontSize="12" Foreground="#F5F5F5"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="NoAgentDefensesLabel" Text="None active" FontSize="12" Foreground="#FF4444" Visibility="Visible"/>
+                                </StackPanel>
                             </StackPanel>
                         </StackPanel>
                     </Border>
