@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 from data_generation.custom.utils import generate_attack
 from system.single_llm.llm import LLM
 from evaluation.evaluator import Evaluator
-from langchain.messages import SystemMessage
 import json
 load_dotenv("./.env")
 
@@ -18,6 +17,7 @@ class CustomGenerator:
                  base_url_attacker=None,base_url_target=None,
                 activate_role_playing_defense=False, activate_obfuscation_defense=False,
                 activate_pii=False,activate_multi_turn=False,pii_masking_strategy=None):
+        
         self.attack_type = attack_type
         self.harm_type = harm_type
         self.judge = judge
@@ -97,13 +97,16 @@ class CustomGenerator:
         attacker_system_prompt=self.attacker_system_prompt
 
         dataset = []
+        num_of_successful_attacks = 0
         for i in range(num_trials):
-            result = generate_attack(target=self.target,evaluator=self.evaluator,\
+            result, is_successful_attack = generate_attack(target=self.target,evaluator=self.evaluator,\
                                     attacker=self.attacker,attacker_system_prompt=attacker_system_prompt)
-            if result:
+     
+            if result and is_successful_attack:
+                num_of_successful_attacks += 1
                 dataset.append(result)
 
-            if (i + 1) % 2 == 0:
+            if num_of_successful_attacks % 2 == 0 and num_of_successful_attacks > 0:
                 current_dataset = pd.DataFrame(dataset, columns=["attack", "target_response", 
                                                                 "judge_reason", "remaining", "result"])
 
@@ -113,8 +116,8 @@ class CustomGenerator:
                 except (FileNotFoundError, pd.errors.EmptyDataError):
                     pass
 
-                current_dataset.to_csv("./data_generation/custom/outputs/jailbreak_dataset.csv",columns=["attack", "target_response", 
-                                                                        "judge_reason", "remaining", "result"], index=False)
+                current_dataset.to_csv("./data_generation/custom/outputs/jailbreak_dataset.csv",
+                                columns=["attack", "target_response","judge_reason", "remaining", "result"], index=False)
                 dataset = []
 
         # save remaining samples
