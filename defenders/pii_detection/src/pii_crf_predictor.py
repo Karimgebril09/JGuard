@@ -125,8 +125,8 @@ class CRFPiiDetector:
         return predictions[0]
     
 
-if __name__ == "__main__":
-    detector = CRFPiiDetector()
-    text = "My email is johndoe@gmail.com"
-    predictions = detector.predict(text)
-    print(predictions)
+# if __name__ == "__main__":
+#     detector = CRFPiiDetector()
+#     text = "My email is johndoe@gmail.com"
+#     predictions = detector.predict(text)
+#     print(predictions)
