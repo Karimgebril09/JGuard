@@ -1,7 +1,7 @@
 from defenders.tools.code.src.ast_feature_extractor import extract_security_features_from_ast
-from defenders.tools.code.src.embedder import Embedder
+from defenders.tools.code.src.embedder import CodeEmbedder
 from defenders.tools.code.src.vector_db import VectorDatabase
-from defenders.tools.code.src.chunker import Chunker
+from defenders.tools.code.src.chunker import CodeChunker
 
 
 class CodeDefender:
@@ -10,10 +10,10 @@ class CodeDefender:
         if not deep_check:
             return
         
-        self.embedder = Embedder()
+        self.embedder = CodeEmbedder()
         self.vec_db = VectorDatabase(index_path=vector_db_path, metadata_path="metadata.csv")
         self.vec_db.load_index()
-        self.chunker = Chunker()
+        self.chunker = CodeChunker()
         self.neighbors_number = neighbors_number
 
     
@@ -35,5 +35,3 @@ class CodeDefender:
                     return False , "similar malicious code was found"
 
         return True, "safe"
-      
-

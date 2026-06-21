@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 
 
-class Embedder:
+class CodeEmbedder:
     def __init__(self,model_name="salesforce/codet5p-110m-embedding"):
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
         self.model = AutoModel.from_pretrained(model_name, trust_remote_code=True)
