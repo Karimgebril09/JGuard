@@ -1,5 +1,5 @@
 from feature_builder import build_features
-from crf_model import LinearCRF
+from model import LinearCRF
 import pandas as pd
 from transformers import AutoTokenizer
 from defenders.pii_detection.src.utils import prepare_dataset

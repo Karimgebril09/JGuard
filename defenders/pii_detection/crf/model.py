@@ -1,5 +1,5 @@
-from crf_train import train
-from crf_virterbi import decode_using_viterbi 
+from defenders.pii_detection.crf.train import train
+from virterbi import decode_using_viterbi 
 import json
 
 class LinearCRF:
@@ -13,7 +13,6 @@ class LinearCRF:
 
     def get_weights(self):
         return self.trained_weights
-    
 
     def save_model(self, file_path):
         model_data = {
@@ -29,9 +28,9 @@ class LinearCRF:
             self.trained_weights = model_data["weights"]
             self.labels = model_data["labels"]
 
-    def fit(self, train_dataset):
+    def fit(self, train_dataset,validation_data=None):
         self.trained_weights=train(train_dataset,self.feature_manager,self.labels,
-                                  lr=self.lr,epochs=self.epochs,l2=self.l2)
+                                  lr=self.lr,epochs=self.epochs,l2=self.l2,validation_data=validation_data)
         
     def predict(self, X):
         prediction, _ = decode_using_viterbi(X,self.feature_manager,self.trained_weights,self.labels)

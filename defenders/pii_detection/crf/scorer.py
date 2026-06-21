@@ -9,6 +9,7 @@ def compute_local_score(X,feature_manager, weights,y, y_prev, i):
 
 
 def precompute_scores(X, feature_manager, weights, labels):
+    # precompute scores for all possible label transitions at each position
     steps=len(X)
     scores = [{} for _ in range(steps)]
     prev_labels=["<START>"] + labels

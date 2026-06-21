@@ -1,4 +1,4 @@
-from crf_scorer import precompute_scores
+from defenders.pii_detection.crf.scorer import precompute_scores
 START_TAG = "<START>"
 
 def decode_using_viterbi(X, feature_manager, weights, labels):
@@ -12,7 +12,7 @@ def decode_using_viterbi(X, feature_manager, weights, labels):
         best_path[0][label] = START_TAG
 
 
-
+    
     for step in range(1, len_X):
         for curr_label in labels:
             best_score[step][curr_label] = float('-inf')

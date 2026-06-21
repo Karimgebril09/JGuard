@@ -1,5 +1,5 @@
-from crf_gradients import compute_gradient
-from crf_virterbi import decode_using_viterbi
+from defenders.pii_detection.crf.gradients import compute_gradient
+from virterbi import decode_using_viterbi
 from collections import defaultdict
 
 def train(dataset, feature_manager,labels,lr,l2,epochs,validation_data=None):
