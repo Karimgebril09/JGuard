@@ -18,7 +18,7 @@ if callable(stderr_reconfigure):
 
 def main() -> int:
     base_dir = Path(__file__).resolve().parent
-    cases_path = base_dir / "pipeline_test.csv"
+    cases_path = base_dir / "pipeline_test_cases.csv"
 
     with cases_path.open("r", encoding="utf-8", newline="") as handle:
         cases = list(csv.DictReader(handle))
@@ -34,7 +34,7 @@ def main() -> int:
             result = run_obfuscation_pipeline(raw_input)
             actual = result["stage_outputs"]["stage6"]["canonical_text"]
             stage8 = result["stage_outputs"]["stage8"]
-        except Exception as exc:  # pragma: no cover - runtime visibility only
+        except Exception as exc:  
             errored += 1
             print(f"\ninput: {raw_input}")
             print(f"output: ERROR: {exc}\n")

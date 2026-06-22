@@ -60,21 +60,15 @@ def normalize_punctuation(text: str) -> tuple[str, int]:
     if updated != before:
         replaced_count += 1
 
-    # Canonical punctuation spacing
-    # updated = re.sub(r"\s+([,.;:!?])", r"\1", updated)
-    # updated = re.sub(r"([,.;:!?])(\S)", r"\1 \2", updated)
-
     return updated, replaced_count
 
 
 def canonicalize_stage6(raw_input: str | bytes) -> dict[str, object]:
     original_text = normalize_input(raw_input)
 
-    # NFKC stabilizes compatibility punctuation and spacing before cleanup.
     text = unicodedata.normalize("NFKC", original_text)
 
     punctuation_text, punct_changes = normalize_punctuation(text)
-    # lowered_text = punctuation_text.lower()
     collapsed_text = re.sub(r"\s+", " ", punctuation_text).strip()
 
     whitespace_collapsed = punctuation_text != collapsed_text

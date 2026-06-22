@@ -62,25 +62,25 @@ def is_text_likely_english(text: str) -> float:
     )
 
 
-def find_dictionary_hits(text: str) -> int:
+def find_dict_hits(text: str) -> int:
     tokens = re.findall(r"[a-z]+", text.lower())
     return sum(1 for token in tokens if zipf_frequency(token, "en") >= MIN_WORD_ZIPF)
 
 
-def unquote_literal(token: str) -> str:
+def unquote(token: str) -> str:
     match = QUOTED_LITERAL_REGEX.match(token.strip())
     if not match:
         return token
     return bytes(match.group("body"), "utf-8").decode("unicode_escape")
 
 
-def resolve_literal_concatenations(text: str) -> tuple[str, list[dict[str, Any]]]:
+def res_concat(text: str) -> tuple[str, list[dict[str, Any]]]:
     decisions: list[dict[str, Any]] = []
 
     def replacement(match: re.Match[str]) -> str:
         expression = match.group(0)
         pieces = [
-            unquote_literal(token)
+            unquote(token)
             for token in re.findall(r"\"[^\"\\]*(?:\\.[^\"\\]*)*\"|'[^'\\]*(?:\\.[^'\\]*)*'", expression)
         ]
         resolved = "".join(pieces)
@@ -97,18 +97,18 @@ def resolve_literal_concatenations(text: str) -> tuple[str, list[dict[str, Any]]
     return LITERAL_CONCAT_REGEX.sub(replacement, text), decisions
 
 
-def parse_array_assignments(text: str) -> dict[str, list[str]]:
+def parse_arr_assignmts(text: str) -> dict[str, list[str]]:
     arrays: dict[str, list[str]] = {}
     for match in ARRAY_ASSIGN_REGEX.finditer(text):
         name = match.group("name")
         body = match.group("body")
-        elements = [unquote_literal(item.group(0)) for item in ARRAY_ELEMENT_REGEX.finditer(body)]
+        elements = [unquote(item.group(0)) for item in ARRAY_ELEMENT_REGEX.finditer(body)]
         if elements:
             arrays[name] = elements
     return arrays
 
 
-def resolve_array_index_expressions(
+def res_arr_idx_expression(
     text: str,
     arrays: dict[str, list[str]],
 ) -> tuple[str, list[dict[str, Any]]]:
@@ -151,7 +151,7 @@ def resolve_array_index_expressions(
     return ARRAY_INDEX_EXPR_REGEX.sub(replacement, text), decisions
 
 
-def resolve_slice_reverse(text: str) -> tuple[str, list[dict[str, Any]]]:
+def res_slice_reverse(text: str) -> tuple[str, list[dict[str, Any]]]:
     decisions: list[dict[str, Any]] = []
 
     def replacement(match: re.Match[str]) -> str:
@@ -170,12 +170,12 @@ def resolve_slice_reverse(text: str) -> tuple[str, list[dict[str, Any]]]:
     return SLICE_REVERSE_REGEX.sub(replacement, text), decisions
 
 
-def maybe_reverse_whole_text(text: str, min_improvement: float) -> tuple[str, dict[str, Any] | None]:
+def try_reverse_txt(text: str, min_improvement: float) -> tuple[str, dict[str, Any] | None]:
     reversed_text = text[::-1]
     forward_score = is_text_likely_english(text)
     reverse_score = is_text_likely_english(reversed_text)
-    forward_hits = find_dictionary_hits(text)
-    reverse_hits = find_dictionary_hits(reversed_text)
+    forward_hits = find_dict_hits(text)
+    reverse_hits = find_dict_hits(reversed_text)
 
     if reverse_score - forward_score < min_improvement:
         return text, None
@@ -206,17 +206,17 @@ def defragment_stage5(
     original_text = normalize_input(raw_input)
     decisions: list[dict[str, Any]] = []
 
-    text_after_literal, literal_decisions = resolve_literal_concatenations(original_text)
+    text_after_literal, literal_decisions = res_concat(original_text)
     decisions.extend(literal_decisions)
 
-    arrays = parse_array_assignments(text_after_literal)
-    text_after_indices, index_decisions = resolve_array_index_expressions(text_after_literal, arrays)
+    arrays = parse_arr_assignmts(text_after_literal)
+    text_after_indices, index_decisions = res_arr_idx_expression(text_after_literal, arrays)
     decisions.extend(index_decisions)
 
-    text_after_slice, slice_decisions = resolve_slice_reverse(text_after_indices)
+    text_after_slice, slice_decisions = res_slice_reverse(text_after_indices)
     decisions.extend(slice_decisions)
 
-    final_text, reverse_decision = maybe_reverse_whole_text(
+    final_text, reverse_decision = try_reverse_txt(
         text_after_slice,
         min_improvement=reverse_min_improvement,
     )

@@ -106,7 +106,6 @@ def find_leet_candidates(token: str, beam_width: int = 24) -> list[str]:
             for substitution in substitutions:
                 next_candidates.append(prefix + substitution)
 
-        # Keep search bounded while retaining the most plausible strings.
         next_candidates = sorted(
             set(next_candidates),
             key=lambda candidate: fallback_token_score(candidate)

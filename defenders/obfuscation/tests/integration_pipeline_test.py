@@ -27,11 +27,6 @@ def main() -> int:
 	print(f"harm_label: {result['harm_label']}")
 	print(f"action: {result['action']}")
 	print(f"execution_time_ms: {result['execution_time_ms']}")
-	print()
-
-	# print("Full Output:")
-	# print(json.dumps(result, indent=2, ensure_ascii=True, default=str))
-
 	return 0
 
 
