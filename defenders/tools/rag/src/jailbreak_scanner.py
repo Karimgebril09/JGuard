@@ -1,34 +1,8 @@
-import re
 
 import numpy as np
-
 from defenders.tools.rag.src.rag_pipeline import rag
 from defenders.tools.rag.src.chunk_graph_analyzer import ChunkGraphAnalyzer
-
-patterns = [
-    r"ignore\s+(the\s+)?(all\s+)?(previous|prior|above|earlier)\s+instructions?",
-  
-    r"disregard\s+(the\s+)?(all\s+)?(previous|prior|above)\s+instructions?",
-    r"forget\s+(everything|all|what)\s+(you('ve| have))?\s*(been\s+told|learned|know)",
-
-    r"you\s+are\s+now\s+(an?\s+)?(different|new|evil|unrestricted|free)",
-    r"act\s+as\s+(if\s+you\s+(are|were)\s+)?(an?\s+)?(evil|unrestricted|jailbroken|DAN)",
-    r"do\s+not\s+(follow|obey|respect)\s+(any\s+)?(rules?|guidelines?|restrictions?|ethics?)",
-
-    r"your\s+new\s+(role|persona|identity|purpose)\s+is",
-    r"pretend\s+(you\s+are|to\s+be)\s+",
-    r"from\s+now\s+on\s+(you\s+(are|will|must|should))",
-
-    r"(print|repeat|reveal|show|output|display)\s+(your\s+)?(system\s+prompt|instructions?|rules?|context)",
-    r"what\s+(are\s+your|is\s+your)\s+(instructions?|system\s+prompt|rules?)",
-
-    r"<\s*system\s*>",
-    r"\[\s*system\s*\]",
-    r"###\s*(instruction|system|prompt)",
-    r"\|\|.*\|\|", 
-]
-compiled_patterns = [re.compile(p, re.IGNORECASE) for p in patterns]
-
+from defenders.tools.rag.src.patterns import compiled_patterns
 
 class ScanResult:
     def __init__(self, chunk_id, text, is_malicious, matched_patterns):
@@ -39,6 +13,7 @@ class ScanResult:
     
 
 class InjectionScanner:
+    """scanner for rag system"""
     def scan_text(self, text, chunk_id=None):
         matched = []
         for pat in compiled_patterns:
@@ -52,19 +27,20 @@ class InjectionScanner:
         )
 
     def scan_chunks(self, chunks) :
-      
+        # scan any defined pattern 
         clean = []
         for chunk in chunks:
             result = self.scan_text(chunk.text, chunk.chunk_id  )
             if not result.is_malicious:
                 clean.append(chunk)
             else :
-                print('[scan sanitization removed]'+chunk.text[:10])
+                print('[scan sanitization removed]'+chunk.text[:100])
             # else :
             #     print(f'[scan] Chunk {chunk.chunk_id} flagged as malicious due to patterns: {result.matched_patterns}')
         return clean
     
     def cosine_similarity(self, vec_a, vec_b):
+        
         vec_a = np.array(vec_a).flatten()
         vec_b = np.array(vec_b).flatten()
 
@@ -78,8 +54,8 @@ class InjectionScanner:
         return float(dot / (norm_a * norm_b))
 
     def check_similarity(self, chunks, query):
-
-        embeddings = rag.embedder.transform_chunks(chunks)
+        # check similarity with the query 
+        embeddings = rag.embedder.embed_chunks(chunks)
         query_embedding = rag.embedder.embed_query(query)
 
         query_embedding = np.array(query_embedding).flatten()
@@ -104,24 +80,24 @@ class InjectionScanner:
 
 
     def check_consistency(self, chunks, embeddings=None):
+        # check if the chunks with each other are similar
         graph_analyzer = ChunkGraphAnalyzer()
         if embeddings is None:
 
-            embeddings = rag.embedder.transform_chunks(chunks)
-        graph, node_info = graph_analyzer.build_graph(chunks, embeddings)
+            embeddings = rag.embedder.embed_chunks(chunks)
+        g, node_info = graph_analyzer.build_graph(chunks, embeddings)
         
 
-        not_outliers = {info.chunk.chunk_id for info in node_info if not info.is_outlier}
+        not_outliers = {info.chunk.chunk_id for info in node_info if not (info.is_outlier and info.no_neighbors == 0)}
         for c in chunks:
             if c.chunk_id not in not_outliers:
-                print('[consistency check removed]'+c.text[:10])
+                print('[consistency check removed]'+c.text[:100])
         # print (f'[consistency check] {len(not_outliers)}/{len(chunks)} chunks are consistent with others based on graph analysis')
         return [c for c in chunks if c.chunk_id in not_outliers]
 
 
     def check_jailbreak(self, chunks, query):
-       
-
+       # go throgh the three stages 
         clean_chunks = self.scan_chunks(chunks)
         if not clean_chunks:
             return []

@@ -19,7 +19,7 @@ class MaskStrategy(PIIStrategy):
 
 
 class HashStrategy(PIIStrategy):
-    def _enc(self, x):
+    def _hash(self, x):
         hashed_value = hashlib.sha256(x.encode()).hexdigest()
         return hashed_value[:10]
 
@@ -28,7 +28,7 @@ class HashStrategy(PIIStrategy):
 
         for w,t in word_tags_pairs:
             if t != "O":
-                final_words.append(self._enc(w))
+                final_words.append(self._hash(w))
             else:
                 final_words.append(w)
         return " ".join(final_words)

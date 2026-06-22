@@ -24,19 +24,23 @@ def build_rag_agent(rag_protection: bool = True):
         Use this whenever the user asks about company policies, products, or procedures.
         Returns the most relevant passages found.
         """
+        
         chunks_tuples = rag.retrieve(query)
-        print("[retrieved]")
+        # print("[retrieved]")
         chunks = [c[0] for c in chunks_tuples]
-        for c in chunks:
-            print(f" - {c.text[:10]}... (source: {c.source})")
+        # for c in chunks:
+        #     print(f" - {c.text[:100]})")
 
+        # if scanning activated 
         if rag_protection:
             scanner = InjectionScanner()
-            print("[scanner]")
+            # print("[scanner]")
+            
+            
             safe_chunks = scanner.check_jailbreak(chunks, query)
-            print("[safe chunks]")
-            for c in safe_chunks:
-                print(f" - {c.text[:10]}... (source: {c.source})")
+            # print("[safe chunks]")
+            # for c in safe_chunks:
+            #     print(f" - {c.text[:100]})")
         else:
             safe_chunks = chunks
 
@@ -54,20 +58,22 @@ def build_rag_agent(rag_protection: bool = True):
             "Be concise and cite which source the information came from."
         ))
 
-        for m in state["messages"]:
-            content = str(m.content) if m.content is not None else "<None>"
-            print(f" - {content[:10]}... ({type(m).__name__})")
+        # for m in state["messages"]:
+        #     content = str(m.content) if m.content is not None else "<None>"
+        #     print(f" - {content[:100]}... ({type(m).__name__})")
 
         messages = state.get("messages", [])
         has_tool_result = any(isinstance(m, ToolMessage) for m in messages)
 
+        #to prevent infinite loop just call tool one 
         if has_tool_result:
-            response = llm.invoke([SystemMessage(content="answer only based on the provided tool result")] + messages)
+            response = llm.invoke([SystemMessage(content="answer only based on the provided tool result if no result available just return no information found")] + messages)
         else:
             response = llm_with_tools.invoke([system_prompt] + messages)
 
         return {"messages": [response]}
 
+    #build workflow
     workflow = StateGraph(RagAgentState)
     workflow.add_node("agent", rag_agent_function)
     workflow.add_node("tools", ToolNode([search_knowledge_base]))

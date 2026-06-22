@@ -36,29 +36,29 @@ class PIIEngine:
     
 
 
-if __name__ == "__main__":
-    # test the engine with all strategies
-    text = "My email is john.doe@example.com"
+# if __name__ == "__main__":
+#     # test the engine with all strategies
+#     text = "My email is john.doe@example.com"
 
-    strategy1 = MaskStrategy()
-    strategy2 = HashStrategy()
-    strategy3 = BlockStrategy()
-    strategy4 = PartialMasking()
-
-
-    pii_engine = PIIEngine(strategy=strategy1)
-    result = pii_engine.process(text)
-    print(result)
-
-    pii_engine.set_strategy(strategy2)
-    result = pii_engine.process(text)
-    print(result)
-
-    pii_engine.set_strategy(strategy3)
-    result = pii_engine.process(text)
-    print(result)
+#     strategy1 = MaskStrategy()
+#     strategy2 = HashStrategy()
+#     strategy3 = BlockStrategy()
+#     strategy4 = PartialMasking()
 
 
-    pii_engine.set_strategy(strategy4)
-    result = pii_engine.process(text)
-    print(result)
+#     pii_engine = PIIEngine(strategy=strategy1)
+#     result = pii_engine.process(text)
+#     print(result)
+
+#     pii_engine.set_strategy(strategy2)
+#     result = pii_engine.process(text)
+#     print(result)
+
+#     pii_engine.set_strategy(strategy3)
+#     result = pii_engine.process(text)
+#     print(result)
+
+
+#     pii_engine.set_strategy(strategy4)
+#     result = pii_engine.process(text)
+#     print(result)

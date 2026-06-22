@@ -1,5 +1,5 @@
-from defenders.tools.code.src.embedder import Embedder
-from defenders.tools.code.src.chunker import Chunker
+from defenders.tools.code.src.embedder import CodeEmbedder
+from defenders.tools.code.src.chunker import CodeChunker
 from defenders.tools.code.src.vector_db import VectorDatabase
 import pandas as pd
 import os
@@ -7,8 +7,8 @@ import numpy as np
 
 class VectorDatabaseBuilder:
     def __init__(self, srcs_dir):
-        self.embedder = Embedder()
-        self.chunker = Chunker()
+        self.embedder = CodeEmbedder()
+        self.chunker = CodeChunker()
         self.vector_db = VectorDatabase(index_path="vector_db2.faiss", metadata_path="metadata2.csv")
         self.vector_db.load_index()
         self.srcs_dir = srcs_dir

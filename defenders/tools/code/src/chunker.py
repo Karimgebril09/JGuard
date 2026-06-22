@@ -1,6 +1,6 @@
 import re
 
-class Chunker:
+class CodeChunker:
     def __init__(self, strategy="line", chunk_size=1000):
         self.strategy = strategy
         self.chunk_size = chunk_size

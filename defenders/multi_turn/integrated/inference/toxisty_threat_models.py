@@ -1,27 +1,30 @@
-
-import os
-import sys
-
 import joblib
 import numpy as np
 
-class ThreatModel:
-    def __init__(self):
-        self.model = joblib.load( "defenders/multi_turn/integrated/models/threat_lr.joblib")
-    def score(self, emb):
+
+class BaseClassifier:
+    def __init__(self, model_path):
+        self.model = joblib.load(model_path)
+
+    def _prepare(self, emb):
+        #sklearn models expect 2D arr so reshape it and also float faster
         emb = np.asarray(emb, dtype=np.float32)
-        input = emb.reshape(1, -1)
-        return float(self.model.predict_proba(input)[0, 1])
+        return emb.reshape(1, -1)
+
+    def score(self, emb):
+        x = self._prepare(emb)
+        return float(self.model.predict_proba(x)[0, 1])
+
     def predict(self, emb, threshold=0.5):
         return int(self.score(emb) >= threshold)
-    
-class ToxicityModel:
-    def __init__(self):
-        self.model = joblib.load( "defenders/multi_turn/integrated/models/toxicity_lgb.joblib")
-    def score(self, emb):
-        emb = np.asarray(emb, dtype=np.float32)
-        input = emb.reshape(1, -1)
-        return float(self.model.predict_proba(input)[0, 1])
 
-    def predict(self, emb, threshold = 0.5) :
-        return int(self.score(emb) >= threshold)
+
+class ThreatModel(BaseClassifier):
+    #easy to call and get score for feature extraction
+    def __init__(self):
+        super().__init__("defenders/multi_turn/integrated/models/threat_lr.joblib")
+
+
+class ToxicityModel(BaseClassifier):
+    def __init__(self):
+        super().__init__("defenders/multi_turn/integrated/models/toxicity_lgb.joblib")

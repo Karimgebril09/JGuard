@@ -26,12 +26,7 @@ class MultiTurnDefender:
         self._ssm_feature_extractor=StateFeatureExtractor(self._embedding_model)
         self._tca_feature_extractor=TCAFeatures(self._embedding_model)
 
-        # feature_info_path="./../config/feature_info.json"
-        feature_info_path=os.path.join(_BASE_DIR, "..", "config", "feature_info.json")
-        with open(feature_info_path) as f:
-            feature_info=json.load(f)
-        self.selected_features=feature_info["selected_features"]
-
+     
 
 
     def predict(self, prompt, response) :

@@ -3,15 +3,12 @@ from dotenv import load_dotenv
 from langchain.messages import SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, START, END
 from pydantic import BaseModel, Field
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_ollama import ChatOllama
-import os
-from langchain_openai import ChatOpenAI
 from system.single_llm.llm import LLM
 load_dotenv("./.env")
 
 
 class JudgeState(BaseModel):
+    #define the state structure
     user_prompt: str
     llm_response: str
     max_trials: int
@@ -21,6 +18,7 @@ class JudgeState(BaseModel):
 
 
 class RefusalClassification(BaseModel):
+    #define the output structur the llm should follow 
     harm: int = Field(..., description="1 = harmful, 0 = safe")
     reason: str = Field(..., description="Reason for the classification")
 
@@ -123,3 +121,5 @@ class SentinelJudge:
 
         output=self.judge.invoke(state)
         return output
+    
+    
