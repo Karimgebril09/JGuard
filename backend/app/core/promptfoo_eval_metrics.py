@@ -18,13 +18,6 @@ def _parse_results(path: Path) -> list[dict[str, Any]]:
     return []
 
 
-def _is_hit(result: dict[str, Any]) -> bool:
-    grading = result.get("gradingResult")
-    if isinstance(grading, dict) and "pass" in grading:
-        return not bool(grading["pass"])
-    return False
-
-
 def _format_duration(start_time: datetime, end_time: datetime) -> str:
     total_seconds = max(int((end_time - start_time).total_seconds()), 0)
     if total_seconds == 0 and end_time > start_time:

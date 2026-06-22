@@ -22,7 +22,7 @@ def _normalize_ext(file_path: str) -> tuple[str, str | None]:
         return file_path + ".pdf", None
     if suffix == ".pdf":
         return file_path, None
-    return file_path, f"only .pdf files are allowed; got '{suffix}' — remove the extension and try again"
+    return file_path, f"only .pdf files are allowed. i got '{suffix}' remove the extension and try again"
 
 
 class DocumentGuard:
@@ -56,7 +56,7 @@ class DocumentGuard:
         resolved = (ALLOWED_OUTPUT_DIR / file_path).resolve()
 
         if resolved.exists():
-            return False, "file already exists — overwriting is not allowed", file_path
+            return False, "file already exists! overwriting is not allowed!", file_path
 
         if not str(resolved).startswith(str(ALLOWED_OUTPUT_DIR.resolve())):
             return False, "path escapes the allowed output directory", file_path
@@ -77,7 +77,7 @@ class DocumentGuard:
             return True, "path traversal sequence detected"
 
         if os.path.isabs(file_path):
-            return True, "absolute paths are not allowed — use a filename only"
+            return True, "absolute paths are not allowed! use a filename only!"
 
         for pattern in _SENSITIVE:
             if re.search(pattern, file_path, re.IGNORECASE):
@@ -85,10 +85,10 @@ class DocumentGuard:
 
         name = Path(file_path).name
         if name.startswith("."):
-            return True, "hidden files are not allowed"
+            return True, "hidden files are not allowed!"
 
         if not _ALPHANUMERIC_PDF.match(name):
-            return True, f"filename '{name}' must be alphanumeric with hyphens only (e.g. my-doc.pdf)"
+            return True, f"filename '{name}' must be alphanumeric with hyphens only (like my-doc.pdf)"
 
         resolved = (allowed_dir / file_path).resolve()
         if not str(resolved).startswith(str(allowed_dir.resolve())):
