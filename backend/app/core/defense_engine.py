@@ -80,6 +80,7 @@ class SessionStore:
             mas_app = _build_mas_app(
                 web_search_protection=config.web_search_protection,
                 code_execution_protection=config.code_execution_protection,
+                code_deep_check=config.code_deep_check,
                 rag_protection=config.rag_protection,
                 email_protection=config.email_protection,
                 document_protection=config.document_protection,
@@ -189,6 +190,7 @@ def _run_agent_chat(session: SessionState, prompt: str) -> dict[str, Any]:
 def _build_mas_app(
     web_search_protection: bool = True,
     code_execution_protection: bool = True,
+    code_deep_check: bool = True,
     rag_protection: bool = True,
     email_protection: bool = True,
     document_protection: bool = True,
@@ -201,6 +203,7 @@ def _build_mas_app(
     return build_mas_app(
         web_search_protection=web_search_protection,
         code_execution_protection=code_execution_protection,
+        code_deep_check=code_deep_check,
         rag_protection=rag_protection,
         email_protection=email_protection,
         document_protection=document_protection,

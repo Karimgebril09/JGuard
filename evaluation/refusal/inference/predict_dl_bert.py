@@ -128,6 +128,7 @@ class RefusalInference:
         self.model.eval()
         
     
+    
     def predict(self, text):
         #apply clean 
         cleaned_text = clean_text(text)

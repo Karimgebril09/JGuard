@@ -21,9 +21,10 @@ class SessionConfig(BaseModel):
     pii_strategy: str = "mask"
     web_search_protection: bool = True
     code_execution_protection: bool = True
+    code_deep_check: bool = True
     rag_protection: bool = True
-    email_protection: bool = True       
-    document_protection: bool = True    
+    email_protection: bool = True
+    document_protection: bool = True
 
     @model_validator(mode="after")
     def validate_closed_source_fields(self) -> "SessionConfig":

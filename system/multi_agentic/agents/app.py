@@ -112,11 +112,12 @@ def route(state: AgentState) -> str:
 def build_mas_app(
     web_search_protection: bool = True,
     code_execution_protection: bool = True,
+    code_deep_check: bool = True,
     rag_protection: bool = True,
-    email_protection: bool = True,       
-    document_protection: bool = True,   
+    email_protection: bool = True,
+    document_protection: bool = True,
 ) -> Any:
-    coder_agent = build_coding_agent(code_execution_protection=code_execution_protection)
+    coder_agent = build_coding_agent(code_execution_protection=code_execution_protection, code_deep_check=code_deep_check)
     research_agent = build_research_agent(web_search_protection=web_search_protection)
     document_agent = build_document_processor(document_protection=document_protection)
     rag_agent = build_rag_agent(rag_protection=rag_protection)
