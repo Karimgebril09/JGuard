@@ -295,6 +295,6 @@ public sealed partial class RedTeamPage : Page
     {
         "openai" => "https://api.openai.com/v1",
         "gemini" => "https://generativelanguage.googleapis.com/v1beta",
-        _        => "http://localhost:11434/v1"
+        _        => "http://localhost:11434"
     };
 }

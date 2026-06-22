@@ -90,7 +90,7 @@ class RefusalInference:
         )
         self.bert=DistilBertModel.from_pretrained(
             "distilbert-base-uncased"
-        )
+        ).to(self.device)
         self.bert.eval()
         self.model = LSTMClassifier(embed_dim, hidden_dim, dropout)
         self.model.load_state_dict(torch.load("./evaluation/refusal/models/lstm_refusal_model_bert.pt", map_location=self.device))

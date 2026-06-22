@@ -1,7 +1,10 @@
+import logging
 import pandas as pd
-from collections import deque   
+from collections import deque
 MAX_CONVO_LEN=10
 MAX_HISTORY_LEN=6
+
+LOGGER = logging.getLogger(__name__)
 
 
 
@@ -48,7 +51,10 @@ def generate_attack(evaluator,attacker,target,attacker_system_prompt):
                 is_successful_attack=True
                 break
             max_convo_len-=1
-        except:
+        except Exception as exc:
+            LOGGER.error("generate_attack iteration failed: %s", exc, exc_info=True)
+            if not convo_list:
+                raise
             break
 
     # append the conversation
