@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from threading import Lock
+import traceback
 from typing import Any, Optional
 from uuid import uuid4
 
@@ -167,12 +168,13 @@ def _run_agent_chat(session: SessionState, prompt: str) -> dict[str, Any]:
                 "recursion_limit": 30,
                 "configurable": {
                     "mas_guard": session.mas_guard,
+                    "thread_id": session.session_id,
                 },
             },
         )
     except Exception as exc:
+        traceback.print_exc()
         raise RuntimeError(f"Agent-based MAS call failed: {exc}") from exc
-
     if "response" in final_state:
         session.meta["agent_response"] = final_state.get("response")
     if "next_action" in final_state:
