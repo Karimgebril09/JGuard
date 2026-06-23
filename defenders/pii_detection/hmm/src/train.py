@@ -4,8 +4,8 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from seqeval.metrics import classification_report as seqeval_report
 from seqeval.metrics import f1_score
-from defenders.pii_detection.hmm.HMM import HMM
-from defenders.pii_detection.hmm.word_features import extract_word_features , NER_TAG_TO_INDEX, INDEX_TO_NER_TAG ,NER_TAGS
+from defenders.pii_detection.hmm.src.HMM import HMM
+from defenders.pii_detection.hmm.src.word_features import extract_word_features , NER_TAG_TO_INDEX, INDEX_TO_NER_TAG ,NER_TAGS
 
 
 
