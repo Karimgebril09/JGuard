@@ -1,4 +1,11 @@
 
+import datetime
+import os
+import json
+from evaluation.evaluator import Evaluator
+from evaluation.multi_agent_eval.multi_agnet_evaluater import MultiAgentEvaluater
+from system.multi_agentic.checkpointer.safety_checkpointer import SafetyCheckpointer
+
 from .coding_agent import build_coding_agent
 from .document_parser import build_document_processor
 from .research_agent import build_research_agent
@@ -78,6 +85,12 @@ orchestrator_system_prompt = (
         "summarize it and choose 'end'."
     )
 
+evaluator = MultiAgentEvaluater( Evaluator(
+            type_judge="ollama",
+            judge="qwen2.5:3b-instruct",
+            base_url_judge=None,
+            api_key_judge=None,
+        ))
 
 class orch_messages(BaseModel):
     Next_action: Literal["code", "research", "document", "email", "end", "rag"] = Field(..., description="The next action to take")
@@ -95,18 +108,22 @@ def create_llms(local: bool = True):
 
 
 def route(state: AgentState) -> str:
+    returned_action = ""
     if state["next_action"] == "code":
-        return "code"
+        returned_action = "code"
     elif state["next_action"] == "research":
-        return "research"
+        returned_action = "research"
     elif state["next_action"] == "document":
-        return "document"
+        returned_action = "document"
     elif state["next_action"] == "email":
-        return "email"
+        returned_action = "email"
     elif state["next_action"] == "rag":
-        return "rag"
+        returned_action = "rag"
     else:
-        return "end"
+        returned_action = "end"
+    print(f"Routing to: {returned_action}") 
+    return returned_action
+
 
 
 def build_mas_app(
@@ -172,6 +189,8 @@ def build_mas_app(
         return {"messages": [AIMessage(content=content, name="document_agent")]}
 
     def run_rag_agent(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
+        print("RAG ENTER")
+        print("messages before:", len(state["messages"]))
         print("Running RAG agent...")
         mas_guard = config.get("configurable", {}).get("mas_guard")
         if mas_guard is not None and mas_guard.check_multi_turn("rag", state["user_message"]):
@@ -203,6 +222,7 @@ def build_mas_app(
             mas_guard.update_last_response("email", content)
         return {"messages": [AIMessage(content=content, name="email_agent")]}
 
+        
     def orch_agent_node(state: AgentState, config: RunnableConfig) -> dict[str, Any]:
         print("Running orchestration agent...")
 
@@ -221,6 +241,11 @@ def build_mas_app(
                 if getattr(last_msg, "type", "") == "ai":
                     content = getattr(last_msg, "content", "")
                     if isinstance(content, str) and content.strip():
+                        evaluator.evaluate_and_log(
+                            node_name=getattr(last_msg, "name", "unknown_agent"),
+                            user_message=state["user_message"],
+                            ai_content=content
+                        )
                         checked_content, blocked_flag, defenses = mas_guard.check_message(content)
                         if blocked_flag:
                             print(f"BLOCKED: Incoming message to orchestrator blocked by {defenses}")
@@ -266,11 +291,24 @@ def build_mas_app(
             mas_guard.update_last_response("orchestrator", final_response)
 
         if response.Next_action == "end":
+            evaluator.evaluate_and_log(
+                node_name="orch_agent",
+                user_message=state["user_message"],
+                ai_content=final_response,
+             
+            )
             return {
                 "next_action": "end",
                 "response": final_response,
                 "messages": [AIMessage(content=final_response)] if final_response.strip() else [],
             }
+            
+        print("=== ORCH ===")
+        print("messages count:", len(state["messages"]))
+        print("next_action:", response.Next_action)
+        print("final_response:", response.final_response[:100])
+        
+        
         return {
             "next_action": response.Next_action,
             "response": "",
