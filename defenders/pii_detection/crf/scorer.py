@@ -1,5 +1,5 @@
 def compute_local_score(X,feature_manager, weights,y, y_prev, i):
-    # compute weighed sum of feature at current position
+    """compute  local score for word in positionn i"""
     score = 0.0
     for feature in feature_manager.features:
         weight = weights.get(feature.feature_name, 0.0)
@@ -9,7 +9,7 @@ def compute_local_score(X,feature_manager, weights,y, y_prev, i):
 
 
 def precompute_scores(X, feature_manager, weights, labels):
-    # precompute scores for all possible label transitions at each position
+    """precompute the scores for the incoming sequence of words X"""
     steps=len(X)
     scores = [{} for _ in range(steps)]
     prev_labels=["<START>"] + labels
