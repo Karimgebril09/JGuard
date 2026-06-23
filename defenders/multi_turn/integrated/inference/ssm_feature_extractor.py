@@ -1,73 +1,102 @@
-from pyexpat import features
-
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import pandas as pd
 import joblib
 from collections import deque
 import numpy as np
-
+from ssm_model import ConversationDynamicsModel
 import os
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _MODELS_DIR = os.path.join(_BASE_DIR, "..", "models")
 
-class stateSpaceModel(nn.Module):
-    def __init__(self,state_dim, input_dim, hidden_dim1,hidden_dim2, output_dim):
-        super(stateSpaceModel, self).__init__()
-        # F(x_{t-1},u_t)=>x_t (Transition model)
-        self.Fxu = nn.Sequential(
-            nn.Linear(state_dim + input_dim, hidden_dim1),
-            nn.ReLU(),
-            nn.Linear(hidden_dim1, hidden_dim2),
-            nn.ReLU(),
-            nn.Linear(hidden_dim2, state_dim)
-        )
+FEATURE_NAMES = [
+            "state_drift", 
+            "state_input_distance",
+            "long_term_state_drift",
+            "state_similarity",
+            "state_input_similarity",
+            "long_term_state_similarity", 
+            "mean_squared_change_short",
+            "mean_squared_change_long",
+        ]
 
-        # G(x_t,u_t)=>z_t (Observation model)
-        self.Gxu = nn.Sequential(
-            nn.Linear(state_dim + input_dim, hidden_dim1),
-            nn.ReLU(),
-            nn.Linear(hidden_dim1, hidden_dim2),
-            nn.ReLU(),
-            nn.Linear(hidden_dim2, output_dim)
-        )
-        
-    def forward(self, x_prev, u):
-        # gets xt
-        ux_prev = torch.cat([u,x_prev], dim=-1)
-        x_curr = self.Fxu(ux_prev)
 
-        # gets zt
-        ux_curr = torch.cat([u,x_curr], dim=-1)
-        zt = self.Gxu(ux_curr)
-        return x_curr, zt
+FEATURES_TRANSFORMATIONS = [
+    'long_term_state_drift_sqrt', 
+    'mean_squared_change_long_sqrt', 
+    'state_input_distance_sqrt', 
+    'long_term_state_similarity_sqrt',
+    'state_similarity_log',
+]
+
     
-
 class StateFeatureExtractor:
     def __init__(self,embedding_model):
-        self.state_dim = 768    # x_t
-        self.input_dim = 768    # u_t
-        self.output_dim = 768   # z_t
-        self.hidden_dim_ssm1 = 1200  
-        self.hidden_dim_ssm2 = 900  
-
         self.embedding_model = embedding_model
-        self.ssm = stateSpaceModel(self.state_dim, self.input_dim, self.hidden_dim_ssm1, self.hidden_dim_ssm2, self.output_dim)
-        # checkpoint = torch.load("./../models/models_best_ssm.pth",map_location=torch.device("cpu"))
-        checkpoint = torch.load(os.path.join(_MODELS_DIR, "models_best_ssm_new_data.pth"), map_location=torch.device("cpu"))
-        self.ssm.load_state_dict(checkpoint["ssm"])
-        self.ssm.eval()
-
-        # self.pca_model= joblib.load("./../models/pca_model.pkl")
         self.pca_model= joblib.load(os.path.join(_MODELS_DIR, "pca_model_new_labels.pkl"))
+        self.ssm_model = ConversationDynamicsModel()
     
-        self.x_prev=torch.zeros(self.state_dim)
+        self.x_prev=torch.zeros(1, self.ssm_model.get_state_dim())
         self.x_prev_4step_back = None
         self.q=deque(maxlen=4)
 
+    def embed_input(self, prompt):
+        u = self.embedding_model.encode(prompt)
+        u = torch.tensor(u, dtype=torch.float32)
+        if u.dim() == 1:
+            u = u.unsqueeze(0)
+        return u
+    
+    def get_long_term_state(self, x_curr):
+        if len(self.q) == 0:
+            self.x_prev_4step_back = x_curr
+        else:
+            self.x_prev_4step_back = self.q[0]
+        self.q.append(x_curr)
+        return self.x_prev_4step_back
+    
+
+    def get_drift(self, x, y):
+        if x.dim() == 1:
+            x=x.unsqueeze(0)
+        if y.dim() == 1:
+            y=y.unsqueeze(0)
+        return torch.norm(x - y).item()
+    
+    def get_similarity(self, x, y):
+        if x.dim() == 1:
+            x=x.unsqueeze(0)
+        if y.dim() == 1:
+            y=y.unsqueeze(0)
+        
+        dot = (x * y).sum(dim=1)
+        x_norm = torch.sqrt((x * x).sum(dim=1))
+        y_norm = torch.sqrt((y * y).sum(dim=1))
+
+        eps = 1e-8  
+        cosine = dot / (x_norm * y_norm + eps)
+        cosine = torch.clamp(cosine, -1.0, 1.0)
+        return cosine.item()
+    
+    def get_mean_squared_change(self, x, y):
+        if x.dim() == 1:
+            x=x.unsqueeze(0)
+        if y.dim() == 1:
+            y=y.unsqueeze(0)
+
+        squared_diff = (x - y) ** 2
+        return torch.mean(squared_diff).item()
+    
+
+    def reduce_dimensionality(self, vectors):
+        vectors = self.pca_model.transform(vectors.numpy())
+        vectors_columns=[str(i) for i in range(vectors.shape[1])]   
+        vectors = pd.DataFrame(vectors, columns=vectors_columns)
+        return vectors
+
+
     def apply_selected_transformations(self,df, selected_features):
         transformed = {}
+
         for feature in selected_features:
             transform = feature.split("_")[-1]
             base_feature = "_".join(feature.split("_")[:-1])
@@ -90,83 +119,51 @@ class StateFeatureExtractor:
         features = []
     
         # drift features
-        state_drift = torch.norm(x_t -x_prev).item()
+        state_drift = self.get_drift(x_t, x_prev)
         features.append(state_drift)
 
-        state_input_distance = torch.norm(x_t -u_t).item()
+        state_input_distance = self.get_drift(x_t, u_t)
         features.append(state_input_distance)
             
-        long_term_state_drift = torch.norm(x_t - x_prev_4step_back).item()
+        long_term_state_drift = self.get_drift(x_t, x_prev_4step_back)
         features.append(long_term_state_drift)
 
-        # similarity features
-        state_similarity = F.cosine_similarity(x_t.unsqueeze(0),x_prev.unsqueeze(0)).item()
+        # similariti features
+        state_similarity = self.get_similarity(x_t, x_prev)
         features.append(state_similarity)
 
-        state_input_similarity = F.cosine_similarity(x_t.unsqueeze(0),u_t.unsqueeze(0)).item()
+        state_input_similarity = self.get_similarity(x_t, u_t)
         features.append(state_input_similarity)
 
 
-        long_term_state_similarity = F.cosine_similarity(x_t.unsqueeze(0),x_prev_4step_back.unsqueeze(0)).item()
+        long_term_state_similarity = self.get_similarity(x_t, x_prev_4step_back)
         features.append(long_term_state_similarity)
 
-        features.append(torch.mean((x_t - x_prev) ** 2).item())
-        features.append(torch.mean((x_t - x_prev_4step_back) ** 2).item())
+        # mse feature
+        short_term_mse = self.get_mean_squared_change(x_t, x_prev)
+        features.append(short_term_mse)
+
+        long_term_mse = self.get_mean_squared_change(x_t, x_prev_4step_back)
+        features.append(long_term_mse)
 
         return torch.tensor(features, dtype=torch.float32)
     
-    def extract_features(self, prompt):
-        u = self.embedding_model.encode(prompt)
-        u = torch.tensor(u, dtype=torch.float32)
-        x_curr, zt = self.ssm(self.x_prev, u)
-        
-        if self.x_prev_4step_back is None:
-            self.x_prev_4step_back = x_curr
+    
+    def get_features_transformed(self, features):
+        features = pd.DataFrame([features.numpy()], columns=FEATURE_NAMES)
+        transformed_selected_features = FEATURES_TRANSFORMATIONS
+        features_transformed = self.apply_selected_transformations(features, transformed_selected_features)
+        return features_transformed
 
-        if len(self.q) == 4:
-            self.x_prev_4step_back = self.q[0]
-        
-        self.q.append(x_curr)
+    
+    def extract_features(self, prompt):
+        u = self.embed_input(prompt)
+        x_curr = self.ssm_model.get_next_state(u)
+        self.x_prev_4step_back = self.get_long_term_state(x_curr)
         features = self.feature_engineering(x_curr, u, self.x_prev, self.x_prev_4step_back)
         self.x_prev = x_curr
-        vectors=torch.concat([x_curr, u], dim=0)
-
-        vectors = self.pca_model.transform(vectors.detach().cpu().unsqueeze(0).numpy())
-        vectors=pd.DataFrame(vectors, columns=[str(i) for i in range(vectors.shape[1])])
-        features = pd.DataFrame([features.detach().cpu().numpy()], columns=[
-            "state_drift", 
-            "state_input_distance",
-            "long_term_state_drift",
-            "state_similarity",
-            "state_input_similarity",
-            "long_term_state_similarity", 
-            "mean_squared_change_short",
-            "mean_squared_change_long",
-        ])
-
-        transformed_selected_features = [
-            'long_term_state_drift_sqrt', 
-            'mean_squared_change_long_sqrt', 
-            'state_input_distance_sqrt', 
-            'long_term_state_similarity_sqrt',
-            'state_similarity_log',
-        ]
-
-        features_transformed = self.apply_selected_transformations(features, transformed_selected_features)
-
+        vectors=torch.concat([x_curr, u], dim=1)
+        vectors= self.reduce_dimensionality(vectors)
+        features_transformed = self.get_features_transformed(features)
         return features_transformed, vectors
         
-
-
-
-if __name__ == "__main__":
-    from sentence_transformers import SentenceTransformer
-    embedding_model = SentenceTransformer('all-mpnet-base-v2') 
-    extractor = StateFeatureExtractor(embedding_model)
-
-    prompt = "What is the capital of France?"
-    features, vectors = extractor.extract_features(prompt)
-    print("Extracted features:", features.shape)
-    print("Extracted vectors:", vectors.shape)
-    print("Features:", features)
-    print("Vectors:", vectors)
