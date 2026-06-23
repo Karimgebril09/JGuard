@@ -12,6 +12,9 @@ def train(dataset, feature_manager,labels,lr,l2,epochs,validation_data=None):
 
     for epoch in range(epochs):
         for x_train, y_train in dataset:
+            if len(x_train) == 0:
+                continue
+
             gradient = compute_gradient(x_train, y_train, feature_manager, weights, labels, l2)
             
             for feature_name in weights:
@@ -21,6 +24,8 @@ def train(dataset, feature_manager,labels,lr,l2,epochs,validation_data=None):
         correct = 0
         total = 0
         for x_train, y_train in dataset:
+            if len(x_train) == 0:
+                continue
             predicted_labels, _ = decode_using_viterbi(x_train, feature_manager, weights, labels)
             correct += sum(p == t for p, t in zip(predicted_labels, y_train))
             total += len(y_train)
@@ -32,16 +37,17 @@ def train(dataset, feature_manager,labels,lr,l2,epochs,validation_data=None):
         total_val = 0
         if val_exist:
             for x_val, y_val in validation_data:
+                if len(x_val) == 0:
+                    continue
                 predicted_labels_val, _ = decode_using_viterbi(x_val, feature_manager, weights, labels)
                 correct_val += sum(p == t for p, t in zip(predicted_labels_val, y_val))
                 total_val += len(y_val)
             val_accuracy = correct_val / total_val
         
         if val_exist:
-            print(f"Epoch {epoch+1}/{epochs}, Training Accuracy: {accuracy:.4f},\
-                     Validation Accuracy: {val_accuracy:.4f}")
+            print(f"Epoch {epoch+1}/{epochs} ,Training Accuracy:{accuracy} ,Validation Accuracy: {val_accuracy}")
         else:
-            print(f"Epoch {epoch+1}/{epochs}, Training Accuracy: {accuracy:.4f}")
+            print(f"Epoch {epoch+1}/{epochs} ,Training Accuracy:{accuracy}")
 
     return weights
 
