@@ -2,17 +2,18 @@ from defenders.pii_detection.crf.scorer import precompute_scores
 START_TAG = "<START>"
 
 def decode_using_viterbi(X, feature_manager, weights, labels):
+    """find best sequence of lables that represents the given sequence X"""
     scores = precompute_scores(X,feature_manager, weights,labels)
     len_X = len(X)
     best_path = [{} for _ in range(len_X)]
     best_score = [{} for _ in range(len_X)]
-    #initialize
+    #initial step from start tag 
     for label in labels:
         best_score[0][label] = scores[0][START_TAG][label] 
         best_path[0][label] = START_TAG
 
 
-    
+    # dp to find best path
     for step in range(1, len_X):
         for curr_label in labels:
             best_score[step][curr_label] = float('-inf')

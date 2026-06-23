@@ -3,6 +3,7 @@ from virterbi import decode_using_viterbi
 from collections import defaultdict
 
 def train(dataset, feature_manager,labels,lr,l2,epochs,validation_data=None):
+    """training loop to get most optimal weights"""
     # set initialy weights to 0
     weights = defaultdict(float)
     for feature_name in feature_manager.names():
