@@ -5,7 +5,7 @@ import optuna
 import pandas as pd
 from scipy.stats import pointbiserialr
 from sklearn.model_selection import train_test_split
-from defenders.multi_turn.integrated.inference.risk_calculator import RiskCalculator
+from defenders.multi_turn.TCA.src.risk_calculator import RiskCalculator
 
 
 

@@ -10,7 +10,7 @@ import json
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 from ssm_feature_extractor import StateFeatureExtractor
-from tca_feature_extraction import TCAFeatures
+from defenders.multi_turn.TCA.inference.tca_feature_extraction import TCAFeatures
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -35,3 +35,10 @@ class MultiTurnDefender:
         all_features = pd.concat([tca_features,ssm_features ,vectors], axis=1)
         prediction = self._model.predict(all_features)
         return prediction[0]
+
+# if __name__ == "__main__":
+#     defender = MultiTurnDefender()
+#     prompt = "Hello, how are you?"
+#     response = "I'm good, thank you!"
+#     prediction = defender.predict(prompt, response)
+#     print(f"Prediction: {prediction}")

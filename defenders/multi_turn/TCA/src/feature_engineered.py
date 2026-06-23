@@ -5,7 +5,7 @@ from fastapi import params
 import numpy as np
 import pandas as pd
 
-from defenders.multi_turn.integrated.inference.risk_calculator import RiskCalculator
+from defenders.multi_turn.TCA.src.risk_calculator import RiskCalculator
 
 def recompute_risks(df, calc):
     """calcuate risk values"""

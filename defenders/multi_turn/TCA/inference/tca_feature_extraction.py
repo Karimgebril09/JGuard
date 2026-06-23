@@ -1,16 +1,14 @@
 import json
 import os
-from typing import Dict, List, Optional
 import joblib
 import numpy as np
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 from sklearn.preprocessing import PowerTransformer
-from transformers import pipeline
-from defenders.multi_turn.integrated.inference.toxisty_threat_models import ThreatModel, ToxicityModel
-from risk_calculator import RiskCalculator
-from transforms import TRANSFORMS
-from feature_extraction import FeatureExtractor
+from defenders.multi_turn.TCA.inference.toxisty_threat_models import ThreatModel, ToxicityModel
+from defenders.multi_turn.TCA.src.risk_calculator import RiskCalculator
+from defenders.multi_turn.TCA.inference.transforms import TRANSFORMS
+from defenders.multi_turn.TCA.src.feature_extraction  import FeatureExtractor
 from sklearn.exceptions import InconsistentVersionWarning
 import warnings
 warnings.filterwarnings(
@@ -79,7 +77,7 @@ class TCAFeatures:
         if len(self.memory) > 10:
             self.memory.pop(0)
             
-        feature_info_path=os.path.join(_BASE_DIR, "..", "config", "feature_info(6).json")
+        feature_info_path=os.path.join("./defenders/multi_turn/integrated/config/feature_info(6).json")
         with open(feature_info_path) as f:
             feature_info=json.load(f)
         selected_features=feature_info["selected_features"]
@@ -87,7 +85,7 @@ class TCAFeatures:
         #apply feature transformation
         tca_features_transformed=self.apply_transforms(features[selected_features])
     
-        scaler=joblib.load(os.path.join(_MODELS_DIR, "scaler(6).pkl"))
+        scaler=joblib.load(os.path.join("./defenders/multi_turn/integrated/models/scaler(6).pkl"))
         #apply scaling
         tca_features_transformed[selected_features]=scaler.transform(tca_features_transformed[selected_features])
         

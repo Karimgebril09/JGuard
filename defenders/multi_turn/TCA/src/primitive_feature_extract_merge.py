@@ -2,8 +2,8 @@ import json
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 from transformers import pipeline
-from defenders.multi_turn.integrated.inference.feature_extraction import FeatureExtractor
-from defenders.multi_turn.integrated.inference.toxisty_threat_models import ThreatModel, ToxicityModel
+from defenders.multi_turn.TCA.src.feature_extraction import FeatureExtractor
+from defenders.multi_turn.TCA.inference.toxisty_threat_models import ThreatModel, ToxicityModel
 toxicity_model = ToxicityModel()
 threat_model = ThreatModel()
 embedding_model = SentenceTransformer('all-mpnet-base-v2')

@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import RobustScaler
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.preprocessing import PowerTransformer
-from defenders.multi_turn.integrated.inference.transforms import TRANSFORMS
+from defenders.multi_turn.TCA.inference.transforms import TRANSFORMS
 
 os.makedirs("data/processed",exist_ok=True)
 os.makedirs("models",exist_ok=True)
