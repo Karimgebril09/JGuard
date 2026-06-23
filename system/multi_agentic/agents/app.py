@@ -3,7 +3,7 @@ import datetime
 import os
 import json
 from evaluation.evaluator import Evaluator
-from evaluation.multi_agent_eval.multi_agnet_evaluater import MultiAgentEvaluater
+from evaluation.multi_agent_eval.multi_agnet_evaluator import MultiAgentEvaluator
 from system.multi_agentic.checkpointer.safety_checkpointer import SafetyCheckpointer
 
 from .coding_agent import build_coding_agent
@@ -85,7 +85,7 @@ orchestrator_system_prompt = (
         "summarize it and choose 'end'."
     )
 
-evaluator = MultiAgentEvaluater( Evaluator(
+evaluator = MultiAgentEvaluator( Evaluator(
             type_judge="ollama",
             judge="qwen2.5:3b-instruct",
             base_url_judge=None,
