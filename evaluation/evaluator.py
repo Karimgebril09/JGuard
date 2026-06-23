@@ -27,4 +27,13 @@ class Evaluator:
     def evaluate_response_with_feedback(self,user_prompt, llm_response):
         refusal_prediction = self.refusal_predictor.predict(llm_response)
         judge_result = self.judge.run(user_prompt, llm_response)
-        return not refusal_prediction or judge_result["result"], judge_result
+        
+        if refusal_prediction and judge_result["result"]:
+            return True, judge_result
+        
+        if refusal_prediction and not judge_result["result"]:
+            return False, judge_result
+        
+        else:
+            return judge_result["result"], judge_result
+      
