@@ -73,3 +73,4 @@ if __name__ == "__main__":
     test_patterns.test_consistent_chunks_all_kept()
     test_patterns.test_outlier_chunk_removed()
     test_patterns.test_cosine_similarity_zero_vector()
+    test_patterns.test_from_flagged()

@@ -56,6 +56,8 @@ def build_rag_agent(rag_protection: bool = True):
             "Base your answer strictly on what the tool returns. "
             "If the tool finds nothing relevant, say so clearly — never make up information. "
             "Be concise and cite which source the information came from."
+            "say from rag agent when you answer "
+            "ouput should be : from rag agent + your answer"
         ))
 
         # for m in state["messages"]:
