@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import os
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-_MODELS_DIR = os.path.join(_BASE_DIR, "..", "models")
+_MODELS_DIR = os.path.join(_BASE_DIR, "..", "..","integrated", "models")
 
 class stateSpaceModel(nn.Module):
     def __init__(self,state_dim, input_dim, hidden_dim1,hidden_dim2, output_dim):

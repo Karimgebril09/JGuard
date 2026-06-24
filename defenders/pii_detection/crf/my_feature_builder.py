@@ -1,6 +1,32 @@
 import re
 from features import FeaturesManager
 
+def looks_like_email(word):
+    result = re.fullmatch(r".+@.+\..+", word)
+    return bool(result)
+
+def looks_like_ipv4(word):
+    result = re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", word)
+    return bool(result)
+
+
+def looks_like_ipv6(word):
+    result = re.fullmatch(r"([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}", word)
+    return bool(result)
+
+
+def looks_like_mac(word):
+    result = re.fullmatch(r"([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", word)
+    return bool(result)
+
+def looks_like_hex(word):
+    result = re.fullmatch(r"[0-9a-fA-F]{8,}", word)
+    return bool(result)
+
+def is_four_digits(word):
+    result = re.fullmatch(r"\d{4}", word)
+    return bool(result)
+
 def build_features():
     manager = FeaturesManager()
     manager.add_feature("is_upper", lambda X, prev, curr, i: X[i].isupper() and curr != "O")
@@ -16,14 +42,16 @@ def build_features():
     manager.add_feature("has_slash", lambda X, prev, curr, i: "/" in X[i] and curr != "O")
     manager.add_feature("has_at", lambda X, prev, curr, i: "@" in X[i] and curr in ["B-EMAIL", "I-EMAIL"])
     manager.add_feature("has_underscore", lambda X, prev, curr, i: "_" in X[i] and curr in ["B-USERNAME", "I-USERNAME"])
+    manager.add_feature("has_numbers_and_digits", lambda X, prev, curr, i: any(c.isdigit() for c in X[i]) and any(c.isalpha() for c in X[i]) and curr != "O")
     manager.add_feature("len_greater_than_5", lambda X, prev, curr, i: len(X[i]) > 5 and curr != "O")
     manager.add_feature("len_greater_than_10", lambda X, prev, curr, i: len(X[i]) > 10 and curr != "O")
     manager.add_feature("len_greater_than_15", lambda X, prev, curr, i: len(X[i]) > 15 and curr != "O")
-    manager.add_feature("email", lambda X, prev, curr, i: bool(re.fullmatch(r".+@.+\..+", X[i])) and curr in ["B-EMAIL", "I-EMAIL"])
-    manager.add_feature("ipv4", lambda X, prev, curr, i: bool(re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", X[i])) and curr in ["B-IPV4", "I-IPV4"])
-    manager.add_feature("mac", lambda X, prev, curr, i: bool(re.fullmatch(r"([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", X[i])) and curr in ["B-MAC", "I-MAC"])
-    manager.add_feature("hex", lambda X, prev, curr, i: bool(re.fullmatch(r"[0-9a-fA-F]{8,}", X[i])) and curr != "O")
-    manager.add_feature("is_four_digits", lambda X, prev, curr, i: bool(re.fullmatch(r"\d{4}", X[i])) and curr != "O")
+    manager.add_feature("email", lambda X, prev, curr, i: looks_like_email(X[i]) and curr in ["B-EMAIL", "I-EMAIL"])
+    manager.add_feature("ipv6", lambda X, prev, curr, i: looks_like_ipv6(X[i]) and curr in ["B-IPV6", "I-IPV6"])
+    manager.add_feature("ipv4", lambda X, prev, curr, i: looks_like_ipv4(X[i]) and curr in ["B-IPV4", "I-IPV4"])
+    manager.add_feature("mac", lambda X, prev, curr, i: looks_like_mac(X[i]) and curr in ["B-MAC", "I-MAC"])
+    manager.add_feature("hex", lambda X, prev, curr, i: looks_like_hex(X[i]) and curr != "O")
+    manager.add_feature("is_four_digits", lambda X, prev, curr, i: is_four_digits(X[i]) and curr != "O")
     manager.add_feature("prev_email_keyword", lambda X, prev, curr, i: i > 0 and X[i-1].lower() in ["email", "e-mail"] and curr.startswith("B-"))
     manager.add_feature("prev_phone_keyword", lambda X, prev, curr, i: i > 0 and X[i-1].lower() in ["phone", "mobile", "tel"] and curr.startswith("B-"))
     manager.add_feature("prev_password_keyword", lambda X, prev, curr, i: i > 0 and X[i-1].lower() in ["password", "pass", "pw"] and curr.startswith("B-"))

@@ -4,7 +4,7 @@ import torch.nn as nn
 import fasttext
 
 def remove_non_english_char(text):
-    # remove ay 7aga mesh english we mesh white space
+    # remove ay non-alphabetic characters 
     text=re.sub(r'[^A-Za-z\s()]', '',text)
     #remove multi space and replace by only one
     text=re.sub(r"\s+"," ",text)
@@ -43,7 +43,9 @@ class FastTextRefusalDetector:
             return False
         
         subwords=cleaned_text.split()
-        words_embeddings=[torch.tensor(self.embedding_model.get_word_vector(word)) for word in subwords]
+        words_embeddings=[]
+        for word in subwords:
+            words_embeddings.append(torch.tensor(self.embedding_model.get_word_vector(word)))
         words_embeddings=torch.stack(words_embeddings).unsqueeze(0)
         logits = self.classifier(words_embeddings)
         prob = torch.sigmoid(logits)

@@ -3,10 +3,10 @@ import pandas as pd
 import joblib
 from collections import deque
 import numpy as np
-from ssm_model import ConversationDynamicsModel
+from defenders.multi_turn.NBF.inference.ssm_model import ConversationDynamicsModel
 import os
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-_MODELS_DIR = os.path.join(_BASE_DIR, "..", "models")
+_MODELS_DIR = os.path.join(_BASE_DIR, "..", "..","integrated", "models")
 
 FEATURE_NAMES = [
             "state_drift", 
@@ -139,7 +139,7 @@ class StateFeatureExtractor:
         long_term_state_similarity = self.get_similarity(x_t, x_prev_4step_back)
         features.append(long_term_state_similarity)
 
-        # mse feature
+        # mean square change feature
         short_term_mse = self.get_mean_squared_change(x_t, x_prev)
         features.append(short_term_mse)
 

@@ -18,6 +18,6 @@ def precompute_scores(X, feature_manager, weights, labels):
             scores[t][label_prev] = {}
             for label_curr in labels:
                 score = compute_local_score(X, feature_manager, weights, label_curr, label_prev, t)
-                scores[t][label_prev][label_curr] = score
+                scores[t][label_prev][label_curr] = score # score when we do transistion from previous label to current label at position t
 
     return scores
