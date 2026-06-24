@@ -3,7 +3,6 @@ from sentence_transformers import SentenceTransformer
 from defenders.multi_turn.TCA.src.feature_extraction import FeatureExtractor
 import numpy as np
 
-from defenders.multi_turn.integrated.inference.ssm_feature_extractor import StateFeatureExtractor
 from defenders.multi_turn.TCA.inference.toxisty_threat_models import ThreatModel, ToxicityModel
 
 class TestFeatureMath:
