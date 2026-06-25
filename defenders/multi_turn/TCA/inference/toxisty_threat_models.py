@@ -1,3 +1,4 @@
+import pandas as pd
 import joblib
 import numpy as np
 
@@ -7,9 +8,7 @@ class BaseClassifier:
         self.model = joblib.load(model_path)
 
     def _prepare(self, emb):
-        #sklearn models expect 2D arr so reshape it and also float faster
-        emb = np.asarray(emb, dtype=np.float32)
-        return emb.reshape(1, -1)
+        return emb.reshape(1, -1)  
 
     def score(self, emb):
         x = self._prepare(emb)
@@ -19,12 +18,15 @@ class BaseClassifier:
         return int(self.score(emb) >= threshold)
 
 
-class ThreatModel(BaseClassifier):
-    #easy to call and get score for feature extraction
+class ThreatModel(BaseClassifier):  #logistic needs plain numpy
     def __init__(self):
         super().__init__("defenders/multi_turn/integrated/models/threat_lr.joblib")
 
 
-class ToxicityModel(BaseClassifier):
+class ToxicityModel(BaseClassifier):  #lightGBM named DataFrame
     def __init__(self):
         super().__init__("defenders/multi_turn/integrated/models/toxicity_lgb.joblib")
+
+    def _prepare(self, emb):
+        arr = emb.reshape(1, -1)
+        return pd.DataFrame(arr, columns=[f"Column_{i}" for i in range(arr.shape[1])])
