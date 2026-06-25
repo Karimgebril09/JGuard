@@ -42,43 +42,7 @@
 
                             <Pivot x:Name="StrategyPivot" SelectionChanged="StrategyPivot_SelectionChanged">
 
-                                <!-- Tab 1: Tool-Based -->
-                                <PivotItem Header="Tool-Based">
-                                    <StackPanel Spacing="12" Margin="0,10,0,0">
-                                        <TextBlock Text="Run preset attack suites via an industry-standard framework against your target model." FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap"/>
-
-                                        <StackPanel Spacing="4">
-                                            <TextBlock Text="Framework" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
-                                            <ComboBox x:Name="ComboToolFramework" HorizontalAlignment="Stretch" SelectedIndex="0">
-                                                <ComboBoxItem Content="promptfoo — LLM evaluation &amp; security bench" Tag="promptfoo"/>
-                                                <ComboBoxItem Content="garak — LLM vulnerability scanner" Tag="garak"/>
-                                            </ComboBox>
-                                        </StackPanel>
-
-                                        <!-- Target Model -->
-                                        <Border Background="#0D1117" CornerRadius="6" Padding="10">
-                                            <StackPanel Spacing="8">
-                                                <TextBlock Text="TARGET MODEL" FontSize="10" FontWeight="Bold" Foreground="#FFB800" CharacterSpacing="100"/>
-                                                <Grid ColumnSpacing="8">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="110"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <ComboBox x:Name="ComboToolTargetType" HorizontalAlignment="Stretch" SelectedIndex="0" SelectionChanged="ToolTargetType_Changed">
-                                                        <ComboBoxItem Content="Ollama" Tag="ollama"/>
-                                                        <ComboBoxItem Content="OpenAI" Tag="openai"/>
-                                                        <ComboBoxItem Content="Gemini" Tag="gemini"/>
-                                                    </ComboBox>
-                                                    <TextBox Grid.Column="1" x:Name="TextToolTargetModel" PlaceholderText="model name" FontSize="12"/>
-                                                </Grid>
-                                                <PasswordBox x:Name="PwdToolTargetKey" PlaceholderText="API Key" FontSize="12" Visibility="Collapsed"/>
-                                                <TextBox x:Name="TextToolTargetUrl" PlaceholderText="Base URL (optional)" FontSize="12"/>
-                                            </StackPanel>
-                                        </Border>
-                                    </StackPanel>
-                                </PivotItem>
-
-                                <!-- Tab 2: Custom ATJ -->
+                                <!-- Tab 1: Custom ATJ -->
                                 <PivotItem Header="Custom ATJ">
                                     <StackPanel Spacing="12" Margin="0,10,0,0">
                                         <TextBlock Text="Automated Attacker-Target-Judge loop with custom attack type and model configuration." FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap"/>
@@ -183,12 +147,48 @@
                                         </Border>
                                     </StackPanel>
                                 </PivotItem>
+
+                                <!-- Tab 2: Tool-Based -->
+                                <PivotItem Header="Tool-Based">
+                                    <StackPanel Spacing="12" Margin="0,10,0,0">
+                                        <TextBlock Text="Run preset attack suites via an industry-standard framework against your target model." FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap"/>
+
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="Framework" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                                            <ComboBox x:Name="ComboToolFramework" HorizontalAlignment="Stretch" SelectedIndex="0">
+                                                <ComboBoxItem Content="promptfoo — LLM evaluation &amp; security bench" Tag="promptfoo"/>
+                                                <ComboBoxItem Content="garak — LLM vulnerability scanner" Tag="garak"/>
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <!-- Target Model -->
+                                        <Border Background="#0D1117" CornerRadius="6" Padding="10">
+                                            <StackPanel Spacing="8">
+                                                <TextBlock Text="TARGET MODEL" FontSize="10" FontWeight="Bold" Foreground="#FFB800" CharacterSpacing="100"/>
+                                                <Grid ColumnSpacing="8">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="110"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <ComboBox x:Name="ComboToolTargetType" HorizontalAlignment="Stretch" SelectedIndex="0" SelectionChanged="ToolTargetType_Changed">
+                                                        <ComboBoxItem Content="Ollama" Tag="ollama"/>
+                                                        <ComboBoxItem Content="OpenAI" Tag="openai"/>
+                                                        <ComboBoxItem Content="Gemini" Tag="gemini"/>
+                                                    </ComboBox>
+                                                    <TextBox Grid.Column="1" x:Name="TextToolTargetModel" PlaceholderText="model name" FontSize="12"/>
+                                                </Grid>
+                                                <PasswordBox x:Name="PwdToolTargetKey" PlaceholderText="API Key" FontSize="12" Visibility="Collapsed"/>
+                                                <TextBox x:Name="TextToolTargetUrl" PlaceholderText="Base URL (optional)" FontSize="12"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </PivotItem>
                             </Pivot>
                         </StackPanel>
                     </Border>
 
                     <!-- Protection Options -->
-                    <Border Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
+                    <Border x:Name="ProtectionOptionsCard" Background="#111827" BorderBrush="#14FFFFFF" BorderThickness="1" CornerRadius="8" Padding="16">
                         <StackPanel Spacing="12">
                             <Grid>
                                 <Grid.ColumnDefinitions>

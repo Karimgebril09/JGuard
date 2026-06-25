@@ -84,7 +84,8 @@ public class JGuardApiService
                         code_execution_protection = config.CodeExecutionProtection,
                         rag_protection = config.RagProtection,
                         email_protection = config.EmailProtection,
-                        document_protection = config.DocumentProtection
+                        document_protection = config.DocumentProtection,
+                        code_deep_check = config.CodeDeepCheck
                     }
                 }
                 : new { config };

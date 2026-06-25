@@ -58,6 +58,9 @@ public sealed partial class MainWindow : Window
         await ShowStartupChooserAsync();
     }
 
+    // Re-shows the opening startup chooser (used e.g. when the active session is deleted).
+    public Task RestartStartupFlowAsync() => ShowStartupChooserAsync();
+
     private async Task ShowStartupChooserAsync()
     {
         var startupDialog = new StartupDialog { XamlRoot = this.Content.XamlRoot };
@@ -106,6 +109,7 @@ public sealed partial class MainWindow : Window
                 state.IsRagEnabled = config.RagProtection;
                 state.IsEmailEnabled = config.EmailProtection;
                 state.IsDocumentEnabled = config.DocumentProtection;
+                state.IsCodeDeepCheckEnabled = config.CodeDeepCheck;
 
                 state.IsConfigurationLocked = true;
                 state.ApiService.SetActiveSessionId(sessionDialog.SelectedSession.SessionId);

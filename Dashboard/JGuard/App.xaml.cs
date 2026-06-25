@@ -15,6 +15,10 @@ namespace JGuard;
 public partial class App : Application
 {
     private Window? _window;
+
+    // The app's single main window, so pages can reach window-level flows
+    // (e.g. re-showing the startup chooser).
+    public static MainWindow? MainWindowInstance { get; private set; }
     
     /// <summary>
     /// Initializes the singleton application object.  This is the first line of authored code
@@ -47,7 +51,9 @@ public partial class App : Application
     {
         try
         {
-            _window = new MainWindow();
+            var mainWindow = new MainWindow();
+            MainWindowInstance = mainWindow;
+            _window = mainWindow;
             _window.Activate();
         }
         catch (Exception ex)
