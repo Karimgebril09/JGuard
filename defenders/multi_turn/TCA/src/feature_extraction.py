@@ -1,4 +1,3 @@
-import math
 import numpy as np
 
 
@@ -10,6 +9,7 @@ class FeatureExtractor:
         self.toxicity_model=toxicity_model
         self.threat_model=threat_model
         self.embedding_model=embedding_model
+        
         ## to keep the history
         self.turn_embeddings=[]
         self.drift_history=[]
@@ -68,6 +68,7 @@ class FeatureExtractor:
         if not current_embed or self.origin_embedding is None:
             return 0.0
         return round(self.cosine_distance(current_embed, self.origin_embedding), 4)
+    
     # compute pairwise similarities between all turn embeddings
     def get_pairwise_similarities(self):
         if len(self.turn_embeddings) < 2:
@@ -119,7 +120,7 @@ class FeatureExtractor:
 
                 if cos_similarity > max_cos:
                     max_cos=cos_similarity
-            return round(1 - max_cos, 4)
+        return round(1 - max_cos, 4)
 
     def distance_ratio(self):
         if len(self.turn_embeddings) < 2:
@@ -145,7 +146,7 @@ class FeatureExtractor:
         if len(self.turn_embeddings) < 3:
             return 0.0
         X=np.array(self.turn_embeddings)
-        X=X - np.mean(X, axis=0)
+        X=X - np.mean(X, axis=0)    
         cov=np.cov(X.T)
         eigvals=np.sort(np.linalg.eigvalsh(cov))[::-1]
         if len(eigvals) < 2 or eigvals[0] <=0:

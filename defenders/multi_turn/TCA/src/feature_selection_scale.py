@@ -1,14 +1,13 @@
-import json
+
 import os
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.feature_selection import RFECV,VarianceThreshold
+from sklearn.feature_selection import VarianceThreshold
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import RobustScaler
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.preprocessing import PowerTransformer
 from defenders.multi_turn.TCA.inference.transforms import TRANSFORMS
+from defenders.multi_turn.TCA.src.utility import transform_feature, transform_feature
 
 os.makedirs("data/processed",exist_ok=True)
 os.makedirs("models",exist_ok=True)
@@ -63,38 +62,26 @@ def save_split(X,meta,y,path):
     print(f"Saved {path}  shape={out.shape}")
 
 
-def transform_feature(series, transform):
-    """transformation types """
-    if transform == "log1p":
-        return np.log1p(np.maximum(series, 0))
 
-    if transform == "square":
-        return np.square(series)
 
-    if transform == "binarize":
-        return (series > 0).astype(float)
-    if transform == "yeo-johnson":
-        pt = PowerTransformer(method="yeo-johnson", standardize=False)
-        return pt.fit_transform(
-            np.asarray(series).reshape(-1, 1)
-        ).flatten()
+def apply_transforms( df):
+    """apply feature transformations """
+    df=df.copy()
+    print("Applying transforms to features...")
 
-    return series
-
-def apply_transform(df) :
-    """apply transfomration of each feature """
-    df = df.copy()
     for feature, transform in TRANSFORMS.items():
         if feature not in df.columns:
             continue
-        df[f"{feature}"] = transform_feature(df[feature], transform)
+
+        df[feature]=transform_feature(df[feature], transform)
+
     return df
 
 
-def main():
-    # df = pd.read_csv("data/merged/merged_features.csv")
 
-    df= pd.read_csv("data/total/features_before_selection(1).csv")
+def main():
+
+    df= pd.read_csv("defenders/multi_turn/integrated/data/total/features_before_selection(7).csv")
     data= conversation_split(df)
     train_df= data["train"]
     val_df= data["val"]
@@ -113,9 +100,9 @@ def main():
     y_test= test_df["label"]
   
 
-    X_train= apply_transform(X_train)
-    X_val= apply_transform(X_val)
-    X_test= apply_transform(X_test)
+    X_train= apply_transforms(X_train)
+    X_val= apply_transforms(X_val)
+    X_test= apply_transforms(X_test)
 
 
     var_sel= VarianceThreshold(threshold=0.005)
@@ -148,13 +135,12 @@ def main():
     X_train_final= pd.DataFrame(scaler.fit_transform(X_train_final), columns=final_cols)
     X_val_final= pd.DataFrame(scaler.transform(X_val_final), columns=final_cols)
     X_test_final= pd.DataFrame(scaler.transform(X_test_final), columns=final_cols)
-    joblib.dump(scaler,"models/scaler(1).pkl")
+    joblib.dump(scaler,"defenders/multi_turn/integrated/models/scaler(7).pkl")
 
-    save_split(X_train_final,meta_train,y_train,f"data/processed/train(1).csv")
-    save_split(X_val_final,meta_val,y_val,f"data/processed/validation(1).csv")
-    save_split(X_test_final,meta_test,y_test,f"data/processed/test(1).csv")
-    with open("config/feature_info(1).json","w") as f:
-        json.dump({"selected_features":mc_cols,"scaler_path":"models/scaler(1).pkl"},f,indent=4)
+    save_split(X_train_final,meta_train,y_train,f"defenders/multi_turn/integrated/data/processed/train(7).csv")
+    save_split(X_val_final,meta_val,y_val,f"defenders/multi_turn/integrated/data/processed/validation(7).csv")
+    save_split(X_test_final,meta_test,y_test,f"defenders/multi_turn/integrated/data/processed/test(7).csv")
+   
     print(f"\nOriginal:{len(feature_cols)}  Final:{len(mc_cols)}")
 
 

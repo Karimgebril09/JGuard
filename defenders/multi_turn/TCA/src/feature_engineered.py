@@ -1,10 +1,6 @@
 import json
 import os
-from fastapi import params
-from fastapi import params
-import numpy as np
 import pandas as pd
-
 from defenders.multi_turn.TCA.src.risk_calculator import RiskCalculator
 
 def recompute_risks(df, calc):
@@ -66,10 +62,11 @@ def add_escalation_features(df):
 
             tox_acc = tox_diff - prev_tox_diff
             thr_acc = thr_diff - prev_thr_diff
+            
             df.loc[idx, "toxicity_accel"] = tox_acc
             df.loc[idx, "threat_accel"] = thr_acc
 
-            risk_window.append(risk_diff := risk - prev_risk)
+            risk_window.append( risk - prev_risk)
 
             if len(risk_window) > 3:
                 risk_window.pop(0)
@@ -202,11 +199,8 @@ def add_shape_features(df):
 def build_features(df) :
     """build all features """
     df=df.sort_values(["conv_id", "turn_id"])
-    
     df=add_smoothing_features(df)
-    
     df=add_escalation_features(df)
-    
     df=add_context_features(df)
     df=add_shape_features(df)
 
@@ -216,7 +210,7 @@ def main():
     df=pd.read_csv("defenders/multi_turn/integrated/data/primitive/multi_turn_data(6).csv")
     print("Shape:", df.shape)
     
-    params_path="defenders/multi_turn/integrated/config/optimized_params_risk(6).json"
+    params_path="defenders/multi_turn/integrated/config/optimized_params_risk(7).json"
     if os.path.exists(params_path):
         with open(params_path) as f:
             params=json.load(f)
@@ -229,7 +223,7 @@ def main():
     df=build_features(df.copy())
 
     #save data 
-    df.to_csv(f"defenders/multi_turn/integrated/data/total/features_before_selection(6).csv", index=False)
+    df.to_csv(f"defenders/multi_turn/integrated/data/total/features_before_selection(7).csv", index=False)
 
 if __name__=="__main__":
     main()

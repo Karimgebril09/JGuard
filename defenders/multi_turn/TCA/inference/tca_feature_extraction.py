@@ -4,13 +4,14 @@ import joblib
 import numpy as np
 import pandas as pd
 from sentence_transformers import SentenceTransformer
-from sklearn.preprocessing import PowerTransformer
+
 from defenders.multi_turn.TCA.inference.toxisty_threat_models import ThreatModel, ToxicityModel
-from defenders.multi_turn.TCA.src.risk_calculator import RiskCalculator
 from defenders.multi_turn.TCA.inference.transforms import TRANSFORMS
+from defenders.multi_turn.TCA.src.risk_calculator import RiskCalculator
 from defenders.multi_turn.TCA.src.feature_extraction  import FeatureExtractor
 from sklearn.exceptions import InconsistentVersionWarning
 import warnings
+from defenders.multi_turn.TCA.src.utility import apply_transforms, transform_feature
 warnings.filterwarnings(
     "ignore",
     category=InconsistentVersionWarning
@@ -42,6 +43,20 @@ class TCAFeatures:
         )
         self._prev_prog=0.0
         self.memory=[]
+
+    def apply_transforms( self,df):
+        """apply feature transformations """
+        df=df.copy()
+        print("Applying transforms to features...")
+
+        for feature, transform in TRANSFORMS.items():
+            if feature not in df.columns:
+                continue
+
+            df[feature]=transform_feature(df[feature], transform)
+
+        return df
+
 
     def feature_extract(self, user_msg, assistant_msg):
         #first extract raw features 
@@ -91,36 +106,7 @@ class TCAFeatures:
         
         return tca_features_transformed
     
-    def _apply_transform(self, series, transform):
-        if transform=="log1p":
-            return np.log1p(np.maximum(series, 0))
-
-        if transform=="square":
-            return np.square(series)
-
-        if transform=="binarize":
-            return (series > 0).astype(float)
-
-        if transform=="yeo-johnson":
-            pt=PowerTransformer(method="yeo-johnson", standardize=False)
-            return pt.fit_transform(
-                np.asarray(series).reshape(-1, 1)
-            ).flatten()
-
-        return series
-
-    def apply_transforms(self, df):
-        """apply feature transformations """
-        df=df.copy()
-        print("Applying transforms to features...")
-
-        for feature, transform in TRANSFORMS.items():
-            if feature not in df.columns:
-                continue
-
-            df[feature]=self._apply_transform(df[feature], transform)
-
-        return df
+  
     def engineer_features(self, row):
         """return engineered features"""
         history = self.memory

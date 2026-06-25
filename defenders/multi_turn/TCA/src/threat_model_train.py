@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 import torch
 import joblib
@@ -64,7 +63,7 @@ def main():
     clf = LogisticRegression(max_iter=1000, class_weight="balanced")
     clf.fit(X_train, y_train)
 
-    joblib.dump(clf, "defenders/multi_turn/models/integrated/threat_classifier_lr1.joblib")
+    joblib.dump(clf, "defenders/multi_turn/integrated/models/threat_lr.joblib")
 
 
 if __name__ == "__main__":

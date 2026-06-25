@@ -1,9 +1,14 @@
 import json
 import pandas as pd
 from sentence_transformers import SentenceTransformer
-from transformers import pipeline
 from defenders.multi_turn.TCA.src.feature_extraction import FeatureExtractor
 from defenders.multi_turn.TCA.inference.toxisty_threat_models import ThreatModel, ToxicityModel
+from sklearn.exceptions import InconsistentVersionWarning
+import warnings
+warnings.filterwarnings(
+    "ignore",
+    category=InconsistentVersionWarning
+)
 toxicity_model = ToxicityModel()
 threat_model = ThreatModel()
 embedding_model = SentenceTransformer('all-mpnet-base-v2')
@@ -37,6 +42,7 @@ def process_unified(path: str) -> pd.DataFrame:
     return pd.DataFrame(all_rows)
 
 if __name__ == "__main__":
-    
-    df = process_unified("/kaggle/input/datasets/mariamamin30/multiturn-dataset/combined_conversations.json")
-    df.to_csv("/kaggle/working/multi_turn_data.csv", index=False)
+    df = process_unified("defenders/multi_turn/integrated/data/raw/new_data.json")
+    df.to_csv("defenders/multi_turn/integrated/data/primitive/multi_turn_data(6).csv", index=False)
+    # df = process_unified("/kaggle/input/datasets/mariamamin30/multiturn-dataset/combined_conversations.json")
+    # df.to_csv("/kaggle/working/multi_turn_data.csv", index=False)

@@ -38,7 +38,7 @@ class TestFeatureMath:
             self.extract.drift_history[-1]
             - self.extract.drift_history[-2]
         )
-        print (f"Expected drift acceleration: {expected}, Actual: {features['drift_acceleration']}")
+       
         assert abs(features["drift_acceleration"] - expected) < 1e-4  #should be equal
 
     def test_topic_drift_non_negative(self ):
@@ -66,7 +66,7 @@ class TestFeatureMath:
         for text in ["A", "B", "C", "D"]:
             features = self.extract.extract_features(text, text)
             current = features["trajectory_linearity"]
-            print (f"Current: {current}, Last: {last}")
+           
             assert current >= last - 1e-6        #make sure of monotonic growth
             last = current
 

@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 import torch
 import joblib
@@ -56,7 +55,7 @@ def main():
     clf = lgb.LGBMClassifier(**param)
     clf.fit(X_train, y_train)
 
-    joblib.dump(clf, "defenders/multi_turn/models/integrated/toxicity_classifier_lgb1.joblib")
+    joblib.dump(clf, "defenders/multi_turn/integrated/models/toxicity_lgb.joblib")
 
 
 if __name__ == "__main__":
