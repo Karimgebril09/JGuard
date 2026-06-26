@@ -7,13 +7,8 @@ def looks_like_email(word):
 
 
 def looks_like_ipv4(word):
-    result = re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", word)
-    return bool(result)
-
-
-def looks_like_ipv6(word):
-    result = re.fullmatch(r"([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}", word)
-    return bool(result)
+    is_ipv4 = bool(re.fullmatch(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", word))
+    return is_ipv4
 
 
 def looks_like_mac(word):
@@ -49,14 +44,10 @@ def build_features():
     manager.add_feature("len_greater_than_10", lambda X, prev, curr, i: len(X[i]) > 10 and curr != "O")
     manager.add_feature("len_greater_than_15", lambda X, prev, curr, i: len(X[i]) > 15 and curr != "O")
     manager.add_feature("email", lambda X, prev, curr, i: looks_like_email(X[i]) and curr in ["B-EMAIL", "I-EMAIL"])
-    manager.add_feature("ipv6", lambda X, prev, curr, i: looks_like_ipv6(X[i]) and curr in ["B-IPV6", "I-IPV6"])
     manager.add_feature("ipv4", lambda X, prev, curr, i: looks_like_ipv4(X[i]) and curr in ["B-IPV4", "I-IPV4"])
     manager.add_feature("mac", lambda X, prev, curr, i: looks_like_mac(X[i]) and curr in ["B-MAC", "I-MAC"])
     manager.add_feature("hex", lambda X, prev, curr, i: looks_like_hex(X[i]) and curr != "O")
     manager.add_feature("is_four_digits", lambda X, prev, curr, i: is_four_digits(X[i]) and curr != "O")
-    manager.add_feature("prev_email_keyword", lambda X, prev, curr, i: i > 0 and X[i-1].lower() in ["email", "e-mail"] and curr.startswith("B-"))
-    manager.add_feature("prev_phone_keyword", lambda X, prev, curr, i: i > 0 and X[i-1].lower() in ["phone", "mobile", "tel"] and curr.startswith("B-"))
-    manager.add_feature("prev_password_keyword", lambda X, prev, curr, i: i > 0 and X[i-1].lower() in ["password", "pass", "pw"] and curr.startswith("B-"))
     manager.add_feature("o_to_b", lambda X, prev, curr, i: prev == "O" and curr.startswith("B-"))
     manager.add_feature("illegal_o_to_i", lambda X, prev, curr, i: prev == "O" and curr.startswith("I-"))
     manager.add_feature("same_entity_transition", lambda X, prev, curr, i: prev.startswith(("B-", "I-")) and curr.startswith("I-") and prev[2:] == curr[2:])

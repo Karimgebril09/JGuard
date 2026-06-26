@@ -114,7 +114,7 @@ class stateSpaceModel(nn.Module):
         return x_curr, zt
 
 
-def train_ssm(state_model,train_loader,val_loader, num_epochs=200, save_path="./../models/",model_name="models_best_ssm.pth",lr=1e-4): 
+def train_ssm(state_model,train_loader,val_loader, num_epochs=200, save_path="./../models/",model_name="tmp.pth",lr=1e-4): 
     if not os.path.exists(save_path):
         os.makedirs(save_path)
     best_val_loss = float('inf') 
@@ -197,14 +197,14 @@ if __name__ == "__main__":
         save_tensors(converted_conversations, save_path=os.path.join(this_file_path, "../train_val_embedding_data/"), 
                     save_name="all_conversations_new_data.pt")
     
-    train1 = torch.load(os.path.join(this_file_path, "../data/circuit_breakers_actorattack.pt"),
-    map_location=torch.device('cpu'))
+    train1 = torch.load(os.path.join(this_file_path, "../train_val_embedding_data/circuit_breakers_actorattack.pt"),
+    map_location=torch.device('cpu'),weights_only=False)
 
-    train2 = torch.load(os.path.join(this_file_path, "../data/circuit_breakers_others.pt"),
-        map_location=torch.device('cpu'))
+    train2 = torch.load(os.path.join(this_file_path, "../train_val_embedding_data/circuit_breakers_others.pt"),
+        map_location=torch.device('cpu'),weights_only=False)
 
-    train3 = torch.load(os.path.join(this_file_path, "../data/all_conversations_new_data.pt"),
-        map_location=torch.device('cpu'))
+    train3 = torch.load(os.path.join(this_file_path, "../train_val_embedding_data/all_conversations_new_data.pt"),
+        map_location=torch.device('cpu'),weights_only=False)
 
     original_training_data=train1+train2+train3
    
@@ -226,5 +226,5 @@ if __name__ == "__main__":
         state_model.load_state_dict(checkpoint['state_space_model'])
     
     save_path=this_file_path + "/../models/"
-    train_ssm(state_model, train_loader, val_loader, num_epochs=200, save_path=save_path,model_name="models_best_ssm_new_data.pth",
+    train_ssm(state_model, train_loader, val_loader, num_epochs=200, save_path=save_path,model_name="tmp.pth",
                     lr=1e-4)
