@@ -44,6 +44,10 @@ public sealed partial class EvaluationPage : Page
     // Latest run history fetched from GET /api/eval/runs — the source for exports.
     private List<EvalRun> _runs = new();
 
+    // Maps the friendly RUN#N labels shown in the comparison dropdowns back to the
+    // real run ids the compare API expects.
+    private readonly Dictionary<string, string> _runLabelToId = new();
+
     public EvaluationPage()
     {
         InitializeComponent();
@@ -75,11 +79,12 @@ public sealed partial class EvaluationPage : Page
         {
             TxtTotalCampaigns.Text = summary.TotalCampaigns.ToString();
 
-            double avg = Math.Round(summary.AvgJailbreakSuccessRate, 1);
+            double avg = Math.Round(summary.AvgJailbreakSuccessRate, 2);
             TxtAvgSuccess.Text = $"{avg}%";
             TxtAvgSuccess.Foreground = avg < 40 ? GreenBrush : RedBrush;
 
-            TxtShieldEfficiency.Text = $"{Math.Round(summary.DefenseBlockedSweepsPct, 1)}%";
+            // Defense blocked sweeps is the complement of the average jailbreak success rate.
+            TxtShieldEfficiency.Text = $"{Math.Round(100 - summary.AvgJailbreakSuccessRate, 2)}%";
         }
         else
         {
@@ -95,12 +100,17 @@ public sealed partial class EvaluationPage : Page
         _runDisplays.Clear();
         ComboCompareRun1.Items.Clear();
         ComboCompareRun2.Items.Clear();
+        _runLabelToId.Clear();
 
+        int runNumber = 1;
         foreach (var r in _runs)
         {
+            string label = $"RUN#{runNumber++}";
+            _runLabelToId[label] = r.RunId;
+
             _runDisplays.Add(new AttackRunDisplay
             {
-                Id = r.RunId,
+                Id = label,
                 FormattedTime = FormatTimestamp(r.Timestamp),
                 TargetModel = r.TargetModel,
                 AttackStrategy = r.Strategy,
@@ -109,8 +119,8 @@ public sealed partial class EvaluationPage : Page
                 TotalVulnerabilities = r.TotalVulnerabilities,
                 Duration = r.Duration
             });
-            ComboCompareRun1.Items.Add(r.RunId);
-            ComboCompareRun2.Items.Add(r.RunId);
+            ComboCompareRun1.Items.Add(label);
+            ComboCompareRun2.Items.Add(label);
         }
 
         // 3. Severity pie chart — aggregated from the per-run vulnerability breakdown.
@@ -132,7 +142,8 @@ public sealed partial class EvaluationPage : Page
         // 4. Attack-trend line chart (GET /api/eval/attack-trends)
         var trendPoints = trends ?? new List<EvalAttackTrend>();
         var successValues = trendPoints.Select(t => t.SuccessRate).ToArray();
-        var runLabels = trendPoints.Select(t => t.RunId).ToArray();
+        // Use sequential RUN#N labels instead of raw run ids, which overlap on the axis.
+        var runLabels = trendPoints.Select((t, i) => $"RUN#{i + 1}").ToArray();
 
         TrendsChart.Series = new ISeries[]
         {
@@ -178,8 +189,12 @@ public sealed partial class EvaluationPage : Page
     {
         if (ComboCompareRun1.SelectedItem == null || ComboCompareRun2.SelectedItem == null) return;
 
-        string id1 = ComboCompareRun1.SelectedItem.ToString()!;
-        string id2 = ComboCompareRun2.SelectedItem.ToString()!;
+        string label1 = ComboCompareRun1.SelectedItem.ToString()!;
+        string label2 = ComboCompareRun2.SelectedItem.ToString()!;
+
+        // The dropdowns show RUN#N labels; resolve them to the real run ids for the API.
+        string id1 = _runLabelToId.TryGetValue(label1, out var r1) ? r1 : label1;
+        string id2 = _runLabelToId.TryGetValue(label2, out var r2) ? r2 : label2;
 
         // POST /api/eval/compare — the run comparison engine.
         var cmp = await AppState.Instance.ApiService.CompareEvalRunsAsync(id1, id2);
@@ -189,7 +204,7 @@ public sealed partial class EvaluationPage : Page
             return;
         }
 
-        RenderComparison(id1, id2, cmp);
+        RenderComparison(label1, label2, cmp);
     }
 
     private void RenderComparison(string baseId, string compareId, EvalCompareResponse cmp)
@@ -198,20 +213,26 @@ public sealed partial class EvaluationPage : Page
         TxtRun2Header.Text = $"{compareId} (Compare)";
 
         TxtRun1Success.Text = $"{cmp.JailbreakSuccessRate.Base}%";
-        TxtRun1Crit.Text = cmp.CriticalVulnerabilities.Base.ToString();
-        TxtRun1Total.Text = cmp.TotalVulnerabilities.Base.ToString();
+        TxtRun1Crit.Text = SeverityFromSuccessRate(cmp.JailbreakSuccessRate.Base);
         TxtRun1Duration.Text = cmp.AssessmentDuration.Base;
 
         double successDelta = Math.Round(cmp.JailbreakSuccessRate.Delta, 1);
-        int critDelta = cmp.CriticalVulnerabilities.Delta;
-        int totalDelta = cmp.TotalVulnerabilities.Delta;
 
         ApplyCompareCell(TxtRun2Success, $"{cmp.JailbreakSuccessRate.Compare}% ({Signed(successDelta)}%)", successDelta);
-        ApplyCompareCell(TxtRun2Crit, $"{cmp.CriticalVulnerabilities.Compare} ({Signed(critDelta)})", critDelta);
-        ApplyCompareCell(TxtRun2Total, $"{cmp.TotalVulnerabilities.Compare} ({Signed(totalDelta)})", totalDelta);
+        // Vulnerability severity is derived from the run's jailbreak success rate.
+        TxtRun2Crit.Text = SeverityFromSuccessRate(cmp.JailbreakSuccessRate.Compare);
         TxtRun2Duration.Text = cmp.AssessmentDuration.Compare;
 
         ComparisonResultBox.Visibility = Visibility.Visible;
+    }
+
+    // Maps a jailbreak success rate to a vulnerability severity bucket.
+    private static string SeverityFromSuccessRate(double successRate)
+    {
+        if (successRate < 3) return "Low";
+        if (successRate < 6) return "Medium";
+        if (successRate < 9) return "High";
+        return "Critical";
     }
 
     private static string Signed(double value) => value >= 0 ? $"+{value}" : value.ToString();

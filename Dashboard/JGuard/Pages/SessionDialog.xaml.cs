@@ -14,6 +14,10 @@ public sealed partial class SessionDialog : ContentDialog
     public Session? SelectedSession { get; private set; }
     public bool IsNewSession { get; private set; }
 
+    // Session ids the user deleted while the dialog was open, so callers can detect
+    // when the session they were on no longer exists.
+    public HashSet<string> DeletedSessionIds { get; } = new();
+
     public SessionDialog()
     {
         InitializeComponent();
@@ -40,8 +44,12 @@ public sealed partial class SessionDialog : ContentDialog
         }
         else
         {
+            SessionsListBox.ItemsSource = null;
             SessionsListBox.Visibility = Visibility.Collapsed;
         }
+
+        // Nothing is selected after a reload, so the Delete button shouldn't linger.
+        DeleteSessionButton.Visibility = Visibility.Collapsed;
     }
 
     private void SetupEventHandlers()
@@ -111,6 +119,7 @@ public sealed partial class SessionDialog : ContentDialog
 
                 if (success)
                 {
+                    DeletedSessionIds.Add(session.SessionId);
                     LoadExistingSessions();
                 }
                 else
@@ -175,6 +184,7 @@ public sealed partial class SessionDialog : ContentDialog
         RagDefenseToggle.IsChecked = true;
         EmailDefenseToggle.IsChecked = true;
         DocumentDefenseToggle.IsChecked = true;
+        CodeDeepCheckToggle.IsChecked = true;
 
         ActivateAllAgentText.Text = "All Active";
         ActivateAllAgentText.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0xEC, 0xFD, 0xF5)); // #ECFDF5
@@ -188,6 +198,7 @@ public sealed partial class SessionDialog : ContentDialog
         RagDefenseToggle.IsChecked = false;
         EmailDefenseToggle.IsChecked = false;
         DocumentDefenseToggle.IsChecked = false;
+        CodeDeepCheckToggle.IsChecked = false;
 
         ActivateAllAgentText.Text = "Activate All";
         var off = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0x94, 0xA3, 0xB8)); // #94A3B8
@@ -244,7 +255,8 @@ public sealed partial class SessionDialog : ContentDialog
                 CodeExecutionProtection = isAgent && CodeExecutionDefenseToggle.IsChecked == true,
                 RagProtection = isAgent && RagDefenseToggle.IsChecked == true,
                 EmailProtection = isAgent && EmailDefenseToggle.IsChecked == true,
-                DocumentProtection = isAgent && DocumentDefenseToggle.IsChecked == true
+                DocumentProtection = isAgent && DocumentDefenseToggle.IsChecked == true,
+                CodeDeepCheck = isAgent && CodeDeepCheckToggle.IsChecked == true
             };
 
             var apiService = AppState.Instance.ApiService;

@@ -280,6 +280,19 @@
                                     </StackPanel>
                                     <ToggleSwitch Grid.Column="1" x:Name="ToggleDocument" Toggled="AgentDefense_Toggled" OnContent="" OffContent="" VerticalAlignment="Center"/>
                                 </Grid>
+
+                                <!-- Code Deep Check -->
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Code Deep Check" FontWeight="Medium"/>
+                                        <TextBlock Text="Performs deeper analysis of code the agent generates or runs." FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <ToggleSwitch Grid.Column="1" x:Name="ToggleCodeDeepCheck" Toggled="AgentDefense_Toggled" OnContent="" OffContent="" VerticalAlignment="Center"/>
+                                </Grid>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -363,6 +376,10 @@
                                     <StackPanel x:Name="DefenseDocumentItem" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
                                         <FontIcon Glyph="&#xE73E;" Foreground="#22FF88" FontSize="12"/>
                                         <TextBlock Text="Document Protection" FontSize="12" Foreground="#F5F5F5"/>
+                                    </StackPanel>
+                                    <StackPanel x:Name="DefenseCodeDeepCheckItem" Orientation="Horizontal" Spacing="6" Visibility="Collapsed">
+                                        <FontIcon Glyph="&#xE73E;" Foreground="#22FF88" FontSize="12"/>
+                                        <TextBlock Text="Code Deep Check" FontSize="12" Foreground="#F5F5F5"/>
                                     </StackPanel>
                                     <TextBlock x:Name="NoAgentDefensesLabel" Text="None active" FontSize="12" Foreground="#FF4444" Visibility="Visible"/>
                                 </StackPanel>

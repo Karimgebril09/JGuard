@@ -30,7 +30,14 @@ public sealed partial class RedTeamPage : Page
         ConsoleScroll.ChangeView(null, ConsoleScroll.ScrollableHeight, null);
     }
 
-    private void StrategyPivot_SelectionChanged(object sender, SelectionChangedEventArgs e) { }
+    // Defenses only apply to the Custom ATJ strategy; hide them for Tool-Based runs.
+    private void StrategyPivot_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ProtectionOptionsCard == null) return; // not yet realized during initial XAML parse
+
+        bool isToolBased = StrategyPivot.SelectedIndex == 1;
+        ProtectionOptionsCard.Visibility = isToolBased ? Visibility.Collapsed : Visibility.Visible;
+    }
 
     private void TogglePii_Toggled(object sender, RoutedEventArgs e)
     {
@@ -93,7 +100,7 @@ public sealed partial class RedTeamPage : Page
     {
         if (_isRunning) return;
 
-        bool isToolBased = StrategyPivot.SelectedIndex == 0;
+        bool isToolBased = StrategyPivot.SelectedIndex == 1;
 
         // Target model is required — same idea as the session dialog: don't proceed
         // with an empty model name, just flag the field and prompt the user.

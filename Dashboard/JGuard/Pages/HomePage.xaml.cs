@@ -56,6 +56,7 @@ public sealed partial class HomePage : Page
         if (ToggleRag != null) ToggleRag.IsOn = state.IsRagEnabled;
         if (ToggleEmail != null) ToggleEmail.IsOn = state.IsEmailEnabled;
         if (ToggleDocument != null) ToggleDocument.IsOn = state.IsDocumentEnabled;
+        if (ToggleCodeDeepCheck != null) ToggleCodeDeepCheck.IsOn = state.IsCodeDeepCheckEnabled;
 
         if (RadioOpenSource != null) RadioOpenSource.IsChecked = state.LLMSourceType == "OpenSource";
         if (RadioClosedSource != null) RadioClosedSource.IsChecked = state.LLMSourceType == "ClosedSource";
@@ -151,9 +152,34 @@ public sealed partial class HomePage : Page
 
     private async void NewSession_Click(object sender, RoutedEventArgs e)
     {
+        // Remember which session we were on so we can detect if it gets deleted
+        // from inside the dialog (e.g. the user deletes the current session then cancels).
+        string? previousSessionId = AppState.Instance.ApiService.GetActiveSessionId;
+
         var sessionDialog = new SessionDialog();
         sessionDialog.XamlRoot = this.XamlRoot;
         var result = await sessionDialog.ShowAsync();
+
+        // If the session we were on got deleted from inside the dialog, don't leave the
+        // user looking at that dead session's chat — reset to a fresh configuration.
+        // This applies whether they cancelled or selected another session.
+        bool previousSessionDeleted = !string.IsNullOrEmpty(previousSessionId)
+            && sessionDialog.DeletedSessionIds.Contains(previousSessionId!);
+
+        if (result != ContentDialogResult.Primary)
+        {
+            if (previousSessionDeleted)
+            {
+                // The session we were on is gone — drop it and return to the opening
+                // startup chooser instead of leaving the user on a dead chat.
+                AppState.Instance.ApiService.SetActiveSessionId(string.Empty);
+                ResetToFreshConfiguration();
+
+                if (App.MainWindowInstance != null)
+                    await App.MainWindowInstance.RestartStartupFlowAsync();
+            }
+            return;
+        }
 
         if (result == ContentDialogResult.Primary && sessionDialog.SelectedSession != null)
         {
@@ -175,6 +201,7 @@ public sealed partial class HomePage : Page
             state.IsRagEnabled = config.RagProtection;
             state.IsEmailEnabled = config.EmailProtection;
             state.IsDocumentEnabled = config.DocumentProtection;
+            state.IsCodeDeepCheckEnabled = config.CodeDeepCheck;
 
             // Once session is loaded, lock the configuration
             state.IsConfigurationLocked = true;
@@ -186,6 +213,27 @@ public sealed partial class HomePage : Page
             // Reload UI to reflect new session
             await LoadStateAsync();
         }
+    }
+
+    // Clears the locked session configuration back to defaults so the home page no
+    // longer reflects a session that no longer exists.
+    private void ResetToFreshConfiguration()
+    {
+        var state = AppState.Instance;
+
+        state.IsConfigurationLocked = false;
+        state.ActiveSessionIsNew = false;
+
+        state.IsObfuscationEnabled = false;
+        state.IsMultiTurnEnabled = false;
+        state.IsRoleplayingEnabled = false;
+        state.IsPiiProtectionEnabled = false;
+        state.IsWebSearchEnabled = false;
+        state.IsCodeExecutionEnabled = false;
+        state.IsRagEnabled = false;
+        state.IsEmailEnabled = false;
+        state.IsDocumentEnabled = false;
+        state.IsCodeDeepCheckEnabled = false;
     }
 
     private void UpdateLLMSourceVisibility()
@@ -266,7 +314,7 @@ public sealed partial class HomePage : Page
     {
         if (AppState.Instance.IsConfigurationLocked) return; // Prevent changes when locked
         if (ToggleWebSearch == null || ToggleCodeExecution == null || ToggleRag == null
-            || ToggleEmail == null || ToggleDocument == null) return;
+            || ToggleEmail == null || ToggleDocument == null || ToggleCodeDeepCheck == null) return;
 
         var state = AppState.Instance;
         state.IsWebSearchEnabled = ToggleWebSearch.IsOn;
@@ -274,6 +322,7 @@ public sealed partial class HomePage : Page
         state.IsRagEnabled = ToggleRag.IsOn;
         state.IsEmailEnabled = ToggleEmail.IsOn;
         state.IsDocumentEnabled = ToggleDocument.IsOn;
+        state.IsCodeDeepCheckEnabled = ToggleCodeDeepCheck.IsOn;
 
         UpdateShieldStatus();
     }
@@ -308,9 +357,10 @@ public sealed partial class HomePage : Page
             if (ToggleRag.IsOn) activeCount++;
             if (ToggleEmail.IsOn) activeCount++;
             if (ToggleDocument.IsOn) activeCount++;
+            if (ToggleCodeDeepCheck.IsOn) activeCount++;
         }
 
-        int totalCount = isAgent ? 9 : 4;
+        int totalCount = isAgent ? 10 : 4;
 
         if (activeCount == 0)
         {
@@ -582,10 +632,11 @@ public sealed partial class HomePage : Page
         if (DefenseRagItem != null) DefenseRagItem.Visibility = state.IsRagEnabled ? Visibility.Visible : Visibility.Collapsed;
         if (DefenseEmailItem != null) DefenseEmailItem.Visibility = state.IsEmailEnabled ? Visibility.Visible : Visibility.Collapsed;
         if (DefenseDocumentItem != null) DefenseDocumentItem.Visibility = state.IsDocumentEnabled ? Visibility.Visible : Visibility.Collapsed;
+        if (DefenseCodeDeepCheckItem != null) DefenseCodeDeepCheckItem.Visibility = state.IsCodeDeepCheckEnabled ? Visibility.Visible : Visibility.Collapsed;
 
         if (NoAgentDefensesLabel != null)
         {
-            bool anyAgent = state.IsWebSearchEnabled || state.IsCodeExecutionEnabled || state.IsRagEnabled || state.IsEmailEnabled || state.IsDocumentEnabled;
+            bool anyAgent = state.IsWebSearchEnabled || state.IsCodeExecutionEnabled || state.IsRagEnabled || state.IsEmailEnabled || state.IsDocumentEnabled || state.IsCodeDeepCheckEnabled;
             NoAgentDefensesLabel.Visibility = !anyAgent ? Visibility.Visible : Visibility.Collapsed;
         }
 

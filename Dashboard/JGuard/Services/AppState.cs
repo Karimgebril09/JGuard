@@ -18,6 +18,7 @@ public class AppState
     public bool IsRagEnabled { get; set; } = false;
     public bool IsEmailEnabled { get; set; } = false;
     public bool IsDocumentEnabled { get; set; } = false;
+    public bool IsCodeDeepCheckEnabled { get; set; } = false;
 
     // LLM Configuration
     public string LLMSourceType { get; set; } = "OpenSource"; // OpenSource or ClosedSource
