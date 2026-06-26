@@ -97,6 +97,8 @@ def build_document_processor(document_protection: bool = True):
                 "For reading: the file must already exist in the input directory — provide only the filename (e.g. 'report.pdf'). "
                 "For writing: provide only the output filename (e.g. 'api-docs.pdf') and the full documentation text. "
                 "Do not use absolute paths. Do not invent file paths that were not given or implied by the user."
+                "If the tool returns a message indicating it couldn't read or write the file, or any failure, "
+                "you must return a clear messsage indicating the failure "
             )),
             HumanMessage(content="user request: " + state["request"]),
         ]

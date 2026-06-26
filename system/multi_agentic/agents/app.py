@@ -53,7 +53,15 @@ orchestrator_system_prompt = (
         "documentation). Whenever the user asks to create or update documentation, manuals, or PDF files (for example, "
         "'create API documentation and save as PDF', 'generate API documentation for my Flask app and save it as a PDF'), "
         "treat this as 'document' even if code is involved. Other examples: 'read this PDF and summarize it', "
-        "'write pipeline documentation to the docs folder', 'read user_manual.pdf and list features'.\n\n"
+        "'write pipeline documentation to the docs folder', 'read user_manual.pdf and list features'. "
+
+        "NEVER route to the code agent if you are asked to read or write files. "
+        "The document agent is the sole one responsible for reading and writing files "
+        "Only PDF format is supported for reading and writing files. "
+        "If the document agent returns a message saying it couldn't read or write the file "
+        "or anything indicating a file read/write failure, "
+        "then you must choose 'end' and tell the user the file couldn't be read or written "
+        "provide reason if available. Do not route to the code agent for file reading or writing tasks EVER.\n\n"
 
         "Use 'email' only when the task clearly involves email or an inbox: reading emails, summarizing emails, "
         "or drafting/sending emails to recipients. The user should mention words like 'email', 'mail', 'inbox', "
