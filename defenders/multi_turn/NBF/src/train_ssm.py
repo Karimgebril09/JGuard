@@ -47,7 +47,7 @@ def save_tensors(tensor_conversations, save_path,save_name="all_conversations.pt
 class multi_turn_dataset(Dataset):
     def __init__(self, conversations):
         self.conversations = conversations
-        self.longest_conversation = max(len(conv) for conv in conversations)
+        self.longest_convo = max(len(conv) for conv in conversations)
 
     def __len__(self):
         return len(self.conversations)
@@ -121,8 +121,7 @@ def train_ssm(state_model,train_loader,val_loader, num_epochs=200, save_path="./
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     state_model.to(device)
     optimizer = optim.Adam(state_model.parameters(), lr=lr)
-    loss = nn.MSELoss()    
-   
+    criterion = nn.MSELoss()   
     for epoch in range(num_epochs):
         state_model.train()
         total_loss = 0.0
@@ -143,7 +142,7 @@ def train_ssm(state_model,train_loader,val_loader, num_epochs=200, save_path="./
             
             predicted_z = torch.stack(predicted_z, dim=1)
 
-            loss = loss(predicted_z * mask, z * mask)
+            loss = criterion(predicted_z * mask, z * mask)
             optimizer.zero_grad()
             loss.backward() 
             optimizer.step()
@@ -167,7 +166,7 @@ def train_ssm(state_model,train_loader,val_loader, num_epochs=200, save_path="./
                     predicted_z.append(z_t)
 
                 predicted_z = torch.stack(predicted_z, dim=1)
-                loss = loss(predicted_z*mask, z*mask)
+                loss = criterion(predicted_z*mask, z*mask)
 
                 val_total_loss += loss.item()
                 
