@@ -11,7 +11,7 @@ from defenders.multi_turn.TCA.src.risk_calculator import RiskCalculator
 from defenders.multi_turn.TCA.src.feature_extraction  import FeatureExtractor
 from sklearn.exceptions import InconsistentVersionWarning
 import warnings
-from defenders.multi_turn.TCA.src.utility import apply_transforms, transform_feature
+from defenders.multi_turn.TCA.src.utility import  transform_feature
 warnings.filterwarnings(
     "ignore",
     category=InconsistentVersionWarning
