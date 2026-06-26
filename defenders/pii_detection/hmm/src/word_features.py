@@ -1,9 +1,9 @@
 import re
 def extract_word_features(word):
-    feats = []
+    feats =[]
 
     for n in range(1, 5):
-        if len(word) >= n:
+        if len(word) >=n:
             feats.append(f"PRE{n}_{word[:n].lower()}")
             feats.append(f"SUF{n}_{word[-n:].lower()}")
     if word.isupper():
@@ -37,19 +37,19 @@ def extract_word_features(word):
     if re.fullmatch(r'[A-Za-z0-9@#$%^&+=!]{6,}', word):
         feats.append("LOOKS_PASSWORD")
 
-    l = len(word)
-    feats.append("LEN_SHORT" if l <= 3 else "LEN_MED" if l <= 7 else "LEN_LONG")
+    l =len(word)
+    feats.append("LEN_SHORT" if l <=3 else "LEN_MED" if l <=7 else "LEN_LONG")
 
     return feats
 
-NER_TAGS = [
+NER_TAGS =[
     'B-ACCOUNTNAME', 'B-ACCOUNTNUMBER', 'B-CREDITCARDNUMBER', 'B-EMAIL',
     'B-IP', 'B-IPV4', 'B-IPV6', 'B-MAC', 'B-PASSWORD', 'B-PHONE_NUMBER',
     'B-SSN', 'B-USERNAME',
     'O',
 ]
 
-NER_TAG_TO_INDEX = {tag: i for i, tag in enumerate(NER_TAGS)}
-NER_TAG_TO_INDEX['UNK'] = len(NER_TAGS)
-INDEX_TO_NER_TAG = {i: tag for tag, i in NER_TAG_TO_INDEX.items()}
+NER_TAG_TO_INDEX ={tag: i for i, tag in enumerate(NER_TAGS)}
+NER_TAG_TO_INDEX['UNK'] =len(NER_TAGS)
+INDEX_TO_NER_TAG ={i: tag for tag, i in NER_TAG_TO_INDEX.items()}
 

@@ -84,10 +84,7 @@ class InjectionScanner:
         graph_analyzer = ChunkGraphAnalyzer()
         if embeddings is None:
             embeddings = rag.embedder.embed_chunks(chunks)
-            
         g, node_info = graph_analyzer.build_graph(chunks, embeddings)
-        
-
         not_outliers = {info.chunk.chunk_id for info in node_info if not (info.is_outlier and info.no_neighbors == 0)}
         
         for c in chunks:
