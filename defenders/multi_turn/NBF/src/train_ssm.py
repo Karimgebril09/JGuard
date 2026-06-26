@@ -126,7 +126,7 @@ def train_ssm(state_model,train_loader,val_loader, num_epochs=200, save_path="./
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     state_model.to(device)
     optimizer_ssm = optim.Adam(state_model.parameters(), lr=ssm_learning_rate)
-    loss_fn_mse = nn.MSELoss()    
+    loss = nn.MSELoss()    
     best_val_loss_ssm = float('inf')  
     for epoch in range(num_epochs):
         state_model.train()
@@ -148,7 +148,7 @@ def train_ssm(state_model,train_loader,val_loader, num_epochs=200, save_path="./
             
             predicted_z = torch.stack(predicted_z, dim=1)
 
-            ssm_loss = loss_fn_mse(predicted_z * mask, z_batch * mask)
+            ssm_loss = loss(predicted_z * mask, z_batch * mask)
             optimizer_ssm.zero_grad()
             ssm_loss.backward() 
             optimizer_ssm.step()
@@ -174,8 +174,7 @@ def train_ssm(state_model,train_loader,val_loader, num_epochs=200, save_path="./
                     predicted_z.append(z_t)
 
                 predicted_z = torch.stack(predicted_z, dim=1)
-
-                ssm_loss = loss_fn_mse(predicted_z * mask, z_batch * mask)
+                ssm_loss = loss(predicted_z * mask, z_batch * mask)
 
                 val_total_ssm_loss += ssm_loss.item()
                 
@@ -184,9 +183,7 @@ def train_ssm(state_model,train_loader,val_loader, num_epochs=200, save_path="./
         avg_val_total_ssm_loss = val_total_ssm_loss / len(val_loader)
 
 
-        logging.info(f"Epoch {epoch + 1}/{num_epochs}"
-                     f" - Train SSM Loss: {avg_train_ssm_loss:.6f} "
-                     f"- Val SSM Loss: {avg_val_total_ssm_loss:.6f}")
+        logging.info(f"Epoch {epoch + 1}/{num_epochs} Train SSM Loss: {avg_train_ssm_loss} Val SSM Loss: {avg_val_total_ssm_loss}")
 
         if avg_val_total_ssm_loss < best_val_loss_ssm:
             best_val_loss_ssm = avg_val_total_ssm_loss
