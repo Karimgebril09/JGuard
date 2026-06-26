@@ -209,20 +209,16 @@ if __name__ == "__main__":
         save_tensors(converted_conversations, save_path=os.path.join(this_file_path, "../train_val_embedding_data/"), 
                     save_name="all_conversations_new_data.pt")
     
-    train1 = torch.load(os.path.join(this_file_path, "../train_val_embedding_data/circuit_breakers_actorattack.pt"),
+    train1 = torch.load(os.path.join(this_file_path, "../data/circuit_breakers_actorattack.pt"),
     map_location=torch.device('cpu'))
 
-    train2 = torch.load(os.path.join(this_file_path, "../train_val_embedding_data/circuit_breakers_others.pt"),
+    train2 = torch.load(os.path.join(this_file_path, "../data/circuit_breakers_others.pt"),
         map_location=torch.device('cpu'))
 
-    train3 = torch.load(os.path.join(this_file_path, "../train_val_embedding_data/all_conversations_new_data.pt"),
+    train3 = torch.load(os.path.join(this_file_path, "../data/all_conversations_new_data.pt"),
         map_location=torch.device('cpu'))
 
     original_training_data=train1+train2+train3
-
-    # # loading the new data
-    # original_training_data = torch.load(os.path.join(this_file_path,"../train_val_embedding_data/all_conversations_new_data.pt"),
-    #                                     map_location=torch.device('cpu'))
    
     training_data = random.sample(original_training_data, len(original_training_data))
     dataset=multi_turn_dataset(training_data)

@@ -69,7 +69,7 @@ def build_rag_agent(rag_protection: bool = True):
 
         #to prevent infinite loop just call tool one 
         if has_tool_result:
-            response = llm.invoke([SystemMessage(content=" as a rag agent answer only based on the provided tool result if no result available just return no information found")] + messages)
+            response = llm.invoke([SystemMessage(content=" as a rag agent answer only based on the provided from tool result if no result available just return no information found do not ask questions")] + messages)
         else:
             response = llm_with_tools.invoke([system_prompt] + messages)
 

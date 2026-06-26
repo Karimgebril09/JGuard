@@ -76,7 +76,7 @@ def evaluate_parameters(params):
 
 
 def objective(trial):
-
+    """chose parmeter and test it """
     alpha = trial.suggest_float("alpha",0.2,0.8)
     beta = trial.suggest_float("beta",0.05,1.0 - alpha)
     gamma = (1.0- alpha- beta)

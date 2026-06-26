@@ -40,13 +40,16 @@ class StateFeatureExtractor:
         self.q=deque(maxlen=4)
 
     def embed_input(self, prompt):
+        """embed the prompt"""
         u = self.embedding_model.encode(prompt)
         u = torch.tensor(u, dtype=torch.float32)
+        # make sure it is 2D
         if u.dim() == 1:
             u = u.unsqueeze(0)
         return u
     
     def get_long_term_state(self, x_curr):
+        """get the state from history"""
         if len(self.q) == 0:
             self.x_prev_4step_back = x_curr
         else:
@@ -56,6 +59,7 @@ class StateFeatureExtractor:
     
 
     def get_drift(self, x, y):
+        """compute euclidean distance"""
         if x.dim() == 1:
             x=x.unsqueeze(0)
         if y.dim() == 1:
@@ -63,6 +67,7 @@ class StateFeatureExtractor:
         return torch.norm(x - y).item()
     
     def get_similarity(self, x, y):
+        """compute cosine similarity"""
         if x.dim() == 1:
             x=x.unsqueeze(0)
         if y.dim() == 1:
@@ -78,6 +83,7 @@ class StateFeatureExtractor:
         return cosine.item()
     
     def get_mean_squared_change(self, x, y):
+        """compute mean squared change between two vectors"""
         if x.dim() == 1:
             x=x.unsqueeze(0)
         if y.dim() == 1:
@@ -88,6 +94,7 @@ class StateFeatureExtractor:
     
 
     def reduce_dimensionality(self, vectors):
+        """reduce dimensionality and return as dataframe"""
         vectors = self.pca_model.transform(vectors.numpy())
         vectors_columns=[str(i) for i in range(vectors.shape[1])]   
         vectors = pd.DataFrame(vectors, columns=vectors_columns)
@@ -95,14 +102,15 @@ class StateFeatureExtractor:
 
 
     def apply_selected_transformations(self,df, selected_features):
+        """apply transformation on features"""
         transformed = {}
 
         for feature in selected_features:
-            transform = feature.split("_")[-1]
-            base_feature = "_".join(feature.split("_")[:-1])
+            transform = feature.split("_")[-1]  # get transformation type
+            base_feature = "_".join(feature.split("_")[:-1]) # name of feature
             x = df[base_feature].copy()
 
-            if transform == "orig":
+            if transform == "orig": # no transformation
                 transformed[base_feature] = x
             else:
                 x = x + 1 + 1e-6
@@ -116,6 +124,7 @@ class StateFeatureExtractor:
         return pd.DataFrame(transformed)
 
     def feature_engineering(self, x_t, u_t, x_prev, x_prev_4step_back=None):
+        """extract engineered features"""
         features = []
     
         # drift features
@@ -150,6 +159,7 @@ class StateFeatureExtractor:
     
     
     def get_features_transformed(self, features):
+        """apply transformations on features and return as dataframe"""
         features = pd.DataFrame([features.numpy()], columns=FEATURE_NAMES)
         transformed_selected_features = FEATURES_TRANSFORMATIONS
         features_transformed = self.apply_selected_transformations(features, transformed_selected_features)
@@ -157,6 +167,7 @@ class StateFeatureExtractor:
 
     
     def extract_features(self, prompt):
+        """feature extraction pipeline"""
         u = self.embed_input(prompt)
         x_curr = self.ssm_model.get_next_state(u)
         self.x_prev_4step_back = self.get_long_term_state(x_curr)

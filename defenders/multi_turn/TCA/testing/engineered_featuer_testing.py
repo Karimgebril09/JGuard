@@ -8,6 +8,7 @@ from defenders.multi_turn.TCA.src.feature_engineered import add_context_features
 class TestEscalationFeatureMath:
 
     def test_diff_and_acceleration(self):
+        #test diff and accelartion
         df = pd.DataFrame({
             "conv_id": [1, 1, 1],
             "turn_id": [1, 2, 3],
@@ -25,6 +26,7 @@ class TestEscalationFeatureMath:
         assert np.isclose(df.loc[2, "toxicity_accel"], -0.5)
 
     def test_risk_slope_window(self):
+        #test risk slope with window of 3
         df = pd.DataFrame({
             "conv_id": [1]*4,
             "turn_id": [1,2,3,4],
@@ -40,6 +42,7 @@ class TestEscalationFeatureMath:
         assert np.isclose(df.loc[3, "risk_slope_3"], 1.0)
         
     def test_ema_exact_formula(self):
+        #test ema with alpha
         df = pd.DataFrame({
             "conv_id": [1, 1],
             "turn_id": [1, 2],
@@ -57,6 +60,7 @@ class TestEscalationFeatureMath:
         assert np.isclose(df.loc[1, "toxicity_score_ema3"], expected)
         
     def test_max_and_mean(self):
+        #test max and mean features
         df = pd.DataFrame({
             "conv_id": [1,1,1],
             "turn_id": [1,2,3],
@@ -71,6 +75,7 @@ class TestEscalationFeatureMath:
         assert np.isclose(df["mean_risk_so_far"].iloc[-1], 2.0)
         
     def test_early_late_growth(self):
+        #test early and late growth features
         df = pd.DataFrame({
             "conv_id": [1]*6,
             "turn_id": list(range(6)),
@@ -88,6 +93,7 @@ class TestEscalationFeatureMath:
         assert df["late_risk_increase"].iloc[0] == 5.0
 
     def test_growth_ratio(self):
+        #test growth ratio feature
         df = pd.DataFrame({
             "conv_id": [1]*6,
             "turn_id": list(range(6)),

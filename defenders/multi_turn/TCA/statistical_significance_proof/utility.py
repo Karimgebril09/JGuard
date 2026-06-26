@@ -6,7 +6,7 @@ import pandas as pd
 
 
 def plot_hypothesis_test(t_stat, df, alpha=0.05,title="Two-Tailed T-Test"):
-    
+    """Plot the results of a two-tailed t-test """
     x = np.linspace(-5, 5, 1000)
     y = stats.t.pdf(x, df)
 
@@ -37,6 +37,7 @@ def plot_bootstrap_distribution(
     upper,
     title="Bootstrap Confidence Interval"
 ):
+    """plot the bootstrap distribution with observed difference and confidence interval"""
     plt.figure(figsize=(10,5))
     plt.hist(bootstrap_diffs,bins=40,density=True,alpha=0.7)
     plt.axvline(observed_diff,color="red", linewidth=3, label=f"Observed = {observed_diff:.4f}" )
@@ -53,7 +54,7 @@ def plot_bootstrap_distribution(
     
     
 def plot_class_distributions(scores, labels, title="Distribution by Class", xlabel="Score"):
-  
+    """see tghe distribution of scores for each class"""
     class0 = scores[labels == 0]
     class1 = scores[labels == 1]
 
@@ -73,7 +74,7 @@ def plot_class_distributions(scores, labels, title="Distribution by Class", xlab
     
     
 def plot_box_separation(scores, labels, class_names=("Class 0", "Class 1"), title="Boxplot Separation"):
-
+    """plot boxplot for each class"""
     data0 = scores[labels == 0]
     data1 = scores[labels == 1]
 

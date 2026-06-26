@@ -1,4 +1,41 @@
-# Running the Refusal Classifier on Kaggle
+# Creating the FastText Refusal Model
+
+## Step 1: Download the Dataset
+
+Download the dataset from Kaggle:
+
+https://www.kaggle.com/datasets/karimmahmoud09/llm-refusal-responses-dataset
+
+## Step 2: Add the Dataset
+
+Place the downloaded dataset in the following directory:
+
+```text
+evaluation/
+└── refusal/
+    └── data/
+```
+
+## Step 3: Download the FastText Embedding Model
+
+Download the pre-trained FastText word vectors from:
+
+https://fasttext.cc/docs/en/crawl-vectors.html
+
+Place the downloaded embedding file in:
+
+```text
+evaluation/
+└── refusal/
+    └── models/
+```
+
+## Step 4: Train the Model
+
+Run the training script located in the `src` directory.
+
+
+# Running the Refusal dynamic embedding Classifier on Kaggle
 
 ## Step 1: Create a Notebook
 
@@ -57,7 +94,46 @@ evaluation/
 
 ---
 
-# Running the PII Detection Model on Kaggle
+
+# Creating the FastText PII Model
+
+## Step 1: Download the Dataset
+
+Download the dataset from Kaggle:
+
+https://www.kaggle.com/datasets/karimmahmoud09/pii-splited-data?select=train.parquet
+
+## Step 2: Add the Dataset
+
+Place the downloaded dataset in the following directory:
+
+```text
+defender/
+└── pii_detection/
+    └── data/
+```
+
+## Step 3: Download the FastText Embedding Model
+
+Download the pre-trained FastText word vectors from:
+
+https://fasttext.cc/docs/en/crawl-vectors.html
+
+Place the downloaded embedding file in:
+
+```text
+defender/
+└── pii_detection/
+    └── models/
+```
+
+## Step 4: Train the Model
+
+Run the `fasttext_pii` training script located in the `train` directory.
+
+---
+
+# Running the PII Detection dynamic embedding Model on Kaggle
 
 ## Step 1: Create a Notebook
 
@@ -114,3 +190,37 @@ defenders/
 ```
 
 ---
+
+# Creating the Dialogue Dynamics Model
+
+## Step 1: Download the Dataset
+
+Download the dataset from Kaggle:
+
+https://www.kaggle.com/datasets/karimmahmoud09/dialogue-dynamics-dataset
+
+## Step 2: Add the Dataset
+
+Place the downloaded dataset in the following directory:
+
+```text
+defender/
+└── multi_turn/
+    └── NBF/
+        └── data/
+```
+
+## Step 3: Train the Model
+
+Run the training script.
+
+## Step 4: Move the Trained Model
+
+After training is complete, move the generated model file to the following directory:
+
+```text
+defender/
+└── multi_turn/
+    └── integrated/
+        └── models/
+```
