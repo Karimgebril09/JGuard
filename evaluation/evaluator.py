@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from defenders.obfuscation.stage8_custom_classifier import load_stage8_distilbert_classifier
+from defenders.obfuscation.stage8_custom_classifier import load_distilbert
 from evaluation.refusal.inference.refusal_predictor import RefusalPredictor
 from evaluation.harm_detection.llm_judge import SentinelJudge
 
@@ -16,7 +16,7 @@ class Evaluator:
             / "stage8_custom_classifier"
             / "models"
         )
-        self.fine_tuned_harm_classifier = load_stage8_distilbert_classifier(fine_tuned_classifier_dir)
+        self.fine_tuned_harm_classifier = load_distilbert(fine_tuned_classifier_dir)
 
     def evaluate_response(self, llm_response):
         refusal_prediction = self.refusal_predictor.predict(llm_response)

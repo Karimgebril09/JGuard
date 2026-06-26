@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import unicodedata
-from defenders.obfuscation.helper import normalize_input
 
 
 ZERO_WIDTH_CHARACTERS = {
@@ -108,10 +107,9 @@ def res_homoglyphs(text: str) -> tuple[str, int]:
     return "".join(transformed), replacements
 
 
-def normalize_stage3(raw_input: str | bytes) -> dict[str, object]:
-    original_text = normalize_input(raw_input)
+def normalize_stage3(raw_input: str) -> dict[str, object]:
 
-    nfc_text = unicodedata.normalize("NFC", original_text)
+    nfc_text = unicodedata.normalize("NFC", raw_input)
     nfkd_text = unicodedata.normalize("NFKD", nfc_text)
 
     without_zero_width, stripped_count = rm_zero_width_chars(nfkd_text)
@@ -124,7 +122,7 @@ def normalize_stage3(raw_input: str | bytes) -> dict[str, object]:
     )
 
     return {
-        "original_text": original_text,
+        "original_text": raw_input,
         "normalized_text": normalized_text,
         "zero_width_stripped": stripped_count,
         "homoglyph_replacements": replacement_count,

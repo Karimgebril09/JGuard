@@ -1,9 +1,8 @@
 from __future__ import annotations
 from math import log2
 import unicodedata
-from defenders.obfuscation.helper import normalize_input
 
-def calculate_shannon_entropy(data: bytes) -> float:
+def calc_entropy(data: bytes) -> float:
     if not data:
         return 0.0
 
@@ -45,7 +44,7 @@ def identify_writing_system(code_point: int) -> str:
     return "Other"
 
 
-def identify_character_distribution(text: str) -> dict[str, int]:
+def identify_char_distribution(text: str) -> dict[str, int]:
     distribution = {
         "letters": 0,
         "digits": 0,
@@ -76,7 +75,7 @@ def identify_character_distribution(text: str) -> dict[str, int]:
     return distribution
 
 
-def identify_unicode_block_distribution(text: str) -> dict[str, int]:
+def identify_unicode_blocks(text: str) -> dict[str, int]:
     distribution: dict[str, int] = {}
     for character in text:
         block = identify_writing_system(ord(character))
@@ -84,7 +83,7 @@ def identify_unicode_block_distribution(text: str) -> dict[str, int]:
     return distribution
 
 def profile_input(raw_input: str | bytes, encoding: str = "utf-8") -> dict[str, object]:
-    text = normalize_input(raw_input)
+    text = raw_input if isinstance(raw_input, str) else raw_input.decode(encoding, errors="replace")
     if isinstance(raw_input, bytes):
         raw_bytes = raw_input
     else:
@@ -93,9 +92,9 @@ def profile_input(raw_input: str | bytes, encoding: str = "utf-8") -> dict[str, 
     return {
         "raw_text": text,
         "character_count": len(text),
-        "shannon_entropy": calculate_shannon_entropy(raw_bytes),
-        "character_set_distribution": identify_character_distribution(text),
-        "unicode_block_distribution": identify_unicode_block_distribution(text),
+        "shannon_entropy": calc_entropy(raw_bytes),
+        "character_set_distribution": identify_char_distribution(text),
+        "unicode_block_distribution": identify_unicode_blocks(text),
         "metadata": {
             "encoding": encoding,
             "input_type": type(raw_input).__name__,

@@ -3,7 +3,6 @@ from __future__ import annotations
 import importlib
 import re
 from typing import Any
-from defenders.obfuscation.helper import normalize_input
 
 zipf_frequency = importlib.import_module("wordfreq").zipf_frequency
 
@@ -28,7 +27,7 @@ TOKEN_REGEX = re.compile(r"[A-Za-z0-9@$!|]+|[^A-Za-z0-9@$!|]+")
 
 MIN_WORD_ZIPF = 3.0
 
-def is_text_likely_english(text: str) -> float:
+def is_english(text: str) -> float:
     if not text:
         return float("-inf")
 
@@ -47,7 +46,7 @@ def is_text_likely_english(text: str) -> float:
         if freq >= MIN_WORD_ZIPF:
             token_score += 1.2 + freq
         else:
-            token_score += fallback_token_score(token)
+            token_score += token_skore(token)
 
     printable_ratio = printable / len(text)
     vowel_ratio = vowels / max(letters, 1)
@@ -60,12 +59,12 @@ def is_text_likely_english(text: str) -> float:
     )
 
 
-def find_dictionary_hits(text: str) -> int:
+def find_dict_hits(text: str) -> int:
     tokens = re.findall(r"[a-z]+", text.lower())
     return sum(1 for token in tokens if zipf_frequency(token, "en") >= MIN_WORD_ZIPF)
 
 
-def fallback_token_score(token: str) -> float:
+def token_skore(token: str) -> float:
     if not token:
         return -2.0
 
@@ -92,7 +91,7 @@ def caesar_shift(text: str, shift: int) -> str:
     return "".join(shifted)
 
 
-def find_leet_candidates(token: str, beam_width: int = 24) -> list[str]:
+def find_leet_cand(token: str, beam_width: int = 24) -> list[str]:
     candidates = [""]
     lowered = token.lower()
 
@@ -108,7 +107,7 @@ def find_leet_candidates(token: str, beam_width: int = 24) -> list[str]:
 
         next_candidates = sorted(
             set(next_candidates),
-            key=lambda candidate: fallback_token_score(candidate)
+            key=lambda candidate: token_skore(candidate)
             + max(zipf_frequency(candidate, "en"), 0.0),
             reverse=True,
         )
@@ -117,7 +116,7 @@ def find_leet_candidates(token: str, beam_width: int = 24) -> list[str]:
     return candidates
 
 
-def resolve_leetspeak_token(
+def res_leetspeak_word(
     token: str,
     dictionary_threshold: float,
     min_improvement: float,
@@ -127,14 +126,14 @@ def resolve_leetspeak_token(
 
     baseline = token.lower()
     baseline_zipf = zipf_frequency(baseline, "en")
-    baseline_score = fallback_token_score(baseline) + (baseline_zipf if baseline_zipf >= MIN_WORD_ZIPF else 0.0)
+    baseline_score = token_skore(baseline) + (baseline_zipf if baseline_zipf >= MIN_WORD_ZIPF else 0.0)
 
     best_candidate = baseline
     best_score = baseline_score
 
-    for candidate in find_leet_candidates(token):
+    for candidate in find_leet_cand(token):
         candidate_zipf = zipf_frequency(candidate, "en")
-        score = fallback_token_score(candidate)
+        score = token_skore(candidate)
         if candidate_zipf >= MIN_WORD_ZIPF:
             score += candidate_zipf
         if score > best_score:
@@ -151,7 +150,7 @@ def resolve_leetspeak_token(
     return token, 0.0, False
 
 
-def resolve_leetspeak_text(
+def res_leetspeak(
     text: str,
     dictionary_threshold: float,
     min_improvement: float,
@@ -166,7 +165,7 @@ def resolve_leetspeak_text(
             resolved_parts.append(part)
             continue
 
-        resolved, confidence, applied = resolve_leetspeak_token(
+        resolved, confidence, applied = res_leetspeak_word(
             token=part,
             dictionary_threshold=dictionary_threshold,
             min_improvement=min_improvement,
@@ -186,12 +185,12 @@ def resolve_leetspeak_text(
     return "".join(resolved_parts), replacements, decisions
 
 
-def resolve_caesar_token(token: str, min_improvement: float) -> tuple[str, float, bool]:
+def res_caesar_word(token: str, min_improvement: float) -> tuple[str, float, bool]:
     if not any(character.isalpha() for character in token):
         return token, 0.0, False
 
-    baseline_score = is_text_likely_english(token)
-    baseline_hits = find_dictionary_hits(token)
+    baseline_score = is_english(token)
+    baseline_hits = find_dict_hits(token)
     best_text = token
     best_shift = 0
     best_score = baseline_score
@@ -199,8 +198,8 @@ def resolve_caesar_token(token: str, min_improvement: float) -> tuple[str, float
 
     for shift in range(1, 26):
         candidate = caesar_shift(token, shift)
-        score = is_text_likely_english(candidate)
-        hits = find_dictionary_hits(candidate)
+        score = is_english(candidate)
+        hits = find_dict_hits(candidate)
         if hits > best_hits or (hits == best_hits and score > best_score):
             best_text = candidate
             best_shift = shift
@@ -221,7 +220,7 @@ def resolve_caesar_token(token: str, min_improvement: float) -> tuple[str, float
     return best_text, confidence, True
 
 
-def resolve_caesar_text(
+def res_caesar(
     text: str,
     min_improvement: float,
 ) -> tuple[str, int, list[dict[str, Any]]]:
@@ -235,7 +234,7 @@ def resolve_caesar_text(
             resolved_parts.append(part)
             continue
 
-        resolved, confidence, applied = resolve_caesar_token(part, min_improvement=min_improvement)
+        resolved, confidence, applied = res_caesar_word(part, min_improvement=min_improvement)
         resolved_parts.append(resolved)
 
         if applied:
@@ -251,21 +250,16 @@ def resolve_caesar_text(
     return "".join(resolved_parts), shifts_applied, decisions
 
 
-def resolve_stage4(
-    raw_input: str | bytes,
-    dictionary_threshold: float = 0.6,
-    leet_min_improvement: float = 1.15,
-    caesar_min_improvement: float = 1.25,
-) -> dict[str, object]:
-    original_text = normalize_input(raw_input)
+def resolve_stage4(raw_input: str,dictionary_threshold: float = 0.6,leet_min_improvement: float = 1.15,
+    caesar_min_improvement: float = 1.25,) -> dict[str, object]:
 
-    leet_text, leet_count, leet_decisions = resolve_leetspeak_text(
-        text=original_text,
+    leet_text, leet_count, leet_decisions = res_leetspeak(
+        text=raw_input,
         dictionary_threshold=dictionary_threshold,
         min_improvement=leet_min_improvement,
     )
 
-    caesar_text, caesar_count, caesar_decisions = resolve_caesar_text(
+    caesar_text, caesar_count, caesar_decisions = res_caesar(
         leet_text,
         min_improvement=caesar_min_improvement,
     )
@@ -287,7 +281,7 @@ def resolve_stage4(
     )
 
     return {
-        "original_text": original_text,
+        "original_text": raw_input,
         "resolved_text": final_text,
         "leet_replacements": leet_count,
         "caesar_shift": caesar_count,

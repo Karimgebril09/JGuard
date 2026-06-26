@@ -171,7 +171,7 @@ class DistilBertStage8Classifier:
         }
 
 
-def load_stage8_baseline_classifier(
+def load_lr_baseline(
     artifacts_dir: str | Path,
 ) -> Callable[[str], dict[str, Any]]:
     artifacts = Path(artifacts_dir)
@@ -186,7 +186,7 @@ def load_stage8_baseline_classifier(
     return classifier.classify
 
 
-def load_stage8_distilbert_classifier(
+def load_distilbert(
     artifacts_dir: str | Path,
 ) -> Callable[[str], dict[str, Any]]:
     artifacts = Path(artifacts_dir)

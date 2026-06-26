@@ -62,7 +62,7 @@ CATEGORY_MAP: dict[str, str] = {
 SAFE_LABEL = "safe"
 
 
-def _resolve_prompt_column(df: pd.DataFrame) -> str:
+def get_prompt_col(df: pd.DataFrame) -> str:
     candidate_columns = ("prompt", "instruction", "question")
     for column in candidate_columns:
         if column in df.columns:
@@ -73,7 +73,7 @@ def _resolve_prompt_column(df: pd.DataFrame) -> str:
     )
 
 
-def _extract_active_categories(value: Any) -> list[str]:
+def extr_active_categories(value: Any) -> list[str]:
     if isinstance(value, dict):
         return [str(key) for key, enabled in value.items() if bool(enabled)]
     if isinstance(value, list):
@@ -83,7 +83,7 @@ def _extract_active_categories(value: Any) -> list[str]:
     return []
 
 
-def _pick_mapped_category(active_categories: list[str]) -> str | None:
+def get_categ(active_categories: list[str]) -> str | None:
     mapped = [CATEGORY_MAP[c] for c in active_categories if c in CATEGORY_MAP]
     if not mapped:
         return None
@@ -91,7 +91,7 @@ def _pick_mapped_category(active_categories: list[str]) -> str | None:
     return mapped[0]
 
 
-def _sample_grouped(
+def sample_groups(
     df: pd.DataFrame,
     *,
     label_column: str,
@@ -116,15 +116,15 @@ def prepare_dataset(
 ) -> tuple[pd.DataFrame, str]:
     ds = load_dataset("PKU-Alignment/BeaverTails", split=split)
     df = cast(pd.DataFrame, ds.to_pandas())
-    prompt_column = _resolve_prompt_column(df)
+    prompt_column = get_prompt_col(df)
 
     working = df.copy()
-    working["active_categories"] = working["category"].map(_extract_active_categories)
-    working["mapped_category"] = working["active_categories"].map(_pick_mapped_category)
+    working["active_categories"] = working["category"].map(extr_active_categories)
+    working["mapped_category"] = working["active_categories"].map(get_categ)
 
     unsafe_df = working[(working["is_safe"] == False) & (working["mapped_category"].notna())]
     if max_unsafe_per_class is not None:
-        unsafe_df = _sample_grouped(
+        unsafe_df = sample_groups(
             unsafe_df,
             label_column="mapped_category",
             max_per_label=max_unsafe_per_class,

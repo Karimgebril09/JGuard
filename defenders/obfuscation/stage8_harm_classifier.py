@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 import re
 
-from defenders.obfuscation.stage8_custom_classifier import load_stage8_distilbert_classifier
+from defenders.obfuscation.stage8_custom_classifier import load_distilbert
 
 
 LLAMA_GUARD_MODEL_ID = "meta-llama/Llama-Guard-3-8B"
@@ -36,7 +36,7 @@ LLAMA_GUARD_CATEGORY_MAP: dict[str, str] = {
 Stage8Classifier = Callable[[str], dict[str, Any]]
 
 
-def _unique_in_order(values: list[str]) -> list[str]:
+def in_order(values: list[str]) -> list[str]:
     seen: set[str] = set()
     ordered: list[str] = []
     for value in values:
@@ -46,16 +46,16 @@ def _unique_in_order(values: list[str]) -> list[str]:
     return ordered
 
 
-def _extract_category_codes(response: str) -> list[str]:
+def extract_categ_code(response: str) -> list[str]:
     codes = re.findall(r"\bS(?:1[0-4]|[1-9])\b", response.upper())
-    return _unique_in_order(codes)
+    return in_order(codes)
 
 
 def parse_llama_guard_response(response: str) -> dict[str, Any]:
     lines = [line.strip() for line in response.splitlines() if line.strip()]
     is_safe = bool(lines) and lines[0].lower().startswith("safe")
-    raw_categories = [] if is_safe else _extract_category_codes("\n".join(lines[1:]))
-    mapped_categories = _unique_in_order(
+    raw_categories = [] if is_safe else extract_categ_code("\n".join(lines[1:]))
+    mapped_categories = in_order(
         [LLAMA_GUARD_CATEGORY_MAP[code] for code in raw_categories if code in LLAMA_GUARD_CATEGORY_MAP]
     )
 
@@ -68,7 +68,7 @@ def parse_llama_guard_response(response: str) -> dict[str, Any]:
 
 
 @lru_cache(maxsize=1)
-def load_llama_guard_bundle(model_id: str = LLAMA_GUARD_MODEL_ID) -> tuple[Any, Any]:
+def load_llama(model_id: str = LLAMA_GUARD_MODEL_ID) -> tuple[Any, Any]:
     import torch
     from transformers.models.auto.modeling_auto import AutoModelForCausalLM
     from transformers.models.auto.tokenization_auto import AutoTokenizer
@@ -93,14 +93,14 @@ def load_distilbert_classifier(artifacts_dir: Path = DEFAULT_DISTILBERT_ARTIFACT
             "DistilBERT artifacts directory was not found. Expected path: "
             f"{artifacts_dir}"
         )
-    return load_stage8_distilbert_classifier(artifacts_dir)
+    return load_distilbert(artifacts_dir)
 
 
-def classify_llama_guard_input(
+def classify_llama(
     text: str, model_id: str = LLAMA_GUARD_MODEL_ID
 ) -> dict[str, Any]:
     import torch
-    tokenizer, model = load_llama_guard_bundle(model_id)
+    tokenizer, model = load_llama(model_id)
     messages = [{"role": "user", "content": text}]
 
     formatted = tokenizer.apply_chat_template(
@@ -125,7 +125,7 @@ def classify_llama_guard_input(
     return parse_llama_guard_response(response)
 
 
-def classify_distilbert_input(
+def classify_distilbert(
     text: str,
     artifacts_dir: Path = DEFAULT_DISTILBERT_ARTIFACTS_DIR,
 ) -> dict[str, Any]:
@@ -141,11 +141,11 @@ def classify_input(
     distilbert_artifacts_dir: Path = DEFAULT_DISTILBERT_ARTIFACTS_DIR,
 ) -> dict[str, Any]:
     if use_distilbert:
-        return classify_distilbert_input(text, artifacts_dir=distilbert_artifacts_dir)
-    return classify_llama_guard_input(text, model_id=model_id)
+        return classify_distilbert(text, artifacts_dir=distilbert_artifacts_dir)
+    return classify_llama(text, model_id=model_id)
 
 
-def _derive_obfuscation_depth(metadata_envelope: dict[str, Any]) -> int:
+def get_obf_depth(metadata_envelope: dict[str, Any]) -> int:
     explicit_depth = metadata_envelope.get("obfuscation_depth")
     if isinstance(explicit_depth, (int, float)):
         return max(0, int(explicit_depth))
@@ -174,15 +174,15 @@ def classify_stage8(
     selected_llama_model_id = LLAMA_GUARD_MODEL_ID
 
     if use_distilbert:
-        result = classify_distilbert_input(canonical_text, artifacts_dir=selected_distilbert_dir)
+        result = classify_distilbert(canonical_text, artifacts_dir=selected_distilbert_dir)
         selected_backend = "distilbert_finetuned"
         selected_model_ref = str(result.get("model_name", selected_distilbert_dir))
     else:
-        result = classify_llama_guard_input(canonical_text, model_id=selected_llama_model_id)
+        result = classify_llama(canonical_text, model_id=selected_llama_model_id)
         selected_backend = "llama_guard"
         selected_model_ref = selected_llama_model_id
 
-    obfuscation_depth = _derive_obfuscation_depth(metadata_envelope)
+    obfuscation_depth = get_obf_depth(metadata_envelope)
 
     severity = round(1.0 + (0.2 * obfuscation_depth), 2) if not result["is_safe"] else 0.0
     action = "pass"
