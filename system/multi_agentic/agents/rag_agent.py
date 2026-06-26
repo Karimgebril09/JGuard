@@ -57,7 +57,7 @@ def build_rag_agent(rag_protection: bool = True):
             "If the tool finds nothing relevant, say so clearly — never make up information. "
             "Be concise and cite which source the information came from."
             "say from rag agent when you answer "
-            "ouput should be : from rag agent + your answer"
+            "ouput should be : from rag agent"
         ))
 
         # for m in state["messages"]:
@@ -69,7 +69,7 @@ def build_rag_agent(rag_protection: bool = True):
 
         #to prevent infinite loop just call tool one 
         if has_tool_result:
-            response = llm.invoke([SystemMessage(content="answer only based on the provided tool result if no result available just return no information found")] + messages)
+            response = llm.invoke([SystemMessage(content=" as a rag agent answer only based on the provided tool result if no result available just return no information found")] + messages)
         else:
             response = llm_with_tools.invoke([system_prompt] + messages)
 

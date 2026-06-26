@@ -1,0 +1,116 @@
+# Running the Refusal Classifier on Kaggle
+
+## Step 1: Create a Notebook
+
+* Go to **Kaggle**.
+* Select **Create → New Notebook**.
+* Click **File → Import Notebook**.
+* Upload:
+
+  ```
+  refusal-model-dl-bert.ipynb
+  ```
+
+## Step 2: Enable GPU
+
+* Open the **Session options** panel on the right.
+* Set **Accelerator** to:
+
+  ```
+  GPU T4 x2
+  ```
+* Click **Save**.
+
+## Step 3: Add the Dataset
+
+* Click **Add Data**.
+* Search for:
+
+  use:
+
+  ```
+  https://www.kaggle.com/datasets/mariamamin30/refusal-llm
+  ```
+* Add the dataset to the notebook.
+
+The dataset will be available at:
+
+```text
+/kaggle/input/refusal-llm/
+```
+
+## Step 4: Train the Model
+
+Click **Run All** to execute all notebook cells.
+
+
+## Step 5: Copy the Model
+
+Place the downloaded model at:
+
+```text
+evaluation/
+└── refusal/
+    └── models/
+        └── lstm_refusal_model_bert.pt
+```
+
+---
+
+# Running the PII Detection Model on Kaggle
+
+## Step 1: Create a Notebook
+
+* Go to **Kaggle**.
+* Select **Create → New Notebook**.
+* Click **File → Import Notebook**.
+* Upload:
+
+  ```
+  pii-bilstm-context-bert-bilstm-crf.ipynb
+  ```
+
+## Step 2: Enable GPU
+
+* Open the **Session options** panel.
+* Set **Accelerator** to:
+
+  ```
+  GPU T4 x2
+  ```
+* Click **Save**.
+
+## Step 3: Add the Dataset
+
+* Click **Add Data**.
+* Search for:
+
+   use:
+
+  ```
+  https://www.kaggle.com/datasets/karimmahmoud09/pii-safety-dataset
+  ```
+* Add the dataset.
+
+The dataset will be available at:
+
+```text
+/kaggle/input/pii-safety-dataset/
+```
+
+## Step 4: Train the Model
+
+Click **Run All** to execute all notebook cells.
+
+## Step 5: Copy the Model
+
+Place the downloaded model at:
+
+```text
+defenders/
+└── pii_detection/
+    └── models/
+        └── distilbert_bilstm_crf.pt
+```
+
+---
