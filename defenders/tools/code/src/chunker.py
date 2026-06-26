@@ -6,17 +6,19 @@ class CodeChunker:
         self.chunk_size = chunk_size
         
     def function_based_chunking(self, code) -> list:
+        # regex that matches function definitions
         pattern = r"def\s+\w+\s*\(.*?\):"
         matches = list(re.finditer(pattern, code))
 
         chunks = []
 
+        # to handle that code might have some lines non functions at the begining
         initial_start = 0
         end = matches[0].start() if matches else len(code)
         if initial_start < end:
             chunks.append(code[initial_start:end])
 
-        
+        # find indices of matches and chunk using slicing
         for i, match in enumerate(matches):
             start = match.start()
             if i+1 < len(matches):
@@ -33,6 +35,7 @@ class CodeChunker:
         lines = code.splitlines()
         chunks = []
         current_chunk = []
+        # keep appending lines till chunk is reached or no more lines is left
         for line in lines:
             current_chunk.append(line)
             if len(current_chunk) >= self.chunk_size:
@@ -40,6 +43,7 @@ class CodeChunker:
                 chunks.append(chunk)
                 current_chunk = []
 
+        # for remaining lines that are less than chunk size
         if current_chunk:
             chunks.append("\n".join(current_chunk))
 

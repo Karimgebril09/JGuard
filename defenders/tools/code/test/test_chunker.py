@@ -15,6 +15,7 @@ def subtract(a, b):
     return a - b
 """
     chunks = chunker.chunk_code(code)
+    # expected to get 4 chunks
     assert len(chunks) == 4
 
 
@@ -26,6 +27,7 @@ for i in range(10):
     print(i)
 """
     chunks = chunker.chunk_code(code)
+    # no function so expected single chunk
     assert len(chunks) == 1
    
 
@@ -39,6 +41,7 @@ def add(a, b):
 def subtract(a, b):
     return a - b
 """
+    # expected 2 chunks
     chunks = chunker.chunk_code(code)
     assert len(chunks) == 2
 
@@ -49,6 +52,7 @@ def hello_world():
     print("Hello, World!")
 print("this is last print in this code")
 """
+    # expected 2 chunks
     chunks = chunker.chunk_code(code)
     assert len(chunks) == 2
 

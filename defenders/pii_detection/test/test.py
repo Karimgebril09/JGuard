@@ -33,9 +33,9 @@ if __name__ == "__main__":
     # load parquet file
     checkpoint_path = os.path.join(_HERE, "..", "models", "distilbert_bilstm_crf.pt")
     checkpoint_path2 = os.path.join(_HERE, "..", "models", "pii_ner_model.pth")
-    df_test= pd.read_parquet('./defenders/pii_detection/data/test.parquet')
+    df_test= pd.read_parquet('./defenders/pii_detection/data_pii/test.parquet')
     tokenizer=AutoTokenizer.from_pretrained("distilbert-base-uncased")
     df_test=prepare_dataset(df_test, tokenizer)
     model=PIIDetector(checkpoint_path,checkpoint_path2)
     evaluation_accuracy = evaluate(model, df_test)
-    print(f"Evaluation Accuracy: {evaluation_accuracy:.4f}")
+    print(f"Evaluation Accuracy: {evaluation_accuracy}")

@@ -22,8 +22,8 @@ class LSTMClassifier(nn.Module):
 
     def forward(self, x):
         x, _ =self.lstm1(x)
-        x, (h, c)=self.lstm2(x)
-        out = self.fc1(h[-1])
+        x, (h, _)=self.lstm2(x)
+        out = self.fc1(h[-1]) # get last hidden state
         out = self.relu(out)
         out = self.fc2(out)
         return out.squeeze(1)
@@ -38,7 +38,7 @@ class FastTextRefusalDetector:
 
 
     def predict(self, text):
-        cleaned_text=remove_non_english_char(text)
+        cleaned_text=remove_non_english_char(text) # clean the input text
         if len(cleaned_text.strip())==0:
             return False
         
