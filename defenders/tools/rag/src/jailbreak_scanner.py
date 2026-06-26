@@ -83,12 +83,13 @@ class InjectionScanner:
         # check if the chunks with each other are similar
         graph_analyzer = ChunkGraphAnalyzer()
         if embeddings is None:
-
             embeddings = rag.embedder.embed_chunks(chunks)
+            
         g, node_info = graph_analyzer.build_graph(chunks, embeddings)
         
 
         not_outliers = {info.chunk.chunk_id for info in node_info if not (info.is_outlier and info.no_neighbors == 0)}
+        
         for c in chunks:
             if c.chunk_id not in not_outliers:
                 print('[consistency check removed]'+c.text[:100])

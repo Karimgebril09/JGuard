@@ -2,7 +2,7 @@ import re
 
 
 class Chunk:
-    """Represents a chunk of text with metadata."""
+    """represents a chunk of text with metadata."""
     def __init__(self, chunk_id, text, source, start_word, end_word):
         self.chunk_id = chunk_id
         self.text = text
@@ -36,6 +36,8 @@ class DocumentChunker:
     def chunk_text(self, text, source):
 
         text = re.sub(r"\s+", " ", text) # remove extra whitespace
+        #remove any non-word characters except for spaces and punctuation
+        text = re.sub(r"[^\w\s.,!?;:]", "", text)
 
         words = text.split() 
 

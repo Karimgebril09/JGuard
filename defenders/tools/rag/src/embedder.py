@@ -7,7 +7,7 @@ from defenders.tools.rag.src.chunker import Chunk
 
 class Embedder:
     """Embedder for generating sentence embeddings."""
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
+    def __init__(self, model_name: str = "all-mpnet-base-v2"):
         self._embedder = SentenceTransformer(model_name)
         self.dim = self._embedder.get_sentence_embedding_dimension()
         

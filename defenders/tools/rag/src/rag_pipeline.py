@@ -1,5 +1,4 @@
 import os
-
 from defenders.tools.rag.src.chunker import DocumentChunker
 from defenders.tools.rag.src.vector_store import VectorStore
 from defenders.tools.rag.src.embedder import Embedder
@@ -32,17 +31,16 @@ class RAGPipeline:
         self._all_chunks.extend(new_chunks)
 
  
-        embeddings = self.embedder.embed_chunks(self._all_chunks)
+        embeddings = self.embedder.embed_chunks(new_chunks)
 
         #Store everything
-        self.store.add(self._all_chunks, embeddings)
+        self.store.add(new_chunks, embeddings)
 
         # print("[ingest] vector size =", self.embedder.dim)
 
         return len(new_chunks)
 
     def ingest(self, text, source="inline"):
-
         return self.ingest_many({source: text})
 
     def ingest_file(self, path):
@@ -50,8 +48,8 @@ class RAGPipeline:
         # print("[ingest]", len(chunks), "chunks from", path)
 
         self._all_chunks.extend(chunks)
-        embeddings = self.embedder.embed_chunks(self._all_chunks)
-        self.store.add(self._all_chunks, embeddings)
+        embeddings = self.embedder.embed_chunks(chunks)
+        self.store.add(chunks, embeddings)
 
         # print("[ingest] vector size =", self.embedder.dim)
         return len(chunks)

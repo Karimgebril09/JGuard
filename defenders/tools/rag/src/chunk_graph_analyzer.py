@@ -47,10 +47,7 @@ class ChunkGraphAnalyzer:
         for i in range(n):
             for j in range(i + 1, n):
 
-                similarity = self.cosine_similarity(
-                    embeddings[i],
-                    embeddings[j]
-                )
+                similarity = self.cosine_similarity( embeddings[i], embeddings[j])
 
                 if similarity >= self.similarity_threshold:
                     graph[i].append(j)
@@ -58,16 +55,12 @@ class ChunkGraphAnalyzer:
 
         # Calculate average similarity
         for i in range(n):
-
             total_similarity = 0
 
             for j in range(n):
 
                 if i != j:
-                    total_similarity += self.cosine_similarity(
-                        embeddings[i],
-                        embeddings[j]
-                    )
+                    total_similarity += self.cosine_similarity(embeddings[i],embeddings[j])
 
             if n > 1:
                 average_similarity = total_similarity / (n - 1)
@@ -76,12 +69,7 @@ class ChunkGraphAnalyzer:
 
             is_outlier = average_similarity < self.outlier_threshold
             # return if the chunk has no neighbors and is an outlier
-            node = ChunkNode(
-                chunk=chunks[i],
-                similarity=average_similarity,
-                is_outlier=is_outlier,
-                no_neighbors=len(graph[i])
-            )
+            node = ChunkNode(chunk=chunks[i],similarity=average_similarity,is_outlier=is_outlier, no_neighbors=len(graph[i]))
 
             node_info.append(node)
 

@@ -19,7 +19,7 @@ def clean_text(text):
     text = re.sub(r'[^\w\s.,!?;:\'\"()-]', ' ', text)
     return text.strip()
 
-def split_text_inference(text, chunk_size=100):
+def split_text_inference(text, chunk_size=300):
     """split text into chunks to fit model input size"""
     words = text.split()
     chunks = []
@@ -108,7 +108,7 @@ class LSTMClassifier(nn.Module):
 
         out = torch.cat((forward, backward), dim=1)
 
-        out = self.dropout(out)
+        out = self.dropout(out) #reduce overfit
         out = self.fc1(out)
         out = self.relu(out)
         out = self.fc2(out)
@@ -126,12 +126,11 @@ class RefusalInference:
         self.model.load_state_dict(torch.load("./evaluation/refusal/models/lstm_refusal_model_bert.pt", map_location=self.device))
         self.model.to(self.device)
         self.model.eval()
-        
-    
     
     def predict(self, text):
         #apply clean 
         cleaned_text = clean_text(text)
+        
         #split text so at the end take max prediction of all 
         chunks = split_text_inference(cleaned_text, chunk_size=300)
         scores = []
