@@ -13,19 +13,12 @@ from textblob import TextBlob
 import warnings
 warnings.filterwarnings('ignore')
 
-# Download required NLTK data
 nltk.download('punkt', quiet=True)
 nltk.download('punkt_tab', quiet=True)
 nltk.download('stopwords', quiet=True)
 nltk.download('wordnet', quiet=True)
 
 def load_data():
-    """
-    Load training and testing datasets from CSV files.
-    Returns:
-        train_df (DataFrame): Training dataset
-        test_df (DataFrame): Testing dataset
-    """
     train_df = pd.read_csv('data/train.csv')
     test_df = pd.read_csv('data/test.csv')
     
@@ -35,7 +28,6 @@ def load_data():
     return train_df, test_df
 
 
-# PREPROCESSING PIPELINE
 REFUSAL_KEYWORDS = [
     'i cannot', 'i can\'t', 'i apologize', 'i\'m sorry', 'i cannot provide',
     'unable to', 'i cannot help', 'i don\'t', 'unfortunately', 'unable', 
@@ -79,7 +71,7 @@ def expand_contractions(text):
 
 def preprocess_text(text):
     """
-    Apply comprehensive preprocessing to text:
+    Apply preprocessing to text:
     1. Lowercasing
     2. Contraction expansion
     3. Noise removal and special character handling
@@ -90,10 +82,8 @@ def preprocess_text(text):
     """
     text = text.lower()
     
-    # Expand contractions to preserve meaning
     text = expand_contractions(text)
 
-    # Remove emojis
     emoji_pattern = re.compile(
         "["
         "\U0001F600-\U0001F64F"  # emoticons
@@ -134,8 +124,6 @@ def preprocess_text(text):
     
     return processed_text, tokens
 
-# FEATURE EXTRACTION 
-# 1. Response Length Features
 def extract_length_features(response_text):
     words = response_text.split()
     word_count = len(words)
@@ -147,9 +135,7 @@ def extract_length_features(response_text):
         'char_per_word': len(response_text) / max(word_count, 1)
     }
 
-# 2. Refusal Keywords Detection
 def detect_refusal_keywords(response_text):
-    """Detect if refusal keywords appear in the response, especially at the beginning"""
     text_lower = response_text.lower()
     
     # Check if any refusal keyword appears in the first 100 characters (beginning)
@@ -165,9 +151,7 @@ def detect_refusal_keywords(response_text):
         'has_any_refusal_keyword': 1 if has_keyword_overall > 0 else 0
     }
 
-# 3. Sentiment Analysis Features
 def extract_sentiment_features(response_text):
-    """Extract sentiment features using TextBlob"""
     try:
         blob = TextBlob(response_text)
         polarity = blob.sentiment.polarity  # -1 to 1 (negative to positive)
@@ -189,9 +173,7 @@ def extract_sentiment_features(response_text):
             'is_positive_sentiment': 0
         }
 
-# 4. Response Structure Features
 def extract_structure_features(response_text):
-    """Extract structural features of the response"""
     sentences = [s for s in response_text.split('.') if s.strip()]
     sentence_count = len(sentences)
     avg_sentence_length = np.mean([len(s.split()) for s in sentences]) if sentence_count > 0 else 0
@@ -211,9 +193,7 @@ def extract_structure_features(response_text):
         'has_multiple_sentences': has_multiple_sentences
     }
 
-# 5. Apologetic Tone Features
 def extract_apologetic_features(response_text):
-    """Detect apologetic/formal tone indicators"""
     text_lower = response_text.lower()
     
     apologetic_words = ['sorry', 'apologize', 'apologies', 'regret', 'unfortunately']
@@ -229,9 +209,7 @@ def extract_apologetic_features(response_text):
         'is_formal': 1 if has_formal > 0 else 0
     }
 
-# 6. First-Person Pronoun Features
 def extract_first_person_features(response_text):
-    """Extract first-person pronoun density - refusals heavily use 'I' statements"""
     text_lower = response_text.lower()
     words = text_lower.split()
     first_person = ['i', "i'm", "i've", "i'll", "i'd", 'me', 'my', 'myself', 
@@ -243,9 +221,7 @@ def extract_first_person_features(response_text):
         'first_person_ratio': fp_count / max(len(words), 1)
     }
 
-# 7. Hedging/Uncertainty Language Features
 def extract_hedging_features(response_text):
-    """Detect hedging and uncertainty language common in refusals"""
     text_lower = response_text.lower()
     hedging_words = ['however', 'but', 'although', 'while', 'instead', 
                      'alternatively', 'rather', 'perhaps', 'maybe', 'might',
@@ -257,9 +233,7 @@ def extract_hedging_features(response_text):
         'has_hedging': 1 if count > 0 else 0
     }
 
-# 8. Opening Pattern Detection
 def extract_opening_pattern_features(response_text):
-    """Detect refusal-specific opening patterns - very important for classification"""
     first_50 = response_text[:50].lower()
     
     refusal_openings = [
@@ -275,9 +249,7 @@ def extract_opening_pattern_features(response_text):
         'starts_with_refusal_pattern': 1 if starts_with_refusal else 0
     }
 
-# 9. Negation Density Features
 def extract_negation_features(response_text):
-    """Extract negation density - refusals have high negation counts"""
     text_lower = response_text.lower()
     negations = ["not", "no", "never", "don't", "won't", "can't", "cannot", 
                  "shouldn't", "wouldn't", "isn't", "aren't", "doesn't",
@@ -297,7 +269,6 @@ def extract_negation_features(response_text):
         'negation_ratio': neg_count / max(len(words), 1)
     }
 
-# Extract all features
 def extract_all_features(train_df, test_df):
     print("Extracting length features...")
     train_length_features = train_df['response'].apply(extract_length_features).apply(pd.Series)
@@ -370,11 +341,9 @@ def vectorize_tfidf(train_df, test_df, return_vectorizer=False):
     test_tfidf = tfidf_vectorizer.transform(test_df['processed_response'])
 
     print(f"TF-IDF shape - Train: {train_tfidf.shape}, Test: {test_tfidf.shape}")
-    # Convert sparse matrices to dense for concatenation with other features
     train_tfidf_dense = cast(Any, train_tfidf).toarray()
     test_tfidf_dense = cast(Any, test_tfidf).toarray()
 
-    # Create dataframes for vectorized features
     train_tfidf_df = pd.DataFrame(train_tfidf_dense, columns=[f'tfidf_{i}' for i in range(train_tfidf_dense.shape[1])])
     test_tfidf_df = pd.DataFrame(test_tfidf_dense, columns=[f'tfidf_{i}' for i in range(test_tfidf_dense.shape[1])])
 
@@ -391,11 +360,9 @@ def vectorize_count(train_df, test_df, return_vectorizer=False):
 
     print(f"Count Vectorizer shape - Train: {train_count.shape}, Test: {test_count.shape}")
 
-    # Convert sparse matrices to dense for concatenation with other features
     train_count_dense = cast(Any, train_count).toarray()
     test_count_dense = cast(Any, test_count).toarray()
 
-    # Create dataframes for vectorized features
     train_count_df = pd.DataFrame(train_count_dense, columns=[f'count_{i}' for i in range(train_count_dense.shape[1])])
     test_count_df = pd.DataFrame(test_count_dense, columns=[f'count_{i}' for i in range(test_count_dense.shape[1])])
 
