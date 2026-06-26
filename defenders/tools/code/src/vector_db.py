@@ -17,14 +17,14 @@ class VectorDatabase:
         dim = vectors.shape[1]
         self.index = faiss.IndexFlatL2(dim)
         self.index.add(vectors)
-        faiss.write_index(self.index, self.index_path)
-
     
     def add_vectors(self, vectors: np.ndarray, metadata: pd.DataFrame):
+        # if index is not available we create a new index
         if self.index is None:
             self.create_index(vectors)
+        else:
+            self.index.add(vectors)        
         self.metadata = pd.concat([self.metadata, metadata], ignore_index=True)
-        faiss.write_index(self.index, self.index_path)
 
     
     def load_index(self):
@@ -43,9 +43,10 @@ class VectorDatabase:
 
     
     def search(self, query_embedding, k):
+        # return indices of vectors
         _, indices = self.index.search(query_embedding, k)
         results = []
-        for idx in indices[0]:
+        for idx in indices[0]: # since only one query is passed we take 0
             if idx < len(self.metadata):
                 results.append(self.metadata.iloc[idx])
 

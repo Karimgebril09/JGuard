@@ -1,6 +1,6 @@
 from defenders.tools.code.src.ast_feature_extractor import extract_security_features_from_ast
 
-def test_ast_counting():
+def test_ast():
     code1 = """
 import os
 from subprocess import call
@@ -29,5 +29,5 @@ with open("./defenders/tools/code/test/test.txt", "w") as f:
 
 
 if __name__ == "__main__":
-    test_ast_counting()
+    test_ast()
     print("All tests passed!")

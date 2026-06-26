@@ -14,11 +14,12 @@ class CodeEmbedder:
         inputs = self.tokenizer(code, return_tensors="pt", truncation=True, max_length=512)
         with torch.no_grad():
             embedding = self.model(**inputs)
-        return F.normalize(embedding, p=2, dim=1)
+        return F.normalize(embedding, p=2, dim=1) # normalize the embedding using l2 norm along dim1 
     
 
     def embedd_chunks(self, chunks):
         chunks_embeddings = []
+        # loop and embedd every chunk
         for chunk in chunks:
             emb = self.embedd(chunk)
             chunks_embeddings.append(emb)
