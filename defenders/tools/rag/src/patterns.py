@@ -24,4 +24,4 @@ patterns = [
     r"###\s*(instruction|system|prompt)",
     r"\|\|.*\|\|", 
 ]
-compiled_patterns = [re.compile(p, re.IGNORECASE) for p in patterns]
+compiled_patterns=[re.compile(p, re.IGNORECASE) for p in patterns]

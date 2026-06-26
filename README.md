@@ -1,3 +1,11 @@
+# Download the requirements
+
+python -m pip install -r requirements.txt
+
+# Generating the harm classifiers (part of the obfuscation and preprocessing pipeline):
+
+run python defenders/obfuscation/stage8_custom_classifier/training_finetune_distilbert.py 
+
 # Creating the FastText Refusal Model
 
 ## Step 1: Download the Dataset
@@ -35,13 +43,12 @@ evaluation/
 Run the training script located in the `src` directory.
 
 
-# Running the Refusal dynamic embedding Classifier on Kaggle
-
+# Running the Refusal contextualized embedding Classifier
 ## Step 1: Create a Notebook
 
 * Go to **Kaggle**.
-* Select **Create → New Notebook**.
-* Click **File → Import Notebook**.
+* Select **Create New Notebook**.
+* Click **File Import Notebook**.
 * Upload:
 
   ```
@@ -65,16 +72,10 @@ Run the training script located in the `src` directory.
 
   use:
 
-  ```
   https://www.kaggle.com/datasets/mariamamin30/refusal-llm
-  ```
+  
 * Add the dataset to the notebook.
 
-The dataset will be available at:
-
-```text
-/kaggle/input/refusal-llm/
-```
 
 ## Step 4: Train the Model
 
@@ -133,13 +134,13 @@ Run the `fasttext_pii` training script located in the `train` directory.
 
 ---
 
-# Running the PII Detection dynamic embedding Model on Kaggle
+# Running the PII Detection contexualize embedding Model on Kaggle
 
 ## Step 1: Create a Notebook
 
 * Go to **Kaggle**.
-* Select **Create → New Notebook**.
-* Click **File → Import Notebook**.
+* Select **Create New Notebook**.
+* Click **File Import Notebook**.
 * Upload:
 
   ```
@@ -163,16 +164,9 @@ Run the `fasttext_pii` training script located in the `train` directory.
 
    use:
 
-  ```
   https://www.kaggle.com/datasets/karimmahmoud09/pii-safety-dataset
-  ```
+  
 * Add the dataset.
-
-The dataset will be available at:
-
-```text
-/kaggle/input/pii-safety-dataset/
-```
 
 ## Step 4: Train the Model
 

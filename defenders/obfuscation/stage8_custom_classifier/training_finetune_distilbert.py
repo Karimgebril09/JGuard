@@ -463,25 +463,25 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Fine-tune DistilBERT for stage-8 binary safe/unsafe plus unsafe-category prediction."
     )
-    parser.add_argument("--split", default="30k_train", help="BeaverTails split to use.")
-    parser.add_argument("--safe-samples", type=int, default=2500)
-    parser.add_argument("--max-unsafe-per-class", type=int, default=2500)
+    parser.add_argument("--split", default="330k_train", help="BeaverTails split to use.")
+    parser.add_argument("--safe-samples", type=int, default=75000)
+    parser.add_argument("--max-unsafe-per-class", type=int, default=12000)
     parser.add_argument("--max-total-rows", type=int, default=None)
     parser.add_argument("--test-size", type=float, default=0.2)
     parser.add_argument("--random-state", type=int, default=42)
     parser.add_argument("--model-name", default="distilbert-base-uncased")
     parser.add_argument("--max-length", type=int, default=128)
-    parser.add_argument("--epochs", type=int, default=4)
+    parser.add_argument("--epochs", type=int, default=8)
     parser.add_argument("--train-batch-size", type=int, default=32)
     parser.add_argument("--eval-batch-size", type=int, default=64)
     parser.add_argument("--learning-rate", type=float, default=2e-5)
     parser.add_argument("--warmup-ratio", type=float, default=0.1)
     parser.add_argument("--weight-decay", type=float, default=0.01)
-    parser.add_argument("--logging-steps", type=int, default=50)
+    parser.add_argument("--logging-steps", type=int, default=100)
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path(__file__).resolve().parent / "distilbert_artifacts",
+        default=Path(__file__).resolve().parent / "models",
     )
     return parser.parse_args()
 

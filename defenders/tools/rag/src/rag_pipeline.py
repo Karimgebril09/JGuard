@@ -3,27 +3,22 @@ from defenders.tools.rag.src.chunker import DocumentChunker
 from defenders.tools.rag.src.vector_store import VectorStore
 from defenders.tools.rag.src.embedder import Embedder
 
-_RAG_TEXT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "txt", "rag_text.txt")
-
-
+_RAG_TEXT_PATH=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "txt", "rag_text.txt")
 class RAGPipeline:
 
-    def __init__(self, chunk_size=300, overlap=50, embed_model="all-mpnet-base-v2", top_k=5):
-        self.chunker = DocumentChunker(chunk_size, overlap)
-        self.embedder = Embedder(embed_model)
-        self.store =  VectorStore(self.embedder.dim)
-        self.top_k = top_k
-        self._all_chunks = []
+    def __init__(self, chunk_size=300, overlap=50,embed_model="all-mpnet-base-v2", top_k=5):
+        self.chunker=DocumentChunker(chunk_size, overlap)
+        self.embedder=Embedder(embed_model)
+        self.store= VectorStore(self.embedder.dim)
+        self.top_k=top_k
+        self._all_chunks=[]
 
     def ingest_many(self, docs):
-
-        new_chunks = []
-
+        new_chunks=[]
         #Chunk all documents
         for source in docs:
-
-            text = docs[source]
-            chunks = self.chunker.chunk_text(text, source)
+            text=docs[source]
+            chunks=self.chunker.chunk_text(text,source)
             # print("[ingest]", len(chunks), "chunks from", source)
             for chunk in chunks:
                 new_chunks.append(chunk)
@@ -31,12 +26,11 @@ class RAGPipeline:
         self._all_chunks.extend(new_chunks)
 
  
-        embeddings = self.embedder.embed_chunks(new_chunks)
+        embeddings=self.embedder.embed_chunks(new_chunks)
 
         #Store everything
         self.store.add(new_chunks, embeddings)
-
-        # print("[ingest] vector size =", self.embedder.dim)
+        # print("[ingest] vector size=", self.embedder.dim)
 
         return len(new_chunks)
 
@@ -44,30 +38,24 @@ class RAGPipeline:
         return self.ingest_many({source: text})
 
     def ingest_file(self, path):
-        chunks = self.chunker.load_file(path)
+        chunks=self.chunker.load_file(path)
         # print("[ingest]", len(chunks), "chunks from", path)
 
         self._all_chunks.extend(chunks)
-        embeddings = self.embedder.embed_chunks(chunks)
+        embeddings=self.embedder.embed_chunks(chunks)
         self.store.add(chunks, embeddings)
 
-        # print("[ingest] vector size =", self.embedder.dim)
+        # print("[ingest] vector size=", self.embedder.dim)
         return len(chunks)
 
     def retrieve(self, query):
-
         if self.store is None:
             raise Exception("No documents added yet")
-
-        query_vector = self.embedder.embed_query(query)
+        query_vector=self.embedder.embed_query(query)
 
         return self.store.search(query_vector, self.top_k)
     
 
-rag = RAGPipeline(
-    chunk_size=100,   
-    overlap=20,      
-    top_k=4,         
-)
+rag=RAGPipeline(chunk_size=100,overlap=20,top_k=4,)
 
 rag.ingest_file(_RAG_TEXT_PATH)
