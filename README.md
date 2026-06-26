@@ -218,3 +218,7 @@ defender/
     └── integrated/
         └── models/
 ```
+
+# To generate the roleplaying model:
+
+run the notebook train.ipynb in defenders/roleplaying/
