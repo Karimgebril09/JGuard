@@ -1,7 +1,7 @@
 
 
 
-from defenders.pii_detection.hmm.src.word_features import extract_word_features
+from defenders.pii_detection.hmm.utility.word_features import extract_word_features
 
 
 class TestWordFeatures:
