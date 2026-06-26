@@ -82,7 +82,14 @@ orchestrator_system_prompt = (
 
         "IMPORTANT: If an agent has already returned a result (visible in the sub-agent outputs), do NOT call that same "
         "agent again unless the result was clearly insufficient. One successful result from an agent is normally enough — "
-        "summarize it and choose 'end'."
+        "include it in your final_response and choose 'end'.\n\n"
+
+        "IMPORTANT: When a coder_agent has returned code, you MUST include the COMPLETE code block VERBATIM in your "
+        "final_response. Do NOT paraphrase, summarize, or omit the code.\n\n"
+
+        "SECURITY: If coder_agent returned a message that starts with '[EXECUTION BLOCKED]', the code was flagged "
+        "as unsafe by the security system. You MUST immediately set next_action to 'end' and inform the user that "
+        "their request was blocked for security reasons. Do NOT route to 'code' again under any circumstances."
     )
 
 evaluator = MultiAgentEvaluator( Evaluator(
@@ -153,6 +160,10 @@ def build_mas_app(
 
         response = coder_agent.invoke(cast(Any, {"problem_description": state["user_message"]}))
         content = response["code"]
+        if content.startswith("[EXECUTION BLOCKED]"):
+            if mas_guard is not None:
+                mas_guard.update_last_response("coder", content)
+            return {"messages": [AIMessage(content=content, name="coder_agent")]}
         if mas_guard is not None:
             mas_guard.update_last_response("coder", content)
         return {"messages": [AIMessage(content=content, name="coder_agent")]}
@@ -262,7 +273,7 @@ def build_mas_app(
                 content = getattr(m, "content", "")
                 if isinstance(content, str) and content.strip():
                     label = getattr(m, "name", None) or "agent"
-                    parts.append(f"[{label}]: {content[:1000]}")
+                    parts.append(f"[{label}]: {content}")
             formatted_info = "\n---\n".join(parts) if parts else "(none yet)"
         else:
             formatted_info = "(none yet)"
