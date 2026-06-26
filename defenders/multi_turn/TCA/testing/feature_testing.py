@@ -38,10 +38,11 @@ class TestFeatureMath:
             self.extract.drift_history[-1]
             - self.extract.drift_history[-2]
         )
-       
+        #test if the drift acceleration is equal to the expected value
         assert abs(features["drift_acceleration"] - expected) < 1e-4  #should be equal
 
     def test_topic_drift_non_negative(self ):
+        #test that the topic drift is non negative
         self.extract.reset()
         
         features = self.extract.extract_features(
@@ -53,6 +54,7 @@ class TestFeatureMath:
 
 
     def test_trajectory_linearity_range(self):
+        #test that the trajectory linearity is in the range [0, 1]
         self.extract.reset()
         for text in ["A", "B", "C", "D"]:
             features = self.extract.extract_features(text, text)
@@ -60,6 +62,7 @@ class TestFeatureMath:
         assert 0 <= features["trajectory_linearity"] <= 1 # see values in rage 0 ,1 
         
     def test_trajectory_monotonic_growth(self):
+        #see that the trajectory linearity is monotonic
         self.extract.reset()
         last = -1
 
@@ -72,6 +75,7 @@ class TestFeatureMath:
 
     
     def test_threat_ordering(self):
+        
         self.extract.reset()
         safe = self.extract.extract_features("Hello friend", "Hi")
         unsafe = self.extract.extract_features("I will kill you", "Hi")

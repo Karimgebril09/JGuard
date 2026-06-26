@@ -8,7 +8,7 @@ class BaseClassifier:
         self.model = joblib.load(model_path)
 
     def _prepare(self, emb):
-        return emb.reshape(1, -1)  
+        return emb.reshape(1, -1) # as it expect a 2D array 
 
     def score(self, emb):
         x = self._prepare(emb)
