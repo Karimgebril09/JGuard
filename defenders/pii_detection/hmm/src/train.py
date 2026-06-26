@@ -12,10 +12,8 @@ from defenders.pii_detection.hmm.src.word_features import extract_word_features 
 def encode_tags(tag_seqs):
     return [[NER_TAG_TO_INDEX.get(t, NER_TAG_TO_INDEX['O']) for t in seq] for seq in tag_seqs]
 
-
-
-def word_to_feature_indices(word, vocab):
-    tokens = [word] + extract_word_features(word)
+def word_to_feature_indices(word,vocab):
+    tokens= [word] + extract_word_features(word)
     return [vocab.get(t, vocab['UNK']) for t in tokens]
 
 
@@ -24,62 +22,57 @@ def encode_words_enhanced(word_seqs, vocab):
 
 
 def main():
-    df = pd.read_parquet('../data/word_based_data.parquet')
+    df= pd.read_parquet('../data/word_based_data.parquet')
 
-    train_df, test_df = train_test_split(df, test_size=0.1, random_state=42)
-    train_df, val_df = train_test_split(train_df, test_size=0.1, random_state=42)
+    train_df, test_df= train_test_split(df, test_size=0.1, random_state=42)
+    train_df, val_df= train_test_split(train_df, test_size=0.1, random_state=42)
     print(len(train_df), len(val_df), len(test_df))
 
-    train_words_raw = [list(x) for x in train_df['words'].tolist()]
-    train_tags_raw = [list(x) for x in train_df['labels'].tolist()]
+    train_words_raw=[list(x) for x in train_df['words'].tolist()]
+    train_tags_raw= [list(x) for x in train_df['labels'].tolist()]
 
-    test_words_raw = [list(x) for x in test_df['words'].tolist()]
-    test_tags_raw = [list(x) for x in test_df['labels'].tolist()]
+    test_words_raw= [list(x) for x in test_df['words'].tolist()]
+    test_tags_raw=[list(x) for x in test_df['labels'].tolist()]
 
-    train_tags = encode_tags(train_tags_raw)
-    test_tags = encode_tags(test_tags_raw)
+    train_tags=encode_tags(train_tags_raw)
+    test_tags= encode_tags(test_tags_raw)
 
-    # build enhanced vocabulary (words + Zhou & Su features)
-    enhanced_vocab = {}
+    # build enhanced vocabulary 
+    enhanced_vocab= {}
 
-    def register(tok):
-        if tok not in enhanced_vocab:
-            enhanced_vocab[tok] = len(enhanced_vocab)
 
     for seq in train_words_raw:
         for w in seq:
-            register(w)
+            if w not in enhanced_vocab:
+                enhanced_vocab[w]=len(enhanced_vocab)
             for f in extract_word_features(w):
-                register(f)
+                if f not in enhanced_vocab:
+                    enhanced_vocab[f]= len(enhanced_vocab)
 
-    enhanced_vocab['UNK'] = len(enhanced_vocab)
+    enhanced_vocab['UNK']= len(enhanced_vocab)
 
-    train_obs_enhanced = encode_words_enhanced(train_words_raw, enhanced_vocab)
-    test_obs_enhanced = encode_words_enhanced(test_words_raw, enhanced_vocab)
+    train_obs_enhanced= encode_words_enhanced(train_words_raw, enhanced_vocab)
+    test_obs_enhanced=encode_words_enhanced(test_words_raw,enhanced_vocab)
 
-    train_tags_enhanced = train_tags
-    test_tags_enhanced = test_tags
 
     print(f"Enhanced vocab size: {len(enhanced_vocab)}")
 
-    enhanced_model = HMM(num_states=len(NER_TAGS), vocab_size=len(enhanced_vocab))
-    enhanced_model.train(train_tags_enhanced, train_obs_enhanced)
-    print("Enhanced training complete.")
+    enhanced_model= HMM(num_states=len(NER_TAGS), vocab_size=len(enhanced_vocab))
+    enhanced_model.train(train_tags, train_obs_enhanced)
 
-    enhanced_preds = [enhanced_model.predict(seq) for seq in test_obs_enhanced]
+    enhanced_preds= [enhanced_model.predict(seq) for seq in test_obs_enhanced]
 
-    print("\nSeqeval Classification Report:")
     print(seqeval_report(
-        [[INDEX_TO_NER_TAG[t] for t in seq] for seq in test_tags_enhanced],
+        [[INDEX_TO_NER_TAG[t] for t in seq] for seq in test_tags],
         [[INDEX_TO_NER_TAG[t] for t in seq] for seq in enhanced_preds],
         zero_division=0
     ))
     print("Span-Level F1:", f1_score(
-        [[INDEX_TO_NER_TAG[t] for t in seq] for seq in test_tags_enhanced],
+        [[INDEX_TO_NER_TAG[t] for t in seq] for seq in test_tags],
         [[INDEX_TO_NER_TAG[t] for t in seq] for seq in enhanced_preds],
         average='micro'
     ))
 
 
-if __name__ == "__main__":
+if __name__== "__main__":
     main()
