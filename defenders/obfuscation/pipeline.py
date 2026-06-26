@@ -18,7 +18,7 @@ import time
 Stage8Classifier = Callable[[str], dict[str, Any]]
 
 
-def _resolve_harm_label(stage8_result: dict[str, Any]) -> str | None:
+def det_harm_label(stage8_result: dict[str, Any]) -> str | None:
     mapped = stage8_result.get("mapped_categories")
     if isinstance(mapped, list) and mapped:
         first = mapped[0]
@@ -36,31 +36,24 @@ def run_obfuscation_pipeline(raw_input: str | bytes, stage8_use_distilbert: bool
     start_time = time.time()
     stage_outputs: dict[str, Any] = {}
 
-    # Stage 1: Profile raw input
     s1_profile = profile_input(raw_input)
     stage_outputs["stage1"] = s1_profile
 
-    # Stage 2: Decode ciphers
     s2_decoded = decode_stage2(raw_input)
     stage_outputs["stage2"] = s2_decoded
 
-    # Stage 3: Unicode normalization and homoglyph collapse
     s3_normalized = normalize_stage3(str(s2_decoded["decoded_text"]))
     stage_outputs["stage3"] = s3_normalized
 
-    # Stage 4: Leetspeak and substitution resolution
     s4_resolved = resolve_stage4(str(s3_normalized["normalized_text"]))
     stage_outputs["stage4"] = s4_resolved
 
-    # Stage 5: Structural defragmentation
     s5_defragmented = defragment_stage5(str(s4_resolved["resolved_text"]))
     stage_outputs["stage5"] = s5_defragmented
 
-    # Stage 6: Canonicalization
     s6_canonical = canonicalize_stage6(str(s5_defragmented["defragmented_text"]))
     stage_outputs["stage6"] = s6_canonical
 
-    # Stage 7: metadata 
     s7_metadata_envelope = package_stage7(
         canonical_input=s6_canonical,
         stage1_profile=s1_profile,
@@ -71,7 +64,6 @@ def run_obfuscation_pipeline(raw_input: str | bytes, stage8_use_distilbert: bool
     )
     stage_outputs["stage7"] = s7_metadata_envelope
 
-    # Stage 8: Harm classification
     s8_final_envelope = classify_stage8(
         canonical_text=str(s7_metadata_envelope["canonical_text"]),
         metadata_envelope=s7_metadata_envelope,
@@ -83,7 +75,7 @@ def run_obfuscation_pipeline(raw_input: str | bytes, stage8_use_distilbert: bool
     clean_text = str(s6_canonical["canonical_text"])
     is_safe = bool(stage8_result.get("is_safe", False))
     decision = "safe" if is_safe else "unsafe"
-    harm_label = _resolve_harm_label(stage8_result)
+    harm_label = det_harm_label(stage8_result)
 
     elapsed_ms = (time.time() - start_time) * 1000
 

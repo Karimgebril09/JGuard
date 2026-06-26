@@ -6,7 +6,7 @@ from .stage5_defragmenting import defragment_stage5
 from .stage6_canonicalizing import canonicalize_stage6
 from .stage7_metadata import package_stage7
 from .stage8_harm_classifier import classify_input, classify_stage8, parse_llama_guard_response
-from .stage8_custom_classifier import load_stage8_baseline_classifier
+from .stage8_custom_classifier import load_lr_baseline
 from .pipeline import run_obfuscation, run_obfuscation_pipeline
 
 __all__ = [
@@ -22,5 +22,5 @@ __all__ = [
     "resolve_stage4",
     "run_obfuscation",
     "run_obfuscation_pipeline",
-    "load_stage8_baseline_classifier",
+    "load_lr_baseline",
 ]

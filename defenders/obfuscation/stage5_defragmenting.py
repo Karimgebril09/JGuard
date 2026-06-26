@@ -4,7 +4,6 @@ import importlib
 from math import log
 import re
 from typing import Any
-from defenders.obfuscation.helper import normalize_input
 
 zipf_frequency = importlib.import_module("wordfreq").zipf_frequency
 
@@ -24,7 +23,7 @@ SLICE_REVERSE_REGEX = re.compile(r"(?P<q>['\"])(?P<body>.*?)(?P=q)\s*\[\s*::\s*-
 
 MIN_WORD_ZIPF = 3.0
 
-def fallback_token_score(token: str) -> float:
+def token_skore(token: str) -> float:
     if not token:
         return -2.0
     vowels = sum(1 for ch in token if ch in "aeiou")
@@ -34,7 +33,7 @@ def fallback_token_score(token: str) -> float:
     return max(-0.8, 0.15 + (vowels / max(len(token), 1)) - (0.1 * repeated))
 
 
-def is_text_likely_english(text: str) -> float:
+def is_english(text: str) -> float:
     if not text:
         return float("-inf")
 
@@ -53,7 +52,7 @@ def is_text_likely_english(text: str) -> float:
         if freq >= MIN_WORD_ZIPF:
             token_score += 1.2 + freq
         else:
-            token_score += fallback_token_score(token)
+            token_score += token_skore(token)
 
     return (
         token_score
@@ -108,7 +107,7 @@ def parse_arr_assignmts(text: str) -> dict[str, list[str]]:
     return arrays
 
 
-def res_arr_idx_expression(
+def res_arr_idx_expr(
     text: str,
     arrays: dict[str, list[str]],
 ) -> tuple[str, list[dict[str, Any]]]:
@@ -172,8 +171,8 @@ def res_slice_reverse(text: str) -> tuple[str, list[dict[str, Any]]]:
 
 def try_reverse_txt(text: str, min_improvement: float) -> tuple[str, dict[str, Any] | None]:
     reversed_text = text[::-1]
-    forward_score = is_text_likely_english(text)
-    reverse_score = is_text_likely_english(reversed_text)
+    forward_score = is_english(text)
+    reverse_score = is_english(reversed_text)
     forward_hits = find_dict_hits(text)
     reverse_hits = find_dict_hits(reversed_text)
 
@@ -199,18 +198,14 @@ def try_reverse_txt(text: str, min_improvement: float) -> tuple[str, dict[str, A
     )
 
 
-def defragment_stage5(
-    raw_input: str | bytes,
-    reverse_min_improvement: float = 1.35,
-) -> dict[str, object]:
-    original_text = normalize_input(raw_input)
+def defragment_stage5(raw_input: str, reverse_min_improvement: float = 1.35) -> dict[str, object]:
     decisions: list[dict[str, Any]] = []
 
-    text_after_literal, literal_decisions = res_concat(original_text)
+    text_after_literal, literal_decisions = res_concat(raw_input)
     decisions.extend(literal_decisions)
 
     arrays = parse_arr_assignmts(text_after_literal)
-    text_after_indices, index_decisions = res_arr_idx_expression(text_after_literal, arrays)
+    text_after_indices, index_decisions = res_arr_idx_expr(text_after_literal, arrays)
     decisions.extend(index_decisions)
 
     text_after_slice, slice_decisions = res_slice_reverse(text_after_indices)
@@ -227,7 +222,7 @@ def defragment_stage5(
     confidence = round(sum(confidences) / len(confidences), 4) if confidences else 0.0
 
     return {
-        "original_text": original_text,
+        "original_text": raw_input,
         "defragmented_text": final_text,
         "fragments_resolved": len(decisions),
         "reversed_applied": reverse_decision is not None,

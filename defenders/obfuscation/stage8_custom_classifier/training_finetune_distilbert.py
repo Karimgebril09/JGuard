@@ -67,7 +67,7 @@ CATEGORY_MAP: dict[str, str] = {
 SAFE_LABEL = "safe"
 
 
-def _resolve_prompt_column(df: pd.DataFrame) -> str:
+def get_prompt_col(df: pd.DataFrame) -> str:
     candidate_columns = ("prompt", "instruction", "question")
     for column in candidate_columns:
         if column in df.columns:
@@ -78,7 +78,7 @@ def _resolve_prompt_column(df: pd.DataFrame) -> str:
     )
 
 
-def _extract_active_categories(value: Any) -> list[str]:
+def extr_active_categ(value: Any) -> list[str]:
     if isinstance(value, dict):
         return [str(key) for key, enabled in value.items() if bool(enabled)]
     if isinstance(value, list):
@@ -88,7 +88,7 @@ def _extract_active_categories(value: Any) -> list[str]:
     return []
 
 
-def _pick_mapped_category(active_categories: list[str]) -> str | None:
+def pick_categ(active_categories: list[str]) -> str | None:
     mapped = [CATEGORY_MAP[c] for c in active_categories if c in CATEGORY_MAP]
     if not mapped:
         return None
@@ -96,7 +96,7 @@ def _pick_mapped_category(active_categories: list[str]) -> str | None:
     return mapped[0]
 
 
-def _sample_grouped(
+def sample_groups(
     df: pd.DataFrame,
     *,
     label_column: str,
@@ -121,15 +121,15 @@ def prepare_dataset(
 ) -> tuple[pd.DataFrame, str]:
     ds = load_dataset("PKU-Alignment/BeaverTails", split=split)
     df = cast(pd.DataFrame, ds.to_pandas())
-    prompt_column = _resolve_prompt_column(df)
+    prompt_column = get_prompt_col(df)
 
     working = df.copy()
-    working["active_categories"] = working["category"].map(_extract_active_categories)
-    working["mapped_category"] = working["active_categories"].map(_pick_mapped_category)
+    working["active_categories"] = working["category"].map(extr_active_categ)
+    working["mapped_category"] = working["active_categories"].map(pick_categ)
 
     unsafe_df = working[(working["is_safe"] == False) & (working["mapped_category"].notna())]
     if max_unsafe_per_class is not None:
-        unsafe_df = _sample_grouped(
+        unsafe_df = sample_groups(
             unsafe_df,
             label_column="mapped_category",
             max_per_label=max_unsafe_per_class,
@@ -159,7 +159,7 @@ def prepare_dataset(
     return final_df, prompt_column
 
 
-def _tokenize_dataset(
+def tokenize_dataset(
     dataset: Dataset,
     *,
     tokenizer: Any,
@@ -178,7 +178,7 @@ def _tokenize_dataset(
     return tokenized
 
 
-def _compute_metrics(eval_pred: Any) -> dict[str, float]:
+def get_metrics(eval_pred: Any) -> dict[str, float]:
     logits, labels = eval_pred
     preds = np.argmax(logits, axis=1)
     return {
@@ -187,7 +187,7 @@ def _compute_metrics(eval_pred: Any) -> dict[str, float]:
     }
 
 
-def _build_training_args(
+def write_training_args(
     *,
     output_dir: Path,
     epochs: int,
@@ -270,15 +270,15 @@ def train_and_evaluate(
     test_binary_ds = Dataset.from_dict(
         {"text": X_test, "label": np.asarray(y_binary_test).tolist()}
     )
-    train_binary_ds = _tokenize_dataset(train_binary_ds, tokenizer=tokenizer, max_length=max_length)
-    test_binary_ds = _tokenize_dataset(test_binary_ds, tokenizer=tokenizer, max_length=max_length)
+    train_binary_ds = tokenize_dataset(train_binary_ds, tokenizer=tokenizer, max_length=max_length)
+    test_binary_ds = tokenize_dataset(test_binary_ds, tokenizer=tokenizer, max_length=max_length)
 
     binary_model = AutoModelForSequenceClassification.from_pretrained(
         model_name,
         num_labels=len(binary_encoder.classes_),
     )
 
-    binary_args = _build_training_args(
+    binary_args = write_training_args(
         output_dir=output_dir / "binary_run",
         epochs=epochs,
         train_batch_size=train_batch_size,
@@ -295,7 +295,7 @@ def train_and_evaluate(
         args=binary_args,
         train_dataset=train_binary_ds,
         eval_dataset=test_binary_ds,
-        compute_metrics=_compute_metrics,
+        compute_metrics=get_metrics,
     )
     binary_trainer.train()
 
@@ -336,7 +336,7 @@ def train_and_evaluate(
     train_category_ds = Dataset.from_dict(
         {"text": X_category_train, "label": np.asarray(y_category_train).tolist()}
     )
-    train_category_ds = _tokenize_dataset(
+    train_category_ds = tokenize_dataset(
         train_category_ds, tokenizer=tokenizer, max_length=max_length
     )
 
@@ -349,7 +349,7 @@ def train_and_evaluate(
         test_category_ds = Dataset.from_dict(
             {"text": X_category_test, "label": y_category_test_np}
         )
-        test_category_ds = _tokenize_dataset(
+        test_category_ds = tokenize_dataset(
             test_category_ds, tokenizer=tokenizer, max_length=max_length
         )
 
@@ -358,7 +358,7 @@ def train_and_evaluate(
         num_labels=len(category_encoder.classes_),
     )
 
-    category_args = _build_training_args(
+    category_args = write_training_args(
         output_dir=output_dir / "category_run",
         epochs=epochs,
         train_batch_size=train_batch_size,
@@ -377,7 +377,7 @@ def train_and_evaluate(
         args=category_args,
         train_dataset=train_category_ds,
         eval_dataset=test_category_ds,
-        compute_metrics=_compute_metrics,
+        compute_metrics=get_metrics,
     )
     category_trainer.train()
 

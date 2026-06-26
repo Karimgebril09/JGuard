@@ -7,7 +7,6 @@ import importlib
 import re
 from typing import Any
 from urllib.parse import unquote, unquote_plus
-from defenders.obfuscation.helper import normalize_input
 
 zipf_frequency = importlib.import_module("wordfreq").zipf_frequency
 
@@ -23,7 +22,7 @@ def convert_to_text(data: bytes) -> str:
     return data.decode("utf-8", errors="replace")
 
 
-def is_text_mostly_printable_chars(text: str) -> bool:
+def mostly_printable_chars(text: str) -> bool:
     if not text:
         return False
     printable = sum(1 for character in text if character.isprintable() or character.isspace())
@@ -36,7 +35,7 @@ def replacement_ratio(text: str) -> float:
     return text.count("\ufffd") / len(text)
 
 
-def is_text_likely_english(text: str) -> float:
+def is_english(text: str) -> float:
     if not text:
         return float("-inf")
 
@@ -66,14 +65,14 @@ def is_text_likely_english(text: str) -> float:
     )
 
 
-def decode_html_entity(text: str) -> str | None:
+def decode_html(text: str) -> str | None:
     if not HTML_ENTITY_REGEX.search(text):
         return None
     decoded = html.unescape(text)
     return decoded if decoded != text else None
 
 
-def decode_url_encoding(text: str) -> str | None:
+def decode_url(text: str) -> str | None:
     if not PERCENT_REGEX.search(text) and "+" not in text:
         return None
 
@@ -121,14 +120,14 @@ def decode_base64(text: str) -> str | None:
         text_result = convert_to_text(decoded)
         if text_result == text:
             continue
-        if not is_text_mostly_printable_chars(text_result):
+        if not mostly_printable_chars(text_result):
             continue
 
         if replacement_ratio(text_result) > 0.08:
             continue
 
-        baseline_score = is_text_likely_english(text)
-        decoded_score = is_text_likely_english(text_result)
+        baseline_score = is_english(text)
+        decoded_score = is_english(text_result)
         if decoded_score <= baseline_score + 0.35:
             continue
 
@@ -137,11 +136,11 @@ def decode_base64(text: str) -> str | None:
     return None
 
 
-def decode_rot_ciphers(text: str) -> tuple[str, int, float] | None:
+def decode_rot(text: str) -> tuple[str, int, float] | None:
     if not any(character.isalpha() for character in text):
         return None
 
-    baseline_score = is_text_likely_english(text)
+    baseline_score = is_english(text)
     best_shift = 0
     best_score = baseline_score
     best_candidate = text
@@ -157,7 +156,7 @@ def decode_rot_ciphers(text: str) -> tuple[str, int, float] | None:
                 shifted.append(character)
 
         candidate = "".join(shifted)
-        candidate_score = is_text_likely_english(candidate)
+        candidate_score = is_english(candidate)
         if candidate_score > best_score:
             best_score = candidate_score
             best_shift = shift
@@ -173,8 +172,7 @@ def decode_rot_ciphers(text: str) -> tuple[str, int, float] | None:
 
 
 def decode_stage2(raw_input: str | bytes, max_iterations: int = 5) -> dict[str, Any]:
-    current_text = normalize_input(raw_input)
-    original_text = current_text
+    current_text = raw_input if isinstance(raw_input, str) else convert_to_text(raw_input)
     steps: list[dict[str, Any]] = []
     iteration_count = 0
     changed = False
@@ -184,8 +182,8 @@ def decode_stage2(raw_input: str | bytes, max_iterations: int = 5) -> dict[str, 
         changed = False
 
         for name, decoder in (
-            ("html_entities", decode_html_entity),
-            ("url_percent_encoding", decode_url_encoding),
+            ("html_entities", decode_html),
+            ("url_percent_encoding", decode_url),
             ("hex", decode_hex),
             ("base64", decode_base64),
         ):
@@ -206,7 +204,7 @@ def decode_stage2(raw_input: str | bytes, max_iterations: int = 5) -> dict[str, 
             changed = True
             break
 
-        rot_candidate = decode_rot_ciphers(current_text)
+        rot_candidate = decode_rot(current_text)
         if rot_candidate is not None:
             decoded, shift, score = rot_candidate
             steps.append(
@@ -225,7 +223,7 @@ def decode_stage2(raw_input: str | bytes, max_iterations: int = 5) -> dict[str, 
             break
 
     return {
-        "original_text": original_text,
+        "original_text": raw_input,
         "decoded_text": current_text,
         "steps": steps,
         "stable": not changed or iteration_count < max_iterations,

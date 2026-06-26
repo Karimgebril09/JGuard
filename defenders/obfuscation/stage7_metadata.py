@@ -4,7 +4,7 @@ from typing import Any
 import difflib
 
 
-def make_unified_diff(original_text: str, normalized_text: str) -> str:
+def write_uni_diff(original_text: str, normalized_text: str) -> str:
     if original_text == normalized_text:
         return ""
     diff_lines = difflib.unified_diff(
@@ -18,7 +18,6 @@ def make_unified_diff(original_text: str, normalized_text: str) -> str:
 
 
 def package_stage7(
-    *,
     canonical_input: Any,
     stage1_profile: Any | None = None,
     stage2_decoded: Any | None = None,
@@ -100,6 +99,6 @@ def package_stage7(
             "transformations_applied": len(transformations),
             "anomalies_detected": len(anomalies),
             "decode_layers": len(s2.get("steps", [])),
-            "diff": make_unified_diff(original_text, canonical_text),
+            "diff": write_uni_diff(original_text, canonical_text),
         },
     }
