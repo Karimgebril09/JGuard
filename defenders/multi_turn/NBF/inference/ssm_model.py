@@ -7,7 +7,7 @@ _MODELS_DIR = os.path.join(_BASE_DIR, "..", "..","integrated", "models")
 class stateSpaceModel(nn.Module):
     def __init__(self,state_dim, input_dim, hidden_dim1,hidden_dim2, output_dim):
         super(stateSpaceModel, self).__init__()
-        # F(x_{t-1},u_t)=>x_t (Transition model)
+        # x_prev, u_t => x_t 
         self.Fxu = nn.Sequential(
             nn.Linear(state_dim + input_dim, hidden_dim1),
             nn.ReLU(),
@@ -16,7 +16,7 @@ class stateSpaceModel(nn.Module):
             nn.Linear(hidden_dim2, state_dim)
         )
 
-        # G(x_t,u_t)=>z_t (Observation model)
+        # x_t, u_t => z_t
         self.Gxu = nn.Sequential(
             nn.Linear(state_dim + input_dim, hidden_dim1),
             nn.ReLU(),
@@ -59,6 +59,7 @@ class ConversationDynamicsModel:
 
 
     def get_next_state(self, u):
+        """return the current state"""
         with torch.no_grad():
             u_tensor = torch.as_tensor(u, dtype=torch.float32)
             if u_tensor.dim() == 1:
