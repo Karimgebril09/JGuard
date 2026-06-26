@@ -25,10 +25,10 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="{x:Bind Id}" Foreground="#05D9E8" FontWeight="SemiBold"/>
-                <TextBlock Grid.Column="1" Text="{x:Bind FormattedTime}" Foreground="#94A3B8"/>
-                <TextBlock Grid.Column="2" Text="{x:Bind TargetModel}"/>
-                <TextBlock Grid.Column="3" Text="{x:Bind AttackStrategy}"/>
-                <TextBlock Grid.Column="4" Text="{x:Bind DefenseConfig}"/>
+                <TextBlock Grid.Column="1" Text="{x:Bind FormattedTime}" Foreground="#94A3B8" Margin="0,0,8,0" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Column="2" Text="{x:Bind TargetModel}" Margin="0,0,8,0" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Column="3" Text="{x:Bind AttackStrategy}" Margin="0,0,8,0" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Column="4" Text="{x:Bind DefenseConfig}" Margin="0,0,8,0" TextTrimming="CharacterEllipsis"/>
                 <TextBlock Grid.Column="5" Text="{x:Bind FormattedSuccess}" Foreground="{x:Bind SuccessColor}" FontWeight="Bold"/>
                 <TextBlock Grid.Column="6" Text="{x:Bind TotalVulnerabilities}" Foreground="#FF2D55"/>
                 <TextBlock Grid.Column="7" Text="{x:Bind Duration}" Foreground="#94A3B8"/>
@@ -177,24 +177,21 @@
                                 <StackPanel Spacing="10">
                                     <TextBlock Text="METRIC" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
                                     <TextBlock Text="Jailbreak Success Rate" FontWeight="Medium"/>
-                                    <TextBlock Text="Critical Vulnerabilities" FontWeight="Medium"/>
-                                    <TextBlock Text="Total Vulnerabilities" FontWeight="Medium"/>
+                                    <TextBlock Text="Vulnerabilities" FontWeight="Medium"/>
                                     <TextBlock Text="Assessment Duration" FontWeight="Medium"/>
                                 </StackPanel>
 
                                 <StackPanel Grid.Column="1" Spacing="10">
                                     <TextBlock x:Name="TxtRun1Header" Text="RUN-001 (Base)" FontSize="11" FontWeight="Bold" Foreground="#05D9E8"/>
                                     <TextBlock x:Name="TxtRun1Success" Text="84.5%"/>
-                                    <TextBlock x:Name="TxtRun1Crit" Text="4"/>
-                                    <TextBlock x:Name="TxtRun1Total" Text="29"/>
+                                    <TextBlock x:Name="TxtRun1Crit" Text="Critical"/>
                                     <TextBlock x:Name="TxtRun1Duration" Text="3m 45s"/>
                                 </StackPanel>
 
                                 <StackPanel Grid.Column="2" Spacing="10">
                                     <TextBlock x:Name="TxtRun2Header" Text="RUN-002 (Target)" FontSize="11" FontWeight="Bold" Foreground="#22FF88"/>
                                     <TextBlock x:Name="TxtRun2Success" Text="56.0% (↓ 28.5%)" Foreground="#22FF88" FontWeight="SemiBold"/>
-                                    <TextBlock x:Name="TxtRun2Crit" Text="2 (↓ 2)" Foreground="#22FF88" FontWeight="SemiBold"/>
-                                    <TextBlock x:Name="TxtRun2Total" Text="24 (↓ 5)" Foreground="#22FF88" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="TxtRun2Crit" Text="High" Foreground="#22FF88" FontWeight="SemiBold"/>
                                     <TextBlock x:Name="TxtRun2Duration" Text="5m 12s"/>
                                 </StackPanel>
                             </Grid>

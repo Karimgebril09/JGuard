@@ -52,6 +52,9 @@ public class SessionConfig
     [JsonPropertyName("document_protection")]
     public bool DocumentProtection { get; set; }
 
+    [JsonPropertyName("code_deep_check")]
+    public bool CodeDeepCheck { get; set; }
+
     // Helper properties for UI binding
     [JsonIgnore]
     public bool IsAgent => string.Equals(ChatMode, "agent", StringComparison.OrdinalIgnoreCase);
@@ -97,6 +100,9 @@ public class SessionConfig
     public Visibility DocumentVisibility => DocumentProtection ? Visibility.Visible : Visibility.Collapsed;
 
     [JsonIgnore]
+    public Visibility CodeDeepCheckVisibility => CodeDeepCheck ? Visibility.Visible : Visibility.Collapsed;
+
+    [JsonIgnore]
     public Visibility NoDefensesVisibility => (!ObfuscationProtection && !MultiTurnProtection && !RoleplayProtection && !PiiProtection
-        && !WebSearchProtection && !CodeExecutionProtection && !RagProtection && !EmailProtection && !DocumentProtection) ? Visibility.Visible : Visibility.Collapsed;
+        && !WebSearchProtection && !CodeExecutionProtection && !RagProtection && !EmailProtection && !DocumentProtection && !CodeDeepCheck) ? Visibility.Visible : Visibility.Collapsed;
 }

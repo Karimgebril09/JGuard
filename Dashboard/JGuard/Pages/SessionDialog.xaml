@@ -142,6 +142,10 @@
                                                     Visibility="{x:Bind Config.DocumentVisibility}">
                                                 <TextBlock Text="Document" FontSize="10" Foreground="#ECFDF5"/>
                                             </Border>
+                                            <Border CornerRadius="12" Padding="10,3" Background="#064E3B" BorderBrush="#10B981" BorderThickness="1"
+                                                    Visibility="{x:Bind Config.CodeDeepCheckVisibility}">
+                                                <TextBlock Text="Code Deep Check" FontSize="10" Foreground="#ECFDF5"/>
+                                            </Border>
 
                                             <!-- Placeholder if no defenses enabled -->
                                             <TextBlock Text="No defenses active" FontSize="10" Foreground="#64748B" FontStyle="Italic"
@@ -360,6 +364,13 @@
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <FontIcon Glyph="&#xE8A5;" FontSize="13" Foreground="#F5F5F5"/>
                                     <TextBlock Text="Document" FontSize="12" Foreground="#F5F5F5"/>
+                                </StackPanel>
+                            </ToggleButton>
+
+                            <ToggleButton Grid.Row="2" Grid.Column="1" x:Name="CodeDeepCheckToggle" Style="{StaticResource DefenseToggleStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <FontIcon Glyph="&#xE9D5;" FontSize="13" Foreground="#F5F5F5"/>
+                                    <TextBlock Text="Code Deep Check" FontSize="12" Foreground="#F5F5F5"/>
                                 </StackPanel>
                             </ToggleButton>
                         </Grid>
