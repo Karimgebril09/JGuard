@@ -121,6 +121,7 @@ class RefusalInference:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.tokenizer=DistilBertTokenizerFast.from_pretrained(  "distilbert-base-uncased" )
         self.bert=DistilBertModel.from_pretrained("distilbert-base-uncased" )
+        self.bert.to(self.device)
         self.bert.eval()
         self.model = LSTMClassifier(embed_dim, hidden_dim, dropout)
         self.model.load_state_dict(torch.load("./evaluation/refusal/models/lstm_refusal_model_bert.pt", map_location=self.device))
