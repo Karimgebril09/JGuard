@@ -6,23 +6,21 @@ def test_voting_mechanism(detector):
     predictions1 = ["O", "B-EMAIL", "O", "O"]
     predictions2 = ["O", "B-EMAIL", "O", "O"]
     predictions3 = ["O", "O", "O", "O"]
-    assert detector.voting_strategy(predictions1, predictions2, predictions3) == ["O", "B-EMAIL", "O", "O"], "Voting mechanism test failed"
+    assert detector.voting_strategy(predictions1, predictions2, predictions3) == ["O", "B-EMAIL", "O", "O"], "voting mechanism test failed"
 
 
 def test_trusted_tags(detector):
     predictions1 = ["B-IPv4", "B-IPv6", "O", "O"]
     predictions2 = ["B-IPv6", "O", "O", "O"]
     predictions3 = ["O", "O", "O", "O"]
-    assert detector.trust_strategy( predictions1, 
-                                    predictions2, 
-                                    predictions3) == ["B-IPv4", "B-IPv6", "O", "O"], "Trusted tags test failed"
+    assert detector.trust_strategy(predictions1, predictions2, predictions3) == ["B-IPv4", "B-IPv6", "O", "O"], "trust mechnism test failed"
     
     predictions1 = ["O", "O", "O", "O"]
     predictions2 = ["O", "O", "O", "O"]
     predictions3 = ["B-EMAIL", "O", "O", "O"]
     assert detector.trust_strategy( predictions1,
                                    predictions2,
-                                   predictions3) == ["B-EMAIL", "O", "O", "O"], "Trusted tags test failed"
+                                   predictions3) == ["B-EMAIL", "O", "O", "O"], "trust tags test failed"
     
 
 def run_tests():

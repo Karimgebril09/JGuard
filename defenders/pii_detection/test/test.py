@@ -35,7 +35,7 @@ if __name__ == "__main__":
     checkpoint_path2 = os.path.join(_HERE, "..", "models", "pii_ner_model.pth")
     df_test= pd.read_parquet('./defenders/pii_detection/data_pii/test.parquet')
     tokenizer=AutoTokenizer.from_pretrained("distilbert-base-uncased")
-    df_test=prepare_dataset(df_test, tokenizer)
+    df_test=prepare_dataset(df_test, tokenizer) # fix dataset to be word based
     model=PIIDetector(checkpoint_path,checkpoint_path2)
     evaluation_accuracy = evaluate(model, df_test)
     print(f"Evaluation Accuracy: {evaluation_accuracy}")

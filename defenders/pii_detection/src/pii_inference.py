@@ -79,18 +79,21 @@ class BiLSTMCRF(nn.Module):
         self.bilstm3 = nn.LSTM(hidden_size * 2,hidden_size,batch_first=True,bidirectional=True)
         self.dropout = nn.Dropout(dropout)
 
+        # map the output of bilstm to number of classes
         self.classifier = nn.Sequential(
             nn.Linear(hidden_size * 2, 512),
             nn.ReLU(),
             nn.Dropout(dropout),
             nn.Linear(512, num_classes)
         )
+        # to capture the dependencies between output labels
         self.crf = CRF(num_tags=num_classes,batch_first=True)
 
     def forward(self, x):
         out1, _ = self.bilstm1(x)
         out2, _ = self.bilstm2(out1)
         out3, _ = self.bilstm3(out2)
+        # emmision score are logits for each class for each token
         emissions = self.classifier(out3)
         return emissions
 

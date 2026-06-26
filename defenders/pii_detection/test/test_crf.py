@@ -28,7 +28,7 @@ def test_word_shape():
 
 
 def test_word2features():
-    sentence = ["johndoe@email.com"]
+    sentence = ["karim@email.com"]
     features = word2features(sentence, 0)
     assert features['email'] == True
 

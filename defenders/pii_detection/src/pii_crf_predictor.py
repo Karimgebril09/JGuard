@@ -2,6 +2,7 @@ import re
 from joblib import load
 
 def get_word_shape(text):
+    # finds the shape of words to be able to generalize to unseen words
     shape=""
     for char in text:
         if char.isupper():
@@ -29,6 +30,7 @@ def word2features(sentence, i):
     have_any_dash = "-" in word
     have_any_slash = "/" in word
     have_any_at = "@" in word
+    # checks specific patterns that might not change much
     is_email=bool(re.fullmatch(r".+@.+\..+", word)) 
     is_ipv4= bool(re.fullmatch(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", word))
     is_mac= bool(re.fullmatch(r"([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", word))
@@ -36,6 +38,7 @@ def word2features(sentence, i):
     is_four_digit= bool(re.fullmatch(r"\d{4}", word))
     features = {"bias":1.0}
     
+    # previous words features
     if i > 0:
         prev_word = sentence[i - 1]
         prev_has_any_digit = sum([c.isdigit() for c in prev_word])>0
@@ -50,17 +53,19 @@ def word2features(sentence, i):
         }
 
     else:
-        features["BOS"] = True
+        features["BOS"] = True # Beginning of sentence
 
+
+    # current word features
     features.update({
-        "word.lower()": word.lower(),
+        "word lower": word.lower(),
         "word first two char": word[:2],
         "word first three char":word[:3],
         "word last two char":word[-2:],
         "word last three char": word[-3:],
         "word isupper": word.isupper(),
         "word istitle": word.istitle(),
-        "word islower()": word.islower(),
+        "word islower": word.islower(),
         "word len": len(word),
         "word shape": get_word_shape(word),
         "word has any digit":has_any_digit,
@@ -82,6 +87,7 @@ def word2features(sentence, i):
         "is_four_digits": is_four_digit,
     })
 
+    # next word features
     if i < len(sentence) - 1:
         next_word = sentence[i + 1]
         next_has_any_digits=sum([c.isdigit() for c in next_word])>0
@@ -96,7 +102,7 @@ def word2features(sentence, i):
         }
 
     else:
-        features["EOS"] = True
+        features["EOS"] = True # End of sentence
 
     if i>0:
         features.update(prev_features)
@@ -113,6 +119,7 @@ class CRFPiiDetector:
     def get_features(self, text):
         words=text.split()
         features=[]
+        # return list of dictionary with features for every word
         for i in range(len(words)):
             word_features=word2features(words, i)
             features.append(word_features)
