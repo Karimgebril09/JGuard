@@ -52,10 +52,6 @@ class PromptfooRunResult:
 def normalize_text(text: str) -> str:
     return " ".join(text.split()).strip()
 
-
-# --------------------------------------------------------------------------- #
-# Running promptfoo
-# --------------------------------------------------------------------------- #
 def resolve_promptfoo_command() -> list[str]:
     """Return the base argv for invoking promptfoo (handles the Windows .cmd
     shim and an npx fallback)."""
@@ -81,8 +77,6 @@ def write_redteam_config(
     num_tests: int,
     prompt_template: str = "{{prompt}}",
 ) -> None:
-    """Write a promptfoo red-team config as JSON (promptfoo reads JSON or YAML,
-    so we avoid a PyYAML dependency)."""
     config: dict[str, Any] = {
         "description": f"redteam: {', '.join(plugins)}",
         "targets": [{"id": target_id, "label": target_label}],
@@ -104,7 +98,6 @@ def _stream_subprocess(
     timeout_seconds: int,
     stop_event: threading.Event | None,
 ) -> list[str]:
-    """Run a command, streaming its output, honouring a stop event and timeout."""
     print(f"[Promptfoo] Starting ({label}): {' '.join(cmd)}")
     process = subprocess.Popen(
         cmd,
@@ -172,11 +165,6 @@ def run_promptfoo_with_stop(
     run_tag: str,
     stop_event: threading.Event | None = None,
 ) -> tuple[Path, Path, Path]:
-    """Generate adversarial tests then evaluate them against the target.
-
-    Returns ``(config_path, tests_path, results_path)``. ``results_path`` is the
-    eval-results JSON that ``records_from_results`` consumes.
-    """
     reports_dir = reports_dir.resolve()
     reports_dir.mkdir(parents=True, exist_ok=True)
 
@@ -220,12 +208,7 @@ def run_promptfoo_with_stop(
 
     return config_path, tests_path, results_path
 
-
-# --------------------------------------------------------------------------- #
-# Parsing promptfoo eval results
-# --------------------------------------------------------------------------- #
 def parse_results(path: Path) -> list[dict[str, Any]]:
-    """Return the per-test results array from a promptfoo eval-output JSON."""
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
@@ -238,7 +221,6 @@ def parse_results(path: Path) -> list[dict[str, Any]]:
 
 
 def extract_prompt_from_result(result: dict[str, Any]) -> str | None:
-    """The adversarial prompt actually sent to the target (post-strategy)."""
     prompt = result.get("prompt")
     if isinstance(prompt, dict) and isinstance(prompt.get("raw"), str):
         raw = prompt["raw"]
@@ -254,8 +236,6 @@ def extract_prompt_from_result(result: dict[str, Any]) -> str | None:
 
 
 def is_hit_from_result(result: dict[str, Any]) -> bool:
-    """An attack is a HIT when the target FAILS the red-team assertion (i.e. the
-    attack succeeded). This is the inverse of a passing promptfoo test."""
     if result.get("error"):
         return False
     grading = result.get("gradingResult")
@@ -267,8 +247,6 @@ def is_hit_from_result(result: dict[str, Any]) -> bool:
 
 
 def detector_from_result(result: dict[str, Any]) -> str | None:
-    """The promptfoo grader(s) that judged the response, e.g.
-    ``promptfoo:redteam:harmful:hate``."""
     test_case = result.get("testCase") or {}
     asserts = test_case.get("assert") or []
     detectors: list[str] = []
@@ -348,10 +326,6 @@ def write_jsonl(path: Path, records: list[PromptRecord]) -> None:
         for record in records:
             handle.write(json.dumps(asdict(record), ensure_ascii=False) + "\n")
 
-
-# --------------------------------------------------------------------------- #
-# Pipeline
-# --------------------------------------------------------------------------- #
 def build_dataset_from_promptfoo(
     target_id: str,
     target_label: str,
@@ -378,8 +352,6 @@ def build_dataset_from_promptfoo(
     tests_paths: list[Path] = []
     results_paths: list[Path] = []
 
-    # One promptfoo run per attack type keeps every generated prompt
-    # unambiguously labelled with its category.
     for attack_type in attack_types:
         if stop_event and stop_event.is_set():
             raise RuntimeError("promptfoo run cancelled by user.")
@@ -438,7 +410,6 @@ def build_dataset_from_promptfoo(
 
 
 def run_with_config_defaults(stop_event: threading.Event | None = None) -> PromptfooRunResult:
-    """Run the promptfoo pipeline using the defaults from config.py."""
     return build_dataset_from_promptfoo(
         target_id=DEFAULT_TARGET_ID,
         target_label=DEFAULT_TARGET_LABEL,
