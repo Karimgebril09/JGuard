@@ -5,15 +5,14 @@ from defenders.obfuscation.helper import normalize_input
 
 
 ZERO_WIDTH_CHARACTERS = {
-    "\u200b",  # Zero width space
-    "\u200c",  # Zero width non-joiner
-    "\u200d",  # Zero width joiner
-    "\ufeff",  # Zero width no-break space / BOM
-    "\u2060",  # Word joiner
+    "\u200b",  
+    "\u200c",  
+    "\u200d",  
+    "\ufeff",  
+    "\u2060", 
 }
 
 HOMOGLYPH_MAP = {
-    # Cyrillic 
     "а": "a",
     "А": "A",
     "е": "e",
@@ -42,7 +41,6 @@ HOMOGLYPH_MAP = {
     "В": "B",
     "н": "h",
     "Н": "H",
-    # Greek
     "Α": "A",
     "Β": "B",
     "Ε": "E",
@@ -71,7 +69,7 @@ HOMOGLYPH_MAP = {
 }
 
 
-def strip_zero_width_chars(text: str) -> tuple[str, int]:
+def rm_zero_width_chars(text: str) -> tuple[str, int]:
     kept: list[str] = []
     stripped = 0
     for character in text:
@@ -82,7 +80,7 @@ def strip_zero_width_chars(text: str) -> tuple[str, int]:
     return "".join(kept), stripped
 
 
-def resolve_homoglyphs(text: str) -> tuple[str, int]:
+def res_homoglyphs(text: str) -> tuple[str, int]:
     transformed: list[str] = []
     replacements = 0
 
@@ -93,15 +91,12 @@ def resolve_homoglyphs(text: str) -> tuple[str, int]:
             replacements += 1
             continue
 
-        # Convert fullwidth ASCII to regular ASCII
         codepoint = ord(character)
         if 0xFF01 <= codepoint <= 0xFF5E:
             transformed.append(chr(codepoint - 0xFEE0))
             replacements += 1
             continue
 
-        # Compatibility fold covers mathematical alphanumeric symbols and many
-        # variants into their plain ascii equivalents
         folded = unicodedata.normalize("NFKC", character)
         if folded != character and len(folded) == 1 and ord(folded) < 128:
             transformed.append(folded)
@@ -116,14 +111,12 @@ def resolve_homoglyphs(text: str) -> tuple[str, int]:
 def normalize_stage3(raw_input: str | bytes) -> dict[str, object]:
     original_text = normalize_input(raw_input)
 
-    # Apply canonical then compatibility decomposition before mapping
     nfc_text = unicodedata.normalize("NFC", original_text)
     nfkd_text = unicodedata.normalize("NFKD", nfc_text)
 
-    without_zero_width, stripped_count = strip_zero_width_chars(nfkd_text)
-    collapsed_text, replacement_count = resolve_homoglyphs(without_zero_width)
+    without_zero_width, stripped_count = rm_zero_width_chars(nfkd_text)
+    collapsed_text, replacement_count = res_homoglyphs(without_zero_width)
 
-    # Remove combining marks to produce stable output
     normalized_text = "".join(
         character
         for character in collapsed_text

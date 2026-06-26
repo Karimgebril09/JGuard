@@ -8,14 +8,14 @@ from typing import Any, cast
 _RUNS_STORE_PATH = Path("outputs") / "eval_runs.json"
 
 
-def _ensure_store_exists() -> None:
+def _makesure_data_file_exists() -> None:
     _RUNS_STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
     if not _RUNS_STORE_PATH.exists():
         _RUNS_STORE_PATH.write_text("[]", encoding="utf-8")
 
 
 def _load_runs() -> list[dict[str, object]]:
-    _ensure_store_exists()
+    _makesure_data_file_exists()
     try:
         data = json.loads(_RUNS_STORE_PATH.read_text(encoding="utf-8"))
         if isinstance(data, list):
@@ -26,7 +26,7 @@ def _load_runs() -> list[dict[str, object]]:
 
 
 def _save_runs(runs: list[dict[str, object]]) -> None:
-    _ensure_store_exists()
+    _makesure_data_file_exists()
     _RUNS_STORE_PATH.write_text(json.dumps(runs, indent=2), encoding="utf-8")
 
 
@@ -105,18 +105,3 @@ def compare_runs(baseline_run_id: str, compare_run_id: str) -> dict[str, object]
             "compare": str(compare["duration"]),
         },
     }
-
-
-def export_runs_as_json() -> bytes:
-    return json.dumps(get_runs(), indent=2).encode("utf-8")
-
-
-def export_runs_as_csv() -> bytes:
-    runs = get_runs()
-    if not runs:
-        return b""
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=list(runs[0].keys()))
-    writer.writeheader()
-    writer.writerows(runs)
-    return output.getvalue().encode("utf-8")

@@ -1,5 +1,3 @@
-"""Garak integration package."""
-
 __all__ = ["GarakRunResult", "build_dataset_from_garak", "run_with_config_defaults"]
 
 

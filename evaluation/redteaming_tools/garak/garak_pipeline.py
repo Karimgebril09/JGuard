@@ -23,29 +23,18 @@ from .config import (
     TARGET_SAMPLES,
 )
 
-# Maps provider names used in the app to garak generator module names.
-# Gemini has an OpenAI-compatible REST API, so we route it through garak's
-# openai generator with the appropriate base_url.
 _GARAK_TYPE_MAP: dict[str, str] = {
     "gemini": "openai",
     "openai": "openai",
-    "ollama": "ollama",
-    "rest": "rest",
-    "litellm": "litellm",
+    "ollama": "ollama"
 }
 
-# Default base URLs injected when a provider is mapped to a different garak type
-# and the caller did not supply an explicit base_url.
 _GARAK_DEFAULT_BASE_URL: dict[str, str] = {
     "gemini": "https://generativelanguage.googleapis.com/v1beta/openai/",
 }
 
-# Maps garak generator type to the env var its plugin reads for the API key.
-# Garak validates the env var before processing --generator_options, so the key
-# must be in the environment of the subprocess, not in generator_options.
 _GARAK_API_KEY_ENV: dict[str, str] = {
-    "openai": "OPENAI_API_KEY",
-    "litellm": "OPENAI_API_KEY",
+    "openai": "OPENAI_API_KEY"
 }
 
 PROMPT_KEYS = {
@@ -88,7 +77,6 @@ def resolve_garak_target(
     target_type: str,
     target_base_url: str | None,
 ) -> tuple[str, str | None]:
-    """Return the garak-compatible (type, base_url) pair for a given provider type."""
     garak_type = _GARAK_TYPE_MAP.get(target_type, target_type)
     effective_base_url = target_base_url or _GARAK_DEFAULT_BASE_URL.get(target_type)
     return garak_type, effective_base_url

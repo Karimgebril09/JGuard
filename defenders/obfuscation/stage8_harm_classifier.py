@@ -17,46 +17,19 @@ DEFAULT_DISTILBERT_ARTIFACTS_DIR = (
 )
 
 LLAMA_GUARD_CATEGORY_MAP: dict[str, str] = {
-    # Violent Crimes
     "S1": "violence_physical_harm",
-
-    # Non-Violent Crimes
     "S2": "crime_illegal_activities",
-
-    # Sex-Related Crimes
     "S3": "crime_illegal_activities",
-
-    # Child Sexual Exploitation
     "S4": "child_safety",
-
-    # Defamation
     "S5": "misinformation_integrity",
-
-    # Specialized Advice
     "S6": "dangerous_professional_advice",
-
-    # Privacy
     "S7": "data_exposure",
-
-    # Intellectual Property
     "S8": "intellectual_property",
-
-    # Indiscriminate Weapons
     "S9": "violence_physical_harm",
-
-    # Hate
     "S10": "hate_harassment_discrimination",
-
-    # Suicide & Self-Harm
     "S11": "self_harm",
-
-    # Sexual Content
     "S12": "inappropriate_content",
-
-    # Elections
     "S13": "misinformation_integrity",
-
-    # Code Interpreter Abuse
     "S14": "cyber_abuse_exploitation",
 }
 

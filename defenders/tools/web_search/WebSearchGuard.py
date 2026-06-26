@@ -34,19 +34,18 @@ class WebSearchGuard:
         if not query:
             return False, {}
 
-        # checking relevance to original request
         relevance = self._cosine_sim(query, original_request)
         print(f"[WebSearchGuard] Query: '{query}' | Relevance to original: {relevance:.3f}")
         if relevance < RELEVANCE_THRESHOLD:
             print(
-                f"[WebSearchGuard] BLOCKED – off-topic "
+                f"[WebSearchGuard] BLOCKED: off-topic "
                 f"(sim={relevance:.3f} < threshold={RELEVANCE_THRESHOLD})"
             )
             return True, {
                 "messages": [
                     ToolMessage(
                         content=(
-                            f"[SEARCH BLOCKED – Off-topic] The query '{query}' is not "
+                            f"[SEARCH BLOCKED: Off-topic] The query '{query}' is not "
                             f"sufficiently related to the research topic "
                             f"(similarity={relevance:.2f}, threshold={RELEVANCE_THRESHOLD}). "
                             "Please rephrase the query so it stays on topic."
@@ -56,19 +55,18 @@ class WebSearchGuard:
                 ]
             }
 
-        # checking redundancy with past queries
         for past_q in past_queries:
             sim = self._cosine_sim(query, past_q)
             if sim > REDUNDANCY_THRESHOLD:
                 print(
-                    f"[WebSearchGuard] BLOCKED – redundant "
+                    f"[WebSearchGuard] BLOCKED: redundant "
                     f"('{query}' ≈ '{past_q}', sim={sim:.3f} > threshold={REDUNDANCY_THRESHOLD})"
                 )
                 return True, {
                     "messages": [
                         ToolMessage(
                             content=(
-                                f"[SEARCH BLOCKED – Redundant] The query '{query}' is too "
+                                f"[SEARCH BLOCKED: Redundant] The query '{query}' is too "
                                 f"similar to a previous search '{past_q}' "
                                 f"(similarity={sim:.2f}, threshold={REDUNDANCY_THRESHOLD}). "
                                 "Please use a different query that explores a new angle."

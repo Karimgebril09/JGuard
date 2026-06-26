@@ -8,46 +8,19 @@ import re
 MODEL_ID = "meta-llama/Llama-Guard-3-8B"  
 
 CATEGORY_MAP = {
-    # Violent crimes → harmful / violent toxic content
     "S1": "toxicity",
-
-    # Non-violent crimes → scams, fraud, hacking, criminal activity
     "S2": "scams",
-
-    # Sex-related crimes → abusive sexual content
     "S3": "toxicity",
-
-    # Child sexual exploitation → severe abusive sexual content
     "S4": "toxicity",
-
-    # Defamation → false or fabricated harmful claims
     "S5": "hallucination",
-
-    # Specialized advice → dangerous misinformation / unsafe guidance
     "S6": "hallucination",
-
-    # Privacy violations → leakage of sensitive information
     "S7": "data_exposure",
-
-    # Intellectual property violations → unauthorized access/use of protected content
     "S8": "copyright_infringement",
-
-    # Indiscriminate weapons → dangerous/extremist harmful content
     "S9": "toxicity",
-
-    # Hate → hate speech / abusive content
     "S10": "toxicity",
-
-    # Suicide & self-harm → dangerous self-harm content
     "S11": "toxicity",
-
-    # Sexual content → explicit sexual/offensive content
     "S12": "toxicity",
-
-    # Elections misinformation → factual hallucinations / misinformation
     "S13": "hallucination",
-
-    # Code interpreter abuse → privilege escalation / sandbox escape
     "S14": "unauthorized_access",
 }
 

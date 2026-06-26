@@ -3,52 +3,20 @@ from __future__ import annotations
 import base64
 import binascii
 import html
+import importlib
 import re
 from typing import Any
 from urllib.parse import unquote, unquote_plus
 from defenders.obfuscation.helper import normalize_input
 
+zipf_frequency = importlib.import_module("wordfreq").zipf_frequency
 
 BASE64_REGEX = re.compile(r"^[A-Za-z0-9+/=_-]+$")
 HEX_REGEX = re.compile(r"^(?:0x)?[0-9A-Fa-f\s]+$")
 PERCENT_REGEX = re.compile(r"%(?:[0-9A-Fa-f]{2})")
 HTML_ENTITY_REGEX = re.compile(r"&(?:#x?[0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]+);")
 
-COMMON_WORDS = {
-    "the",
-    "and",
-    "to",
-    "of",
-    "a",
-    "in",
-    "is",
-    "you",
-    "that",
-    "it",
-    "for",
-    "on",
-    "with",
-    "as",
-    "this",
-    "be",
-    "are",
-    "or",
-    "was",
-    "by",
-    "not",
-    "from",
-    "at",
-    "an",
-    "have",
-    "if",
-    "can",
-    "text",
-    "payload",
-    "message",
-    "data",
-    "code",
-    "test",
-}
+MIN_WORD_ZIPF = 3.0
 
 
 def convert_to_text(data: bytes) -> str:
@@ -77,18 +45,18 @@ def is_text_likely_english(text: str) -> float:
     spaces = lowered.count(" ")
     vowels = sum(1 for character in lowered if character in "aeiou")
     tokens = re.findall(r"[a-z]+", lowered)
-    common_hits = sum(1 for token in tokens if token in COMMON_WORDS)
     printable = sum(1 for character in text if character.isprintable() or character.isspace())
 
     if letters == 0:
         return -10.0
 
+    token_bonus = sum(
+        zipf_frequency(token, "en") for token in tokens if zipf_frequency(token, "en") >= MIN_WORD_ZIPF
+    )
     vowel_ratio = vowels / letters
     printable_ratio = printable / len(text)
-    token_bonus = common_hits * 1.8
     space_bonus = min(spaces / max(len(text), 1) * 4.0, 1.5)
 
-    # prefer human-readable candidates over cipher text, not to model full language probability
     return (
         printable_ratio * 3.0
         + vowel_ratio * 2.0
@@ -156,12 +124,9 @@ def decode_base64(text: str) -> str | None:
         if not is_text_mostly_printable_chars(text_result):
             continue
 
-        # Guard against false positives where binary bytes become replacement
-        # characters and still look "printable"
         if replacement_ratio(text_result) > 0.08:
             continue
 
-        # Only accept Base64 when readability improves
         baseline_score = is_text_likely_english(text)
         decoded_score = is_text_likely_english(text_result)
         if decoded_score <= baseline_score + 0.35:
@@ -200,8 +165,8 @@ def decode_rot_ciphers(text: str) -> tuple[str, int, float] | None:
 
     if best_candidate != text and best_score > baseline_score + 1.25:
         tokens = re.findall(r"[a-z]+", best_candidate.lower())
-        common_hits = sum(1 for token in tokens if len(token) >= 3 and token in COMMON_WORDS)
-        if common_hits == 0:
+        known_words = sum(1 for token in tokens if len(token) >= 3 and zipf_frequency(token, "en") >= MIN_WORD_ZIPF)
+        if known_words == 0:
             return None
         return best_candidate, best_shift, best_score
     return None

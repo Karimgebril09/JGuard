@@ -4,20 +4,14 @@ from pydantic import BaseModel
 
 
 StrategyType = Literal["tool_based", "custom"]
-ToolFrameworkType = Literal["promptfoo", "garak", "deepteam"]
+ToolFrameworkType = Literal["promptfoo", "garak"]
 CampaignStatusType = Literal["started", "running", "completed", "failed", "stopped"]
-
-
-class ModelRef(BaseModel):
-    provider: str
-    model_name: str
 
 
 class LaunchCampaignRequest(BaseModel):
     strategy: StrategyType
     tool_framework: ToolFrameworkType | None = None
     
-    # custom
     custom_attack_type: str | None = None
     custom_harm_type: str | None = None
     num_samples: int | None = None
