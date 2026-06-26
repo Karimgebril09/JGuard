@@ -8,6 +8,7 @@ from langgraph.graph.message import MessagesState
 from defenders.tools.code.src.code_defender import CodeDefender
 import traceback
 import warnings
+import os
 warnings.filterwarnings("ignore")
 
 
@@ -33,7 +34,8 @@ class CodingAgentState(MessagesState):
     code: str
 
 
-def create_llms(model_id="qwen3:4b-instruct"):
+def create_llms():
+    model_id = os.environ.get("OLLAMA_MODEL","qwen3:4b-instruct")
     coding_llm = ChatOllama(model=model_id).bind_tools([execute_code]) # make the llm know it have this tool
     feedback_llm = ChatOllama(model=model_id)
     return coding_llm, feedback_llm
@@ -52,6 +54,7 @@ def coding_agent(state: CodingAgentState) -> CodingAgentState:
                 "dont do debugging prints or any thing else just the code "
                 "you should generate only one solution for the problem described below "
                 "you should not generate anything related to markdown or any other format just pure code "
+                "MAKE SURE THE FINAL RESPONSE IS ONLY CODE AND NOTHING ELSE "
                 "also if there are any feedbacks given by feedback agent consider them and improve the code and fix issues "
                 "if not ignore the feedback part"
                 "you have the choice to either make a test functions and call the tool to test it or "
@@ -65,7 +68,10 @@ def coding_agent(state: CodingAgentState) -> CodingAgentState:
         ),
     ]
     resp = coding_llm.invoke(messages)
-    if type(resp.content) == str:
+    tool_calls = getattr(resp, "tool_calls", None)
+    if tool_calls:
+        content = tool_calls[0]["args"].get("code", "")
+    elif type(resp.content) == str:
         content = resp.content
     else: # gemini return different format
         content = resp.content[0].get("text", str(resp.content))
@@ -151,16 +157,15 @@ def build_coding_agent(code_execution_protection: bool = True, code_deep_check: 
     return graph.compile()
 
 
-# if __name__ == "__main__":
-#     app = build_coding_agent(code_execution_protection=True)
-#     initial_state = {
-#         "problem_description": (
-#             "Write a function that takes a list of integers and "
-#             "returns the sum of all even numbers in the list."
-#             "you should make some tests and test them to make sure of the correctness of the code and make tool call to execute the tests and return the results of the tests"
-#             "again make sure to make execution of the tool it is urgent (TOOL CALL IS MANDATORY) and return the results of the tests and if they fail improve the code accordingly"
-#         ),
-#         "code": "",
-#         "messages": [],
-#     }
-#     final_state = app.invoke(initial_state)
+if __name__ == "__main__":
+    app = build_coding_agent(code_execution_protection=True)
+    initial_state = {
+        "problem_description": (
+            "i want you to give me a python code that do the following it takes a list of values and start to sum the even values"
+            "use code execution tools"
+        ),
+        "code": "",
+        "messages": [],
+    }
+    final_state = app.invoke(initial_state)
+    print("final code:", final_state["code"])
