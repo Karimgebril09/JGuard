@@ -1,5 +1,5 @@
 import re
-from features import FeaturesManager
+from defenders.pii_detection.crf.src.features import FeaturesManager
 
 def looks_like_email(word):
     result = re.fullmatch(r".+@.+\..+", word)

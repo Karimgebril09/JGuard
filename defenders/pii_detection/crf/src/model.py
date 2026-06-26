@@ -1,5 +1,5 @@
-from defenders.pii_detection.crf.train import train
-from virterbi import decode_using_viterbi 
+from defenders.pii_detection.crf.src.train import train
+from defenders.pii_detection.crf.src.virterbi import decode_using_viterbi 
 import json
 
 class LinearCRF:
