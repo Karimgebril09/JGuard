@@ -21,26 +21,17 @@ from dotenv import load_dotenv
 
 from .llm import llm
 
-
-# Gmail API scopes - read and send only
 SCOPES = [
     'https://www.googleapis.com/auth/gmail.readonly',
     'https://www.googleapis.com/auth/gmail.send'
 ]
 
-# Path to credentials file (download from Google Cloud Console)
 CREDENTIALS_FILE = "credentials.json"
 TOKEN_FILE = "token.pickle"
 
 
 def get_gmail_service():
-    """
-    Authenticate and return Gmail API service.
-    Requires credentials.json from Google Cloud Console.
-    """
     creds = None
-    
-    # Load existing token
     if os.path.exists(TOKEN_FILE):
         with open(TOKEN_FILE, 'rb') as token:
             creds = pickle.load(token)
@@ -57,36 +48,18 @@ def get_gmail_service():
                 )
             flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_FILE, SCOPES)
             creds = flow.run_local_server(port=0)
-        
-        # Save token for future use
         with open(TOKEN_FILE, 'wb') as token:
             pickle.dump(creds, token)
     
     return build('gmail', 'v1', credentials=creds)
 
 
-class ReadEmailTool:
-    """
-    Tool to read emails from Gmail.
-    Returns RAW email content only - no processing or summarization.
-    """
-    
+class ReadEmailTool:    
     def __init__(self, gmail_service=None):
         self.service = gmail_service
     
     def read_emails(self, max_results: int = 10, query: str = "") -> List[Dict[str, Any]]:
-        """
-        Read emails and return raw content.
-        
-        Args:
-            max_results: Maximum number of emails to retrieve
-            query: Gmail search query (e.g., "is:unread", "from:user@example.com")
-        
-        Returns:
-            List of raw email data dictionaries
-        """
         if not self.service:
-            # Mock data for testing without Gmail API
             print("no self service will use mock emails")
             return self._get_mock_emails(max_results)
         
@@ -102,14 +75,11 @@ class ReadEmailTool:
             emails = []
             
             for msg in messages:
-                # Get full message
                 message = self.service.users().messages().get(
                     userId='me',
                     id=msg['id'],
                     format='full'
                 ).execute()
-                
-                # Extract raw email data
                 email_data = self._extract_email_data(message)
                 emails.append(email_data)
             
@@ -119,13 +89,9 @@ class ReadEmailTool:
             return [{"error": str(e)}]
     
     def _extract_email_data(self, message: Dict) -> Dict[str, Any]:
-        """Extract raw email data from Gmail message."""
         headers = message.get('payload', {}).get('headers', [])
-        
-        # Extract header values
         header_dict = {h['name'].lower(): h['value'] for h in headers}
         
-        # Get body
         body = ""
         payload = message.get('payload', {})
         
@@ -195,25 +161,10 @@ class SendEmailTool:
         self.service = gmail_service
     
     def send_email(self, to: str, subject: str, body: str, cc: str = "", bcc: str = "") -> Dict[str, Any]:
-        """
-        Send an email exactly as specified.
-        
-        Args:
-            to: Recipient email address
-            subject: Email subject (sent exactly as provided)
-            body: Email body (sent exactly as provided)
-            cc: CC recipients (optional)
-            bcc: BCC recipients (optional)
-        
-        Returns:
-            Result dictionary with status
-        """
         if not self.service:
-            # Mock send for testing
             return self._mock_send(to, subject, body, cc, bcc)
         
         try:
-            # Create message
             message = MIMEMultipart()
             message['to'] = to
             message['subject'] = subject
@@ -223,13 +174,10 @@ class SendEmailTool:
             if bcc:
                 message['bcc'] = bcc
             
-            # Attach body exactly as provided
             message.attach(MIMEText(body, 'plain'))
             
-            # Encode message
             raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
             
-            # Send
             result = self.service.users().messages().send(
                 userId='me',
                 body={'raw': raw_message}
@@ -249,7 +197,6 @@ class SendEmailTool:
             }
     
     def _mock_send(self, to: str, subject: str, body: str, cc: str, bcc: str) -> Dict[str, Any]:
-        """Mock send for testing."""
         return {
             "status": "sent (mock)",
             "message_id": "mock_sent_001",
@@ -262,31 +209,16 @@ class SendEmailTool:
 
 
 class EmailAgentState(TypedDict):
-    """
-    State for the Email Agent.
-    Strictly controlled - no autonomous decision making.
-    """
-    # User's original request
     user_request: str
     
-    # Parsed action from user request (read/send/invalid)
     action: Literal["read", "send", "invalid"]
     
-    # Parameters for email operations
-    read_params: Optional[Dict[str, Any]]  # max_results, query
-    send_params: Optional[Dict[str, Any]]  # to, subject, body, cc, bcc
-    
-    # Results from operations
+    read_params: Optional[Dict[str, Any]]
+    send_params: Optional[Dict[str, Any]]
     result: Optional[Dict[str, Any]]
-    
-    # Final response to user
     response: str
     
-    # Error message if any
     error: Optional[str]
-
-
-# System prompt for parsing - STRICTLY LIMITED
 PARSER_SYSTEM_PROMPT = """You are a strict parser for an email agent. Your ONLY job is to parse user requests.
 
 ALLOWED ACTIONS:
@@ -318,19 +250,6 @@ EXAMPLES:
 
 
 def build_email_agent(use_gmail_service: bool = True, email_protection: bool = True):
-    """
-    Build the Email Agent state machine.
-
-    Args:
-        use_gmail_service: If True, connects to real Gmail API. If False, uses mock data.
-        email_protection: If True, wraps send/read with the EmailGuard security controls.
-
-    Returns:
-        Compiled LangGraph email agent
-    """
-
-
-    # Initialize Gmail service and tools
     gmail_service = None
     if use_gmail_service:
         try:
@@ -341,20 +260,12 @@ def build_email_agent(use_gmail_service: bool = True, email_protection: bool = T
 
     read_email_tool = ReadEmailTool(gmail_service)
     send_email_tool = SendEmailTool(gmail_service)
-
-    # Email security controls (human approval, validation, rate limiting,
-    # dedup, audit logging, scope/query limits, sensitive-data masking,
-    # prompt-injection detection, RBAC, monitoring).
     guard = None
     if email_protection:
         from defenders.tools.email import EmailGuard
         guard = EmailGuard()
     
     def parse_user_request(state: EmailAgentState) -> EmailAgentState:
-        """
-        Parse user request using Gemini.
-        Only extracts intent and parameters - does NOT make autonomous decisions.
-        """
         user_request = state["user_request"]
         
         messages = [
@@ -389,15 +300,12 @@ def build_email_agent(use_gmail_service: bool = True, email_protection: bool = T
         }
 
     def read_email_node(state: EmailAgentState) -> EmailAgentState:
-        """
-        ReadEmailNode: Reads emails and returns RAW content only.
-        """
         params = state.get("read_params", {}) or {}
         max_results = params.get("max_results", 10)
         query = params.get("query", "")
 
         if guard is not None:
-            # Controls 7, 8, 12: scope limitation, query restrictions, RBAC.
+            # scope limitation, query restrictions.
             allowed, reason, safe_params = guard.check_read(
                 mailbox="me", max_results=max_results, query=query, caller="agent"
             )
@@ -414,8 +322,7 @@ def build_email_agent(use_gmail_service: bool = True, email_protection: bool = T
         emails = read_email_tool.read_emails(max_results=max_results, query=query)
 
         if guard is not None:
-            # Controls 9, 10, 11: mask secrets, restrict attachments,
-            # neutralize prompt injection in untrusted email content.
+            # estrict attachments.
             emails = guard.sanitize_emails(emails)
 
         return {
@@ -426,9 +333,6 @@ def build_email_agent(use_gmail_service: bool = True, email_protection: bool = T
         }
 
     def send_email_node(state: EmailAgentState) -> EmailAgentState:
-        """
-        SendEmailNode: Sends email EXACTLY as specified by user.
-        """
         params = state.get("send_params", {})
         
         if not params:
@@ -452,8 +356,8 @@ def build_email_agent(use_gmail_service: bool = True, email_protection: bool = T
 
         decision = None
         if guard is not None:
-            # Controls 1-6, 12: human approval, validation, recipient
-            # restrictions, rate limiting, dedup, RBAC + audit logging.
+            # human approval, validation, recipient
+            # restrictions, rate limiting, dedup + audit logging.
             decision = guard.guard_send(
                 to=params["to"],
                 subject=params["subject"],
@@ -463,7 +367,7 @@ def build_email_agent(use_gmail_service: bool = True, email_protection: bool = T
                 caller="agent",
             )
             if not decision.allowed:
-                # Control 13: fail securely without leaking internals.
+                # fail securely without leaking internals.
                 return {
                     **state,
                     "result": None,
@@ -570,17 +474,16 @@ def run_email_agent(agent, user_request: str) -> Dict[str, Any]:
 
 
 def display_result(result: Dict[str, Any]):
-    """Display the result in a formatted way."""
     print("=" * 60)
-    print(f"📨 Request: {result['request']}")
-    print(f"🎯 Action: {result['action']}")
-    print(f"💬 Response: {result['response']}")
+    print(f"Request: {result['request']}")
+    print(f"Action: {result['action']}")
+    print(f"Response: {result['response']}")
     
     if result.get('error'):
-        print(f"❌ Error: {result['error']}")
+        print(f"Error: {result['error']}")
     
     if result.get('result'):
-        print(f"\n📊 Result Data:")
+        print(f"\nResult Data:")
         if 'emails' in result['result']:
             for i, email in enumerate(result['result']['emails'], 1):
                 print(f"\n  --- Email {i} ---")
@@ -593,10 +496,9 @@ def display_result(result: Dict[str, Any]):
     print("=" * 60)
 
 
-if __name__ == "__main__":
-    # Test the email agent
-    email_agent = build_email_agent(use_gmail_service=True)
+# if __name__ == "__main__":
+#     # Test the email agent
+#     email_agent = build_email_agent(use_gmail_service=True)
     
-    print("TEST: Read emails")
-    result = run_email_agent(email_agent, "Read my emails")
-    display_result(result)
+#     result = run_email_agent(email_agent, "Read my emails")
+#     display_result(result)
