@@ -1,4 +1,4 @@
-from defenders.pii_detection.crf.scorer import precompute_scores
+from defenders.pii_detection.crf.src.scorer import precompute_scores
 import math
 
 START_TAG = "<START>"

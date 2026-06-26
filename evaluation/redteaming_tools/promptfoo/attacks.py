@@ -1,24 +1,7 @@
-"""Attack-type catalogue for the promptfoo red-teaming pipeline.
-
-Mirrors ``garak/attacks.py``: each attack type groups a family of probes. In
-garak a probe both *generates* prompts and *transforms* them. promptfoo splits
-those two jobs:
-
-* a **plugin** generates adversarial prompts for a vulnerability category, and
-* a **strategy** transforms / delivers those prompts (encoding, jailbreak,
-  multi-turn, ...).
-
-So every attack type maps to a ``{"plugins": [...], "strategies": [...]}`` pair.
-Plugins are kept disjoint across attack types so a generated prompt maps back to
-exactly one attack type. Run ``promptfoo redteam generate --help`` for the full
-catalogue of available plugins and strategies.
-"""
-
 from __future__ import annotations
 
 ATTACK_TYPES: dict[str, dict[str, list[str]]] = {
     "context_manipulation": {
-        # Persona / instruction-override / context-injection attacks.
         "plugins": [
             "harmful:harassment-bullying",
             "harmful:hate",
@@ -27,12 +10,11 @@ ATTACK_TYPES: dict[str, dict[str, list[str]]] = {
         "strategies": [
             "basic",
             "prompt-injection",
-            # "jailbreak",            # iterative single-turn jailbreak (slow)
+            # "jailbreak",
             # "jailbreak:composite",
         ],
     },
     "obfuscation": {
-        # Encoding / smuggling attacks that hide intent from safety filters.
         "plugins": [
             "harmful:cybercrime",
             "ascii-smuggling",
@@ -42,24 +24,8 @@ ATTACK_TYPES: dict[str, dict[str, list[str]]] = {
             "base64",
             "rot13",
             "leetspeak",
-            # "hex",
-            # "homoglyph",
-            # "morse",
         ],
     },
-    # "multi_turn": {
-    #     # Multi-turn / escalation attacks built up over a conversation.
-    #     "plugins": [
-    #         "harmful:illegal-drugs",
-    #         "harmful:violent-crime",
-    #     ],
-    #     "strategies": [
-    #         "basic",
-    #         "crescendo",
-    #         # "goat",
-    #         # "mischievous-user",
-    #     ],
-    # },
 }
 
 

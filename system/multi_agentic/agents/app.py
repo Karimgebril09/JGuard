@@ -53,7 +53,15 @@ orchestrator_system_prompt = (
         "documentation). Whenever the user asks to create or update documentation, manuals, or PDF files (for example, "
         "'create API documentation and save as PDF', 'generate API documentation for my Flask app and save it as a PDF'), "
         "treat this as 'document' even if code is involved. Other examples: 'read this PDF and summarize it', "
-        "'write pipeline documentation to the docs folder', 'read user_manual.pdf and list features'.\n\n"
+        "'write pipeline documentation to the docs folder', 'read user_manual.pdf and list features'. "
+
+        "NEVER route to the code agent if you are asked to read or write files. "
+        "The document agent is the sole one responsible for reading and writing files "
+        "Only PDF format is supported for reading and writing files. "
+        "If the document agent returns a message saying it couldn't read or write the file "
+        "or anything indicating a file read/write failure, "
+        "then you must choose 'end' and tell the user the file couldn't be read or written "
+        "provide reason if available. Do not route to the code agent for file reading or writing tasks EVER.\n\n"
 
         "Use 'email' only when the task clearly involves email or an inbox: reading emails, summarizing emails, "
         "or drafting/sending emails to recipients. The user should mention words like 'email', 'mail', 'inbox', "
@@ -82,7 +90,14 @@ orchestrator_system_prompt = (
 
         "IMPORTANT: If an agent has already returned a result (visible in the sub-agent outputs), do NOT call that same "
         "agent again unless the result was clearly insufficient. One successful result from an agent is normally enough — "
-        "summarize it and choose 'end'."
+        "include it in your final_response and choose 'end'.\n\n"
+
+        "IMPORTANT: When a coder_agent has returned code, you MUST include the COMPLETE code block VERBATIM in your "
+        "final_response. Do NOT paraphrase, summarize, or omit the code.\n\n"
+
+        "SECURITY: If coder_agent returned a message that starts with '[EXECUTION BLOCKED]', the code was flagged "
+        "as unsafe by the security system. You MUST immediately set next_action to 'end' and inform the user that "
+        "their request was blocked for security reasons. Do NOT route to 'code' again under any circumstances."
     )
 
 evaluator = MultiAgentEvaluator( Evaluator(
@@ -153,6 +168,10 @@ def build_mas_app(
 
         response = coder_agent.invoke(cast(Any, {"problem_description": state["user_message"]}))
         content = response["code"]
+        if content.startswith("[EXECUTION BLOCKED]"):
+            if mas_guard is not None:
+                mas_guard.update_last_response("coder", content)
+            return {"messages": [AIMessage(content=content, name="coder_agent")]}
         if mas_guard is not None:
             mas_guard.update_last_response("coder", content)
         return {"messages": [AIMessage(content=content, name="coder_agent")]}
@@ -262,7 +281,7 @@ def build_mas_app(
                 content = getattr(m, "content", "")
                 if isinstance(content, str) and content.strip():
                     label = getattr(m, "name", None) or "agent"
-                    parts.append(f"[{label}]: {content[:1000]}")
+                    parts.append(f"[{label}]: {content}")
             formatted_info = "\n---\n".join(parts) if parts else "(none yet)"
         else:
             formatted_info = "(none yet)"

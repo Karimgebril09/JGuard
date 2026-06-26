@@ -1,4 +1,4 @@
-from defenders.pii_detection.crf.scorer import precompute_scores
+from defenders.pii_detection.crf.src.scorer import precompute_scores
 START_TAG = "<START>"
 
 def decode_using_viterbi(X, feature_manager, weights, labels):

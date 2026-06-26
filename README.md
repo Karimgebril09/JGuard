@@ -1,3 +1,11 @@
+# Download the requirements
+
+python -m pip install -r requirements.txt
+
+# Generating the harm classifiers (part of the obfuscation and preprocessing pipeline):
+
+run python defenders/obfuscation/stage8_custom_classifier/training_finetune_distilbert.py 
+
 # Creating the FastText Refusal Model
 
 ## Step 1: Download the Dataset

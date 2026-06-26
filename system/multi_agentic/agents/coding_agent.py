@@ -3,6 +3,7 @@ from typing import Literal
 from langchain_ollama import ChatOllama
 from langchain.messages import HumanMessage, SystemMessage
 from langchain.tools import tool
+from langchain_core.messages import ToolMessage
 from langgraph.prebuilt import ToolNode
 from langgraph.graph.message import MessagesState
 from defenders.tools.code.src.code_defender import CodeDefender
@@ -106,35 +107,40 @@ def router1(state: CodingAgentState) -> Literal["cont", "end"]:
         return "end"
     return "cont"
 
+def router2(state: CodingAgentState) -> Literal["execute Tool", "end"]:
+    last_msg = state["messages"][-1]
+    tool_calls = getattr(last_msg, "tool_calls", None)
+    if tool_calls:
+        return "execute Tool"
+    return "end"
+
 
 def build_coding_agent(code_execution_protection: bool = True, code_deep_check: bool = True):
-    if code_execution_protection:
-        defender = CodeDefender(deep_check=code_deep_check)
+    defender = CodeDefender(deep_check=code_deep_check) if code_execution_protection else None
 
-        def router2(state: CodingAgentState) -> Literal["execute Tool", "end"]:
-            last_msg = state["messages"][-1]
-            tool_calls = getattr(last_msg, "tool_calls", None) # check if last message has tool call
-            if tool_calls:
-                code_to_execute = tool_calls[0]["args"]["code"] # get actuall invoked code to execute
-                safe, reason = defender.is_safe(code_to_execute)
-                if safe:
-                    return "execute Tool"
+    def code_defense_node(state: CodingAgentState) -> dict:
+        if defender is None:
+            return {}
+        last_msg = state["messages"][-1]
+        tool_calls = getattr(last_msg, "tool_calls", None)
+        if tool_calls:
+            code_to_execute = tool_calls[0]["args"]["code"]
+            safe, reason = defender.is_safe(code_to_execute)
+            if not safe:
                 print(f"[CodeDefender] execution blocked: {reason}")
-            return "end"
-    else:
-        def router2(state: CodingAgentState) -> Literal["execute Tool", "end"]:
-            last_msg = state["messages"][-1]
-            tool_calls = getattr(last_msg, "tool_calls", None)
-            if tool_calls:
-                return "execute Tool"
-            return "end"
+                return {
+                    "code": f"[EXECUTION BLOCKED] {reason}",
+                }
+        return {}
 
     graph = StateGraph(CodingAgentState)
     graph.add_node("coding", coding_agent)
+    graph.add_node("code_defense", code_defense_node)
     graph.add_node("execute Tool", ToolNode([execute_code]))
     graph.add_node("feedback", feedback_agent)
 
     graph.add_edge(START, "coding")
+    graph.add_edge("coding", "code_defense")
     graph.add_edge("feedback", "coding")
 
     graph.add_conditional_edges(
@@ -146,10 +152,10 @@ def build_coding_agent(code_execution_protection: bool = True, code_deep_check: 
         },
     )
     graph.add_conditional_edges(
-        "coding",
+        "code_defense",
         router2,
         {
-            "execute Tool": "execute Tool", 
+            "execute Tool": "execute Tool",
             "end": END
         },
     )

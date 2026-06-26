@@ -3,7 +3,7 @@ import random
 import json
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader,random_split
+from torch.utils.data import Dataset, DataLoader,Subset
 import torch.optim as optim
 from sentence_transformers import SentenceTransformer
 random.seed(42)
@@ -47,7 +47,7 @@ def save_tensors(tensor_conversations, save_path,save_name="all_conversations.pt
 class multi_turn_dataset(Dataset):
     def __init__(self, conversations):
         self.conversations = conversations
-        self.longest_convo = max(len(conv) for conv in conversations)
+        self.longest_conversation = max(len(conv) for conv in conversations)
 
     def __len__(self):
         return len(self.conversations)
@@ -74,19 +74,17 @@ class multi_turn_dataset(Dataset):
         return user_inputs, ai_responses, scores, mask
 
 
-def split_data(dataset,batch_size, validation_split=0.05):
+def split_data(dataset, batch_size, validation_split=0.05):
     dataset_size = len(dataset)
     val_size = int(validation_split * dataset_size)
-    train_size = dataset_size - val_size
-    
-    train_dataset, val_dataset = random_split(
-        dataset,
-        [train_size, val_size],
-        generator=torch.Generator().manual_seed(42)
-    )
+    indices = torch.randperm(dataset_size, generator=torch.Generator().manual_seed(42))
+    val_indices = indices[:val_size]
+    train_indices = indices[val_size:]
+    train_dataset = Subset(dataset, train_indices)
+    val_dataset = Subset(dataset, val_indices)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, pin_memory=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, pin_memory=True)
+    train_loader = DataLoader(train_dataset,batch_size=batch_size,shuffle=True,pin_memory=True)
+    val_loader = DataLoader(val_dataset,batch_size=batch_size,shuffle=False,pin_memory=True)
     return train_loader, val_loader
 
 
@@ -109,89 +107,80 @@ class stateSpaceModel(nn.Module):
         )
         
     def forward(self, x_prev, u):
-        # gets xt
         ux_prev = torch.cat([u,x_prev], dim=-1)
         x_curr = self.Fxu(ux_prev)
-
-        # gets zt
         ux_curr = torch.cat([u,x_curr], dim=-1)
         zt = self.Gxu(ux_curr)
         return x_curr, zt
 
 
-def train_ssm(state_model,train_loader,val_loader, num_epochs=200, save_path="./../ssm_models/",model_name="models_best_ssm.pth",
-              ssm_learning_rate=1e-4): 
+def train_ssm(state_model,train_loader,val_loader, num_epochs=200, save_path="./../models/",model_name="models_best_ssm.pth",lr=1e-4): 
     if not os.path.exists(save_path):
         os.makedirs(save_path)
+    best_val_loss = float('inf') 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     state_model.to(device)
-    optimizer_ssm = optim.Adam(state_model.parameters(), lr=ssm_learning_rate)
-    loss_fn_mse = nn.MSELoss()    
-    best_val_loss_ssm = float('inf')  
+    optimizer = optim.Adam(state_model.parameters(), lr=lr)
+    loss = nn.MSELoss()    
+   
     for epoch in range(num_epochs):
         state_model.train()
-        total_ssm_loss = 0.0
+        total_loss = 0.0
 
-        for u_batch, z_batch, _ , mask in train_loader:
-            u_batch = u_batch.to(device)
-            z_batch = z_batch.to(device)
+        for u, z, _ , mask in train_loader:
+            u = u.to(device)
+            z = z.to(device)
             mask = mask.unsqueeze(-1).to(device)
-            batch_size, seq_len, state_dim = u_batch.shape
+            batch_size, seq_len, state_dim = u.shape
             # state_dim = state_dim
             x_t = torch.zeros(batch_size, state_dim, device=device)
             predicted_z = []
             # loop on convo turns
             for t in range(seq_len):
-                u_t = u_batch[:, t, :]
+                u_t = u[:, t, :]
                 x_t, z_t = state_model(x_t, u_t)
                 predicted_z.append(z_t)
             
             predicted_z = torch.stack(predicted_z, dim=1)
 
-            ssm_loss = loss_fn_mse(predicted_z * mask, z_batch * mask)
-            optimizer_ssm.zero_grad()
-            ssm_loss.backward() 
-            optimizer_ssm.step()
+            loss = loss(predicted_z * mask, z * mask)
+            optimizer.zero_grad()
+            loss.backward() 
+            optimizer.step()
 
-            total_ssm_loss += ssm_loss.item()
+            total_loss += loss.item()
         
         # Validation
         state_model.eval()
-        val_total_ssm_loss = 0.0
+        val_total_loss = 0.0
         with torch.no_grad():
-            for u_batch, z_batch, _ , mask in val_loader:
-                u_batch = u_batch.to(device)
-                z_batch = z_batch.to(device)
+            for u, z, _ , mask in val_loader:
+                u = u.to(device)
+                z = z.to(device)
                 mask = mask.unsqueeze(-1).to(device)
-                batch_size, seq_len, state_dim = u_batch.shape
-
+                batch_size, seq_len, state_dim = u.shape
                 x_t = torch.zeros(batch_size, state_dim, device=device)
-
                 predicted_z = []
                 for t in range(seq_len):
-                    u_t = u_batch[:, t, :]
+                    u_t = u[:, t, :]
                     x_t, z_t = state_model(x_t, u_t)
                     predicted_z.append(z_t)
 
                 predicted_z = torch.stack(predicted_z, dim=1)
+                loss = loss(predicted_z*mask, z*mask)
 
-                ssm_loss = loss_fn_mse(predicted_z * mask, z_batch * mask)
-
-                val_total_ssm_loss += ssm_loss.item()
+                val_total_loss += loss.item()
                 
-        # Average losses
-        avg_train_ssm_loss = total_ssm_loss / len(train_loader)
-        avg_val_total_ssm_loss = val_total_ssm_loss / len(val_loader)
+        avg_train_loss = total_loss / len(train_loader)
+        avg_val_total_loss = val_total_loss / len(val_loader)
 
 
-        logging.info(f"Epoch {epoch + 1}/{num_epochs}"
-                     f" - Train SSM Loss: {avg_train_ssm_loss:.6f} "
-                     f"- Val SSM Loss: {avg_val_total_ssm_loss:.6f}")
+        logging.info(f"Epoch {epoch + 1}/{num_epochs} Train Loss: {avg_train_loss} Val Loss: {avg_val_total_loss}")
 
-        if avg_val_total_ssm_loss < best_val_loss_ssm:
-            best_val_loss_ssm = avg_val_total_ssm_loss
-            torch.save({'ssm': state_model.state_dict(),}, f"{save_path}/{model_name}")
-            logging.info(f"New best model saved with Val SSM Loss: {best_val_loss_ssm:.6f}")
+        if avg_val_total_loss < best_val_loss:
+            best_val_loss = avg_val_total_loss
+            torch.save({'state_space_model': state_model.state_dict(),}, f"{save_path}/{model_name}")
+            logging.info(f"New best model saved with Val Loss: {best_val_loss:.6f}")
 
 
 
@@ -226,17 +215,17 @@ if __name__ == "__main__":
     state_dim = 768    
     input_dim = 768    
     output_dim = 768   
-    hidden_dim_ssm1 = 1200  
-    hidden_dim_ssm2 = 900  
+    hidden_dim1 = 1200  
+    hidden_dim2 = 900  
 
-    state_model=stateSpaceModel(state_dim=state_dim, input_dim=input_dim, hidden_dim1=hidden_dim_ssm1,\
-                                hidden_dim2=hidden_dim_ssm2, output_dim=output_dim)
+    state_model=stateSpaceModel(state_dim=state_dim, input_dim=input_dim, hidden_dim1=hidden_dim1,\
+                                hidden_dim2=hidden_dim2, output_dim=output_dim)
     
     if CONTINUE_TRAINING:
         checkpoint = torch.load(os.path.join(this_file_path, "../models/models_best_ssm.pth"),
                                  map_location=torch.device('cpu'))
-        state_model.load_state_dict(checkpoint['ssm'])
+        state_model.load_state_dict(checkpoint['state_space_model'])
     
     save_path=this_file_path + "/../models/"
     train_ssm(state_model, train_loader, val_loader, num_epochs=200, save_path=save_path,model_name="models_best_ssm_new_data.pth",
-                    ssm_learning_rate=1e-4)
+                    lr=1e-4)
