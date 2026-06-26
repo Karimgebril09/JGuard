@@ -28,29 +28,46 @@ NUM_TAGS = len(NER_TAGS)
 
 
 class DistilBERTBiLSTMCRF(nn.Module):
-    def __init__(self, num_tags: int = NUM_TAGS, ignore_index: int = -100):
+
+    def __init__(self, num_tags, ignore_index=-100):
         super().__init__()
-        self.bert       = DistilBertModel.from_pretrained("distilbert-base-uncased")
-        self.lstm       = nn.LSTM(input_size=768, hidden_size=256,
-                                  batch_first=True, bidirectional=True)
+
+        self.bert = DistilBertModel.from_pretrained("distilbert-base-uncased")
+
+        self.lstm = nn.LSTM(
+            input_size=768,
+            hidden_size=256,
+            batch_first=True,
+            bidirectional=True
+        )
         self.classifier = nn.Linear(512, num_tags)
-        self.crf        = CRF(num_tags, batch_first=True)
+        self.crf = CRF(num_tags, batch_first=True)
         self.ignore_index = ignore_index
 
     def forward(self, input_ids, attention_mask, labels=None):
-        bert_out        = self.bert(input_ids=input_ids,
-                                    attention_mask=attention_mask.float())
-        lstm_out, _     = self.lstm(bert_out.last_hidden_state)
-        emissions       = self.classifier(lstm_out)
-        mask            = attention_mask.bool()
+        with torch.no_grad():
+            bert_out = self.bert(
+                input_ids=input_ids,
+                attention_mask=attention_mask.float()
+            )
 
-        if labels is not None:
+        lstm_out, _ = self.lstm(bert_out.last_hidden_state)
+
+        emissions = self.classifier(lstm_out)    #four probabilities for each token
+
+        mask = attention_mask.bool()#crf exepect false and true so i use it to convert            
+
+        if labels is not None:#because it use this during train 
+            
             safe_labels = labels.clone()
-            safe_labels[labels == self.ignore_index] = 0
-            loss = -self.crf(emissions, safe_labels, mask=mask, reduction="mean")
+            safe_labels[labels == self.ignore_index] = 0 #crf can not deal with negative label
+
+            loss = -self.crf(emissions, safe_labels, mask=mask, reduction="mean") #return log likelihood so negative so minimize loss = max likelihood
             return loss, emissions
 
-        return self.crf.decode(emissions, mask=mask)
+      
+        predictions = self.crf.decode(emissions, mask=mask)
+        return predictions
 
 
 class BiLSTMCRF(nn.Module):
