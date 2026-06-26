@@ -222,3 +222,13 @@ defender/
 # To generate the roleplaying model:
 
 run the notebook train.ipynb in defenders/roleplaying/
+
+# To start the backend:
+
+make backend
+
+# To start the frontend (dashboard):
+
+cd Dashboard\jguard\
+dotnet build
+dotnet run
