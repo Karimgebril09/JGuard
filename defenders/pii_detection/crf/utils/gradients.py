@@ -1,6 +1,6 @@
 from math import exp
 
-from forward_backward import forward_algorithm,backward_algorithm
+from defenders.pii_detection.crf.utils.forward_backward import forward_algorithm,backward_algorithm
 
 
 def empirical_feature_counts(X,Y,feature_manager):

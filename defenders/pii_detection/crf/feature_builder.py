@@ -5,6 +5,7 @@ def looks_like_email(word):
     result = re.fullmatch(r".+@.+\..+", word)
     return bool(result)
 
+
 def looks_like_ipv4(word):
     result = re.fullmatch(r"\d{1,3}(\.\d{1,3}){3}", word)
     return bool(result)
@@ -22,6 +23,7 @@ def looks_like_mac(word):
 def looks_like_hex(word):
     result = re.fullmatch(r"[0-9a-fA-F]{8,}", word)
     return bool(result)
+
 
 def is_four_digits(word):
     result = re.fullmatch(r"\d{4}", word)

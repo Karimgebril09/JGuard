@@ -1,4 +1,4 @@
-from defenders.pii_detection.crf.gradients import compute_gradient
+from defenders.pii_detection.crf.utils.gradients import compute_gradient
 from virterbi import decode_using_viterbi
 from collections import defaultdict
 
